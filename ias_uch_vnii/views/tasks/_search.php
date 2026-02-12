@@ -25,7 +25,7 @@ use yii\widgets\ActiveForm;
         </div>
         
         <div class="col-md-3">
-            <?= $form->field($model, 'id_status')->dropDownList(
+            <?= $form->field($model, 'status_id')->dropDownList(
                 \app\models\dictionaries\DicTaskStatus::getStatusList(),
                 ['prompt' => 'Все статусы...']
             ) ?>

@@ -15,28 +15,26 @@ StatisticsAsset::register($this);
 $this->title = 'Статистика заявок';
 $this->params['breadcrumbs'][] = $this->title;
 
-// Получаем статистику по статусам заявок
+// Статистика по статусам заявок
 $statusStats = \app\models\entities\Tasks::find()
-    ->select(['id_status', 'COUNT(*) as count'])
-    ->groupBy('id_status')
+    ->select(['status_id', 'COUNT(*) as count'])
+    ->groupBy('status_id')
     ->asArray()
     ->all();
 
-// Преобразуем в более удобный формат
 $statusData = [];
 $totalTasks = 0;
 foreach ($statusStats as $stat) {
-    $statusData[$stat['id_status']] = $stat['count'];
+    $statusData[$stat['status_id']] = $stat['count'];
     $totalTasks += $stat['count'];
 }
 
-// Получаем названия статусов
-$statusNames = [
-    1 => ['name' => 'Открыта', 'color' => '#28a745', 'icon' => 'glyphicon-folder-open'],
-    2 => ['name' => 'В работе', 'color' => '#ffc107', 'icon' => 'glyphicon-cog'],
-    3 => ['name' => 'Отменено', 'color' => '#dc3545', 'icon' => 'glyphicon-remove'],
-    4 => ['name' => 'Завершено', 'color' => '#17a2b8', 'icon' => 'glyphicon-ok'],
-];
+$statusNames = [];
+foreach (\app\models\dictionaries\DicTaskStatus::find()->orderBy(['sort_order' => SORT_ASC])->all() as $s) {
+    $colors = ['new' => '#28a745', 'in_progress' => '#ffc107', 'on_hold' => '#6c757d', 'resolved' => '#17a2b8', 'closed' => '#17a2b8', 'cancelled' => '#dc3545'];
+    $icons = ['new' => 'glyphicon-folder-open', 'in_progress' => 'glyphicon-cog', 'resolved' => 'glyphicon-ok', 'closed' => 'glyphicon-ok', 'cancelled' => 'glyphicon-remove'];
+    $statusNames[$s->id] = ['name' => $s->status_name, 'color' => $colors[$s->status_code] ?? '#6c757d', 'icon' => $icons[$s->status_code] ?? 'glyphicon-tag'];
+}
 
 // Подготавливаем данные для таблиц
 $userTableData = [];

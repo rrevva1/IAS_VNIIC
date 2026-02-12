@@ -62,20 +62,17 @@ $this->params['breadcrumbs'][] = $this->title;
 
             // Роль: показываем название роли (а не id) и фильтруем по БД
             [
-                'attribute' => 'id_role',
+                'attribute' => 'role_id',
                 'label'     => 'Роль',
                 'value'     => static fn($m) => $m->role ? $m->role->role_name : null,
                 'filter'    => Roles::getList(),
             ],
 
-            // Пароль (хэш) — не раскрываем
             [
-                // если в БД поле называется password_hash — лучше укажи его:
-                'attribute' => 'password', // замени на 'password_hash', если именно так в таблице
-                'label'     => 'Пароль (хэш)',
+                'attribute' => 'password_hash',
+                'label'     => 'Пароль',
                 'value'     => static fn() => '••••••••',
                 'filter'    => false,
-                'contentOptions' => ['style' => 'font-family:monospace;'],
             ],
 
             [

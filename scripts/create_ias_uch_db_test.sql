@@ -1,18 +1,26 @@
--- Целевая БД: ias_uch_db_test
+-- Целевая БД: IAS_VNIIC (боевая, учёт технических средств).
+-- Схема: tech_accounting (все объекты создаются в ней, не в public).
 -- Назначение: полная схема для требований TZ.md (особенно 5.1.4, 5.1.5, 5.1.6, 5.1.8, 5.1.10).
 --
 -- ВАЖНО:
 -- 1) Этот файл выполняется в уже выбранной БД.
--- 2) Перед запуском в DBeaver сначала создайте БД вручную:
---      CREATE DATABASE ias_uch_db_test WITH ENCODING 'UTF8' TEMPLATE template0;
--- 3) Затем откройте SQL Editor именно на соединении/БД ias_uch_db_test
---    и выполните данный файл целиком.
+-- 2) Перед запуском создайте БД (имя в кавычках сохраняет регистр):
+--      CREATE DATABASE "IAS_VNIIC" WITH ENCODING 'UTF8' TEMPLATE template0;
+-- 3) Подключитесь к БД IAS_VNIIC и выполните данный файл целиком.
 --
--- Вариант psql (две команды):
---   psql -U postgres -d postgres -c "CREATE DATABASE ias_uch_db_test WITH ENCODING 'UTF8' TEMPLATE template0;"
---   psql -U postgres -d ias_uch_db_test -f scripts/create_ias_uch_db_test.sql
+-- Вариант psql:
+--   psql -U postgres -d postgres -c "CREATE DATABASE \"IAS_VNIIC\" WITH ENCODING 'UTF8' TEMPLATE template0;"
+--   psql -U postgres -d "IAS_VNIIC" -f scripts/create_ias_uch_db_test.sql
+--
+-- Если БД уже была создана как ias_uch_db_test и нужно переименовать в боевую:
+--   (отключитесь от ias_uch_db_test) затем:
+--   ALTER DATABASE ias_uch_db_test RENAME TO "IAS_VNIIC";
 
 BEGIN;
+
+-- Схема учёта ТС (вместо public)
+CREATE SCHEMA IF NOT EXISTS tech_accounting;
+SET search_path TO tech_accounting;
 
 -- ==============================
 -- 1. СЛУЖЕБНЫЕ ФУНКЦИИ И ТРИГГЕРЫ
@@ -483,3 +491,9 @@ COMMIT;
 -- Для миграции со старой схемы поле tasks.attachments следует переносить в:
 --   1) tasks.attachments_legacy (как исторический слепок),
 --   2) task_attachments + desk_attachments (нормализованная связь).
+--
+-- Подключение приложения к БД IAS_VNIIC:
+--   Укажите в строке подключения/конфиге: dbname=IAS_VNIIC (или "IAS_VNIIC" при необходимости).
+--   Чтобы использовать схему tech_accounting без префикса в запросах, задайте для роли/пользователя:
+--   ALTER ROLE your_app_user SET search_path TO tech_accounting;
+--   либо в строке подключения (если клиент поддерживает): options=-c search_path=tech_accounting

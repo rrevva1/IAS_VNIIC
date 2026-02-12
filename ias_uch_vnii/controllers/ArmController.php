@@ -2,9 +2,10 @@
 
 namespace app\controllers;
 
-use app\models\entities\Arm;
+use app\models\entities\Equipment;
 use app\models\entities\Users;
 use app\models\entities\Location;
+use app\models\dictionaries\DicEquipmentStatus;
 use app\models\search\ArmSearch;
 use Yii;
 use yii\filters\AccessControl;
@@ -14,14 +15,11 @@ use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 
 /**
- * ArmController — учет технических средств (АРМ).
+ * ArmController — учёт техники (оборудование, таблица equipment, схема tech_accounting).
  * Доступен только администраторам.
  */
 class ArmController extends Controller
 {
-    /**
-     * Поведения контроллера: доступ только авторизованным администраторам.
-     */
     public function behaviors()
     {
         return [
@@ -49,10 +47,6 @@ class ArmController extends Controller
         ];
     }
 
-    /**
-     * Список техники (около 100 записей).
-     * @return string
-     */
     public function actionIndex()
     {
         $searchModel = new ArmSearch();
@@ -64,27 +58,26 @@ class ArmController extends Controller
         ]);
     }
 
-    /**
-     * Создание записи техники с возможностью закрепления за пользователем.
-     * @return string|\yii\web\Response
-     */
     public function actionCreate()
     {
-        $model = new Arm();
+        $model = new Equipment();
+        $model->loadDefaultValues();
 
         $users = ArrayHelper::map(
             Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
-            'id_user',
+            'id',
             function (Users $u) {
-                return $u->full_name ?: $u->email;
+                return $u->getDisplayName();
             }
         );
 
         $locations = ArrayHelper::map(
             Location::find()->orderBy(['name' => SORT_ASC])->all(),
-            'id_location',
+            'id',
             'name'
         );
+
+        $statuses = DicEquipmentStatus::getList();
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
             Yii::$app->session->setFlash('success', 'Техника успешно добавлена.');
@@ -95,26 +88,20 @@ class ArmController extends Controller
             'model' => $model,
             'users' => $users,
             'locations' => $locations,
+            'statuses' => $statuses,
         ]);
     }
 
     /**
-     * Поиск модели Arm по первичному ключу.
      * @param int $id
-     * @return Arm
+     * @return Equipment
      * @throws NotFoundHttpException
      */
-    protected function findModel(int $id): Arm
+    protected function findModel(int $id): Equipment
     {
-        if (($model = Arm::findOne(['id_arm' => $id])) !== null) {
+        if (($model = Equipment::findOne($id)) !== null) {
             return $model;
         }
-
         throw new NotFoundHttpException('Техника не найдена.');
     }
 }
-
-
-
-
-

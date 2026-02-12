@@ -2,8 +2,9 @@
 /**
  * Страница добавления техники (АРМ) для пользователя
  * @var yii\web\View $this
- * @var app\models\entities\Arm $model
+ * @var app\models\entities\Equipment $model
  * @var array $locations
+ * @var array $statuses
  * @var int $userId
  */
 
@@ -17,11 +18,12 @@ $this->params['breadcrumbs'][] = $this->title;
 
 <div class="users-arm-create">
     <h1><?= Html::encode($this->title) ?></h1>
-    <p class="text-muted">Заполните форму для добавления техники (АРМ) выбранному сотруднику.</p>
+    <p class="text-muted">Заполните форму для добавления техники выбранному сотруднику.</p>
 
     <?= $this->render('_arm_form', [
         'model' => $model,
         'locations' => $locations,
+        'statuses' => $statuses,
         'userId' => $userId,
     ]) ?>
 </div>

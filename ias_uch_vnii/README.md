@@ -40,11 +40,22 @@ npm install
 cp -r node_modules/ag-grid-community web/ag-grid-community
 
 # 3. Настройка базы данных
-psql -U postgres -c "CREATE DATABASE ias_uch_vnii ENCODING 'UTF8' LC_COLLATE='ru_RU.UTF-8' LC_CTYPE='ru_RU.UTF-8';"
-psql -U postgres ias_uch_vnii < ias_uch_vnii_public_dump.sql
+# Вариант 1 (рекомендуется): из корня репозитория TZ выполнить scripts\setup_ias_vniic_db.cmd
+# Вариант 2 вручную — целевая БД IAS_VNIIC, схема tech_accounting:
+#   psql -U postgres -d postgres -c "CREATE DATABASE \"IAS_VNIIC\" WITH ENCODING 'UTF8' TEMPLATE template0;"
+#   psql -U postgres -d "IAS_VNIIC" -f ../scripts/create_ias_uch_db_test.sql
+# Приложение настроено на dbname=IAS_VNIIC и search_path=tech_accounting (config/db.php).
+
+# 3.1. Если БД уже развёрнута (IAS_VNIIC создана, схема tech_accounting применена)
+#      — шаг 3 можно не повторять. Дальше нужен только первый пользователь (см. ниже).
+
+# 3.2. Первый пользователь (в схеме нет пользователей по умолчанию)
+#      Вариант А — миграция (создаётся admin / admin123):
+#        php yii migrate --migrationPath=@app/migrations
+#      Вариант Б — вручную в БД: INSERT в tech_accounting.users и tech_accounting.user_roles (роль admin).
 
 # 4. Настройка конфигурации
-# Отредактируйте config/db.php с вашими учетными данными
+# При необходимости отредактируйте config/db.php (хост, пользователь, пароль)
 
 # 5. Установка прав
 chmod -R 775 web/assets web/uploads runtime

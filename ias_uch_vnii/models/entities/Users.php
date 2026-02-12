@@ -7,74 +7,57 @@ use Yii;
 use yii\web\IdentityInterface;
 
 /**
- * Модель для таблицы "users".
+ * Модель для таблицы "users" (схема tech_accounting).
  *
- * @property int $id_user
+ * @property int $id
+ * @property string|null $username
  * @property string $full_name
- * @property string $email
- * @property int $id_role
- * @property string|null $password
- * @property string|null $auth_key
- * @property string|null $access_token
- * @property string|null $password_reset_token
+ * @property string|null $email
+ * @property string|null $password_hash
+ * @property bool $is_active
+ * @property bool $is_locked
  *
- * @property Roles $role
+ * @property Roles[] $roles через user_roles
  */
 class Users extends \yii\db\ActiveRecord implements IdentityInterface
 {
-    /** @var string Виртуальное поле для ввода пароля в открытом виде */
+    /** @var string Виртуальное поле для ввода пароля */
     public $password_plain;
 
-    /**
-     * Возвращает имя таблицы
-     */
+    /** @var int|null ID роли для формы (одна роль) */
+    public $role_id;
+
     public static function tableName()
     {
         return 'users';
     }
 
-    /**
-     * Правила валидации
-     */
     public function rules()
     {
         return [
-            /** Базовые поля */
-            [['password'], 'default', 'value' => null],
-            [['id_role'], 'default', 'value' => null],
-            [['id_role' , 'id_user'], 'integer'],
-
-            /** Строковые поля с ограничением длины */
-            [['email', 'password', 'position', 'department',], 'string', 'max' => 100],
+            [['full_name'], 'required'],
+            [['username', 'email', 'position', 'department', 'phone'], 'string', 'max' => 255],
             [['full_name'], 'string', 'max' => 200],
-            ['phone', 'string', 'max' => 50],
-            
-            /** Обязательные поля */
-            [['full_name', 'email', 'id_user'], 'required'],
-            [['email'], 'unique'],
-            [['id_role'], 'exist', 'skipOnError' => true,
-                'targetClass' => Roles::class, 'targetAttribute' => ['id_role' => 'id_role']],
-
-            /** Правила для пароля - вводим через виртуальное поле */
-            [['password_plain'], 'required', 'on' => 'create', 'message' => 'Введите пароль'],
+            [['email'], 'string', 'max' => 150],
+            [['username'], 'unique'],
+            [['email'], 'email'],
+            [['is_active', 'is_locked', 'is_deleted'], 'boolean'],
+            [['password_plain'], 'required', 'on' => 'create'],
             [['password_plain'], 'string', 'min' => 6, 'max' => 255],
-
-            /** Фильтрация данных - удаление пробелов */
+            [['role_id'], 'integer'],
+            [['role_id'], 'exist', 'skipOnEmpty' => true, 'targetClass' => Roles::class, 'targetAttribute' => ['role_id' => 'id']],
             [['full_name', 'email', 'password_plain'], 'filter', 'filter' => 'trim'],
         ];
     }
 
-    /**
-     * Метки атрибутов
-     */
     public function attributeLabels()
     {
         return [
             'id' => 'ID',
+            'username' => 'Логин',
             'full_name' => 'ФИО',
             'email' => 'Email',
-            'id_role' => 'Роль',
-            'password' => 'Пароль(хэш)',
+            'password_hash' => 'Пароль (хэш)',
             'password_plain' => 'Пароль',
             'position' => 'Должность',
             'department' => 'Отдел',
@@ -82,319 +65,240 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
         ];
     }
 
-    // ========== СВЯЗИ ==========
-
-    /**
-     * Получить связь с моделью роли пользователя
-     * 
-     * @return \yii\db\ActiveQuery
-     */
     public function getRole()
     {
-        return $this->hasOne(Roles::class, ['id_role' => 'id_role']);
+        $roleIds = $this->getActiveRoleIds();
+        if (empty($roleIds)) {
+            return null;
+        }
+        return Roles::findOne($roleIds[0]);
     }
+
     /**
-     * Проверяет, является ли пользователь администратором (по ID роли)
+     * Роли пользователя (через user_roles, только активные).
      *
-     * @return bool
+     * @return \yii\db\ActiveQuery
      */
+    public function getRoles()
+    {
+        return $this->hasMany(Roles::class, ['id' => 'role_id'])
+            ->viaTable('user_roles', ['user_id' => 'id'], function ($q) {
+                $q->andWhere(['user_roles.is_active' => true])
+                    ->andWhere(['user_roles.revoked_at' => null]);
+            });
+    }
+
+    private function getActiveRoleIds(): array
+    {
+        return UserRoles::find()
+            ->select('role_id')
+            ->where(['user_id' => $this->id, 'is_active' => true])
+            ->andWhere(['revoked_at' => null])
+            ->column();
+    }
+
     public function isAdmin()
     {
-        return $this->id_role == 5; /** ID роли администратора в БД */
+        return $this->hasRoleCode('admin');
     }
 
-    /**
-     * Проверяет, является ли пользователь обычным пользователем (по ID роли)
-     *
-     * @return bool
-     */
     public function isUser()
     {
-        return $this->id_role == 4; /** ID роли пользователя в БД */
+        return $this->hasRoleCode('user');
     }
 
-    // ========== ОБЯЗАТЕЛЬНЫЕ МЕТОДЫ IdentityInterface ==========
+    public function isAdministrator()
+    {
+        return $this->hasRoleCode('admin');
+    }
 
-    /**
-     * Найти пользователя по ID
-     */
+    public function isRegularUser()
+    {
+        return $this->hasRoleCode('user');
+    }
+
+    private function hasRoleCode(string $code): bool
+    {
+        $codes = Roles::find()
+            ->select('role_code')
+            ->innerJoin('user_roles', 'user_roles.role_id = roles.id')
+            ->where(['user_roles.user_id' => $this->id, 'user_roles.is_active' => true])
+            ->andWhere(['user_roles.revoked_at' => null])
+            ->column();
+        return in_array($code, $codes, true);
+    }
+
+    // ---------- IdentityInterface ----------
+
     public static function findIdentity($id)
     {
-        return static::findOne(['id_user' => $id]);
+        return static::findOne(['id' => $id]);
     }
 
-    /**
-     * Найти пользователя по токену доступа
-     */
     public static function findIdentityByAccessToken($token, $type = null)
     {
-        return static::findOne(['access_token' => $token]);
+        return null;
     }
 
-    /**
-     * Получить ID пользователя
-     */
     public function getId()
     {
-        return $this->getPrimaryKey();
+        return $this->getAttribute('id');
     }
 
-    /**
-     * Получить ключ аутентификации
-     */
     public function getAuthKey()
     {
-        return $this->auth_key;
+        return null;
     }
 
-    /**
-     * Проверить ключ аутентификации
-     */
     public function validateAuthKey($authKey)
     {
-        return $this->getAuthKey() === $authKey;
-    }
-
-    // ========== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ АВТОРИЗАЦИИ ==========
-
-    /**
-     * Найти пользователя по имени пользователя (для совместимости с IdentityInterface)
-     * В нашем случае username = email
-     */
-    public static function findByUsername($username)
-    {
-        return static::findOne(['email' => $username]);
-    }
-
-    /**
-     * Найти пользователя по email
-     */
-    public static function findByEmail($email)
-    {
-        return static::findOne(['email' => $email]);
-    }
-
-    /**
-     * Проверить пароль пользователя
-     * Поддерживает старый формат MD5 и новый формат Yii2 Security
-     * 
-     * @param string $password Пароль для проверки
-     * @return bool
-     */
-    public function validatePassword($password)
-    {
-        /** Если пароль пустой или null, возвращаем false */
-        if (empty($this->password) || empty($password)) {
-            return false;
-        }
-        
-        /** Проверяем старый формат md5 для совместимости (32 символа, только hex) */
-        if (strlen($this->password) === 32 && ctype_xdigit($this->password)) {
-            if (md5($password) === $this->password) {
-                /** Если пароль совпадает в старом формате, обновляем хеш на новый */
-                $this->setPassword($password);
-                $this->save(false);
-                return true;
-            }
-            return false;
-        }
-        
-        /** Проверяем новый формат хеша (Yii2 security) */
-        try {
-            if (Yii::$app->security->validatePassword($password, $this->password)) {
-                return true;
-            }
-        } catch (\Exception $e) {
-            /** Если хеш поврежден, считаем пароль неверным */
-            Yii::error('Неверный хэш пароля для пользователя ID: ' . $this->id . ', Ошибка: ' . $e->getMessage());
-            return false;
-        }
-        
         return false;
     }
 
-    /**
-     * Генерирует хэш пароля и устанавливает его в модель
-     * Использует MD5 для совместимости со старой системой
-     * 
-     * @param string $password Пароль в открытом виде
-     */
+    public static function findByUsername($username)
+    {
+        return static::find()
+            ->andWhere(['or', ['username' => $username], ['email' => $username]])
+            ->andWhere(['is_active' => true])
+            ->andWhere(['is_deleted' => false])
+            ->one();
+    }
+
+    public static function findByEmail($email)
+    {
+        return static::findOne(['email' => $email, 'is_active' => true, 'is_deleted' => false]);
+    }
+
+    public function validatePassword($password)
+    {
+        if (empty($this->password_hash) || empty($password)) {
+            return false;
+        }
+        try {
+            return Yii::$app->security->validatePassword($password, $this->password_hash);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     public function setPassword($password)
     {
-        $this->password = md5($password);
+        $this->password_hash = Yii::$app->security->generatePasswordHash($password);
     }
 
-    /**
-     * Генерирует ключ аутентификации "запомнить меня"
-     */
     public function generateAuthKey()
     {
-        $this->auth_key = Yii::$app->security->generateRandomString();
+        // В новой схеме нет поля auth_key
     }
 
-    // ========== СЦЕНАРИИ И СОБЫТИЯ ==========
-
-    /**
-     * Сценарии валидации
-     */
     public function scenarios()
     {
-        $scenarios = parent::scenarios();
-        $scenarios['create'] = ['full_name', 'email', 'id_role', 'password_plain'];
-        $scenarios['update'] = ['full_name', 'email', 'id_role', 'password_plain'];
-        return $scenarios;
+        $s = parent::scenarios();
+        $s['create'] = ['full_name', 'username', 'email', 'password_plain', 'role_id', 'position', 'department', 'phone'];
+        $s['update'] = ['full_name', 'username', 'email', 'password_plain', 'role_id', 'position', 'department', 'phone'];
+        return $s;
     }
 
-    /**
-     * Событие перед сохранением модели
-     * Генерирует auth_key и хэширует пароль при необходимости
-     * 
-     * @param bool $insert Флаг создания новой записи
-     * @return bool
-     */
     public function beforeSave($insert)
     {
         if (!parent::beforeSave($insert)) {
             return false;
         }
-        
-        /** Генерируем auth_key при создании нового пользователя */
-        if ($insert && empty($this->auth_key)) {
-            $this->generateAuthKey();
-        }
-        
-        /** Хэшируем пароль если он был изменен */
         if (!empty($this->password_plain)) {
             $this->setPassword($this->password_plain);
             $this->password_plain = null;
         }
-        
         return true;
     }
 
-    /**
-     * Событие после валидации
-     */
-    public function afterValidate()
+    public function afterSave($insert, $changedAttributes)
     {
-        parent::afterValidate();
-        
-        if (!empty($this->password_plain) && !$this->hasErrors()) {
-            $this->setPassword($this->password_plain);
+        parent::afterSave($insert, $changedAttributes);
+        if ($this->role_id !== null && $this->role_id !== '') {
+            $this->assignRole((int) $this->role_id);
         }
     }
 
-    // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
+    public function afterFind()
+    {
+        parent::afterFind();
+        $this->role_id = $this->getRoleIdForForm();
+    }
 
-    /**
-     * Виртуальное свойство username для совместимости
-     */
     public function getUsername()
     {
-        return $this->email;
+        return $this->username ?: $this->email;
     }
 
-    /**
-     * Удобный аксессор: имя роли
-     */
     public function getRoleName(): ?string
     {
-        return $this->role ? $this->role->role_name : null;
+        $role = $this->role;
+        return $role ? $role->role_name : null;
     }
 
-    /**
-     * Получить всех пользователей с загруженными ролями
-     * 
-     * @return Users[]
-     */
     public static function getUsersWithRoles()
     {
-        return self::find()
-            ->joinWith(['role'])
-            ->all();
+        return self::find()->joinWith(['roles'])->all();
     }
 
-    /**
-     * Получить пользователей с русскими названиями ролей
-     * Фильтрует только пользователей с ролями "администратор" и "пользователь"
-     * 
-     * @return Users[]
-     */
     public static function getUsersWithRussianRoles()
     {
         return self::find()
-            ->joinWith(['role'])
-            ->where(['IN', 'roles.role_name', ['администратор', 'пользователь']])
+            ->innerJoin('user_roles', 'user_roles.user_id = users.id')
+            ->innerJoin('roles', 'roles.id = user_roles.role_id')
+            ->where(['user_roles.is_active' => true])
+            ->andWhere(['user_roles.revoked_at' => null])
+            ->andWhere(['in', 'roles.role_name', ['Администратор', 'Пользователь', 'администратор', 'пользователь']])
             ->all();
     }
 
-    /**
-     * Получить список ролей для выпадающего списка
-     * Возвращает массив [id => название роли]
-     * 
-     * @return array
-     */
     public static function getRolesList()
     {
-        return \yii\helpers\ArrayHelper::map(
-            Roles::find()->all(), 
-            'id', 
-            'role_name'
-        );
+        return \yii\helpers\ArrayHelper::map(Roles::find()->all(), 'id', 'role_name');
     }
 
-    /**
-     * Проверить, является ли пользователь администратором (по названию роли)
-     * Проверяет название роли на русском языке
-     * 
-     * @return bool
-     */
-    public function isAdministrator()
-    {
-        return $this->role && $this->role->role_name === 'администратор';
-    }
-
-    /**
-     * Проверить, является ли пользователь обычным пользователем (по названию роли)
-     * Проверяет название роли на русском языке
-     * 
-     * @return bool
-     */
-    public function isRegularUser()
-    {
-        return $this->role && $this->role->role_name === 'пользователь';
-    }
-
-    /**
-     * Получить отображаемое имя роли на русском языке
-     * Преобразует английские названия ролей в русские
-     * 
-     * @return string
-     */
     public function getRoleDisplayName()
     {
-        if (!$this->role) {
+        $role = $this->role;
+        if (!$role) {
             return 'Не назначена';
         }
+        $map = ['admin' => 'Администратор', 'user' => 'Пользователь', 'operator' => 'Оператор'];
+        return $map[$role->role_code] ?? $role->role_name;
+    }
 
-        $roleMap = [
-            'admin' => 'администратор',
-            'user' => 'пользователь',
-            'администратор' => 'администратор',
-            'пользователь' => 'пользователь'
-        ];
-
-        return $roleMap[$this->role->role_name] ?? $this->role->role_name;
+    public function getDisplayName()
+    {
+        return $this->full_name ?: $this->email ?: $this->username ?: (string) $this->id;
     }
 
     /**
-     * Получить имя пользователя для отображения
-     * Возвращает ФИО, если заполнено, иначе email
-     * 
-     * @return string
+     * Назначить одну роль пользователю (для формы: одна роль в выпадающем списке).
+     * Создаёт или обновляет запись в user_roles.
      */
-    public function getDisplayName()
+    public function assignRole(int $roleId): bool
     {
-        return $this->full_name ?: $this->email;
+        $existing = UserRoles::find()
+            ->where(['user_id' => $this->id, 'role_id' => $roleId, 'is_active' => true])
+            ->andWhere(['revoked_at' => null])
+            ->one();
+        if ($existing) {
+            return true;
+        }
+        UserRoles::updateAll(['revoked_at' => date('Y-m-d H:i:s'), 'is_active' => false], ['user_id' => $this->id]);
+        $ur = new UserRoles();
+        $ur->user_id = $this->id;
+        $ur->role_id = $roleId;
+        $ur->assigned_at = date('Y-m-d H:i:s');
+        return $ur->save(false);
+    }
+
+    /**
+     * Получить ID текущей (первой активной) роли для формы.
+     */
+    public function getRoleIdForForm(): ?int
+    {
+        $ids = $this->getActiveRoleIds();
+        return $ids ? (int) $ids[0] : null;
     }
 }

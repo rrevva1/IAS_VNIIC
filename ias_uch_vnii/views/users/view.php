@@ -28,15 +28,15 @@ if (Yii::$app->user->identity && Yii::$app->user->identity->isAdministrator()) {
     <?php if (Yii::$app->user->identity && Yii::$app->user->identity->isAdministrator()): ?>
         <!-- Кнопки для администратора -->
         <p>
-            <?= Html::a('Редактировать', ['update', 'id' => $model->id_user], ['class' => 'btn btn-primary']) ?>
-            <?= Html::a('Сбросить пароль', ['reset-password', 'id' => $model->id_user], [
+            <?= Html::a('Редактировать', ['update', 'id' => $model->id], ['class' => 'btn btn-primary']) ?>
+            <?= Html::a('Сбросить пароль', ['reset-password', 'id' => $model->id], [
                 'class' => 'btn btn-warning',
                 'data' => [
                     'confirm' => 'Вы уверены, что хотите сбросить пароль этого пользователя?',
                     'method' => 'post',
                 ],
             ]) ?>
-            <?= Html::a('Удалить', ['delete', 'id' => $model->id_user], [
+            <?= Html::a('Удалить', ['delete', 'id' => $model->id], [
                 'class' => 'btn btn-danger',
                 'data' => [
                     'confirm' => 'Вы уверены, что хотите удалить этого пользователя?',
@@ -44,10 +44,10 @@ if (Yii::$app->user->identity && Yii::$app->user->identity->isAdministrator()) {
                 ],
             ]) ?>
         </p>
-    <?php elseif (Yii::$app->user->identity && Yii::$app->user->identity->id_user == $model->id_user): ?>
+    <?php elseif (Yii::$app->user->identity && Yii::$app->user->identity->id == $model->id): ?>
         <!-- Кнопки для собственного профиля -->
         <p>
-            <?= Html::a('Редактировать профиль', ['update', 'id_user' => $model->id_user], ['class' => 'btn btn-primary']) ?>
+            <?= Html::a('Редактировать профиль', ['update', 'id' => $model->id], ['class' => 'btn btn-primary']) ?>
             <?= Html::a('Выйти', ['/site/logout'], ['class' => 'btn btn-secondary', 'data-method' => 'post']) ?>
         </p>
     <?php endif; ?>
@@ -55,16 +55,16 @@ if (Yii::$app->user->identity && Yii::$app->user->identity->isAdministrator()) {
     <?= DetailView::widget([
         'model' => $model,
         'attributes' => [
-            'id_user',
+            'id',
             'full_name',
             'email:email',
             [
-                'attribute' => 'id_role',
+                'attribute' => 'role_id',
                 'label' => 'Роль',
                 'value' => $model->role ? $model->role->role_name : 'Роль не назначена',
             ],
             [
-                'attribute' => 'password',
+                'attribute' => 'password_hash',
                 'label' => 'Пароль',
                 'value' => '••••••••',
             ],

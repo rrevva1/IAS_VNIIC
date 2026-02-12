@@ -5,7 +5,7 @@ namespace app\controllers;
 use Yii;
 use app\models\entities\Tasks;
 use app\models\entities\Users;
-use app\models\entities\Arm;
+use app\models\entities\Equipment;
 use app\models\search\TasksSearch;
 use app\models\dictionaries\DicTaskStatus;
 use app\models\entities\DeskAttachments;
@@ -111,11 +111,9 @@ class TasksController extends Controller
         if ($this->request->isPost) {
             if ($model->load($this->request->post())) {
                 // Устанавливаем автора как текущего пользователя
-                $model->id_user = Yii::$app->user->id;
-            
-                // Устанавливаем статус по умолчанию
-                if (empty($model->id_status)) {
-                    $model->id_status = DicTaskStatus::getDefaultStatusId();
+                $model->requester_id = Yii::$app->user->id;
+                if (empty($model->status_id)) {
+                    $model->status_id = DicTaskStatus::getDefaultStatusId();
                 }
                 
                 // Загружаем файлы
@@ -173,12 +171,9 @@ class TasksController extends Controller
             Yii::info('$_POST RAW: ' . json_encode($_POST), 'tasks');
             
             if ($model->load($this->request->post())) {
-                /** Устанавливаем автора как текущего пользователя */
-                $model->id_user = Yii::$app->user->id;
-            
-                /** Устанавливаем статус по умолчанию, если не указан */
-                if (empty($model->id_status)) {
-                    $model->id_status = DicTaskStatus::getDefaultStatusId();
+                $model->requester_id = Yii::$app->user->id;
+                if (empty($model->status_id)) {
+                    $model->status_id = DicTaskStatus::getDefaultStatusId();
                 }
                 
                 /** Загружаем файлы из запроса */
@@ -325,7 +320,7 @@ class TasksController extends Controller
             throw new NotFoundHttpException('Файл не найден.');
         }
         
-        return Yii::$app->response->sendFile($attachment->getFullPath(), $attachment->name);
+        return Yii::$app->response->sendFile($attachment->getFullPath(), $attachment->original_name);
     }
 
     /**
@@ -343,7 +338,7 @@ class TasksController extends Controller
             throw new NotFoundHttpException('Файл не найден.');
         }
         
-        $extension = strtolower($attachment->extension);
+        $extension = strtolower((string) $attachment->file_extension);
         
         /** Определяем MIME-тип файла по расширению */
         $mimeTypes = [
@@ -360,10 +355,10 @@ class TasksController extends Controller
         
         $response = Yii::$app->response;
         $response->headers->set('Content-Type', $mimeType);
-        $response->headers->set('Content-Disposition', 'inline; filename="' . $attachment->name . '"');
+        $response->headers->set('Content-Disposition', 'inline; filename="' . $attachment->original_name . '"');
         $response->headers->set('Cache-Control', 'public, max-age=3600');
         
-        return $response->sendFile($attachment->getFullPath(), $attachment->name, ['inline' => true]);
+        return $response->sendFile($attachment->getFullPath(), $attachment->original_name, ['inline' => true]);
     }
 
     /**
@@ -381,7 +376,7 @@ class TasksController extends Controller
             throw new NotFoundHttpException('Файл не найден.');
         }
         
-        return Yii::$app->response->sendFile($attachment->getFullPath(), $attachment->name);
+        return Yii::$app->response->sendFile($attachment->getFullPath(), $attachment->original_name);
     }
 
     /**
@@ -403,8 +398,8 @@ class TasksController extends Controller
             $status = DicTaskStatus::findOne($statusId);
             
             if ($status) {
-                $model->id_status = $statusId;
-                $model->last_time_update = date('Y-m-d H:i:s');
+                $model->status_id = $statusId;
+                $model->updated_at = date('Y-m-d H:i:s');
                 if ($model->save(false)) {
                     return [
                         'success' => true,
@@ -456,7 +451,7 @@ class TasksController extends Controller
             }
             
             $model->executor_id = $executorId ?: null;
-            $model->last_time_update = date('Y-m-d H:i:s');
+            $model->updated_at = date('Y-m-d H:i:s');
             
             if ($model->save(false)) {
                 $executorName = $executorId ? Users::findOne($executorId)->full_name : 'Не назначен';
@@ -497,7 +492,7 @@ class TasksController extends Controller
             if ($this->request->isPost) {
             $comment = $this->request->post('comment');
             $model->comment = $comment;
-            $model->last_time_update = date('Y-m-d H:i:s');
+            $model->updated_at = date('Y-m-d H:i:s');
             
             if ($model->save(false)) {
                 return [
@@ -570,25 +565,25 @@ class TasksController extends Controller
     {
         /** Получаем данные для диаграммы количества заявок по пользователям */
         $userStats = Tasks::find()
-            ->select(['id_user', 'COUNT(*) as count'])
-            ->groupBy('id_user')
-            ->with('user')
+            ->select(['requester_id', 'COUNT(*) as count'])
+            ->groupBy('requester_id')
+            ->with('requester')
             ->asArray()
             ->all();
 
         $userChartData = [];
         foreach ($userStats as $stat) {
-            $user = Users::findOne($stat['id_user']);
+            $user = Users::findOne($stat['requester_id']);
             $userChartData[] = [
                 'name' => $user ? $user->full_name : 'Неизвестный пользователь',
                 'y' => (int)$stat['count']
             ];
         }
 
-        /** Получаем данные для диаграммы завершенных заявок по исполнителям */
+        $resolvedStatusId = (int) (DicTaskStatus::find()->where(['status_code' => 'resolved'])->select('id')->scalar() ?: DicTaskStatus::find()->where(['status_code' => 'closed'])->select('id')->scalar());
         $executorStats = Tasks::find()
             ->select(['executor_id', 'COUNT(*) as count'])
-            ->where(['id_status' => 4]) // Статус "Завершено"
+            ->where(['status_id' => $resolvedStatusId])
             ->andWhere(['not', ['executor_id' => null]])
             ->groupBy('executor_id')
             ->with('executor')
@@ -634,19 +629,19 @@ class TasksController extends Controller
                 $data[] = [
                     'id' => $model->id,
                     'description' => $model->description,
-                    'status_id' => $model->id_status,
+                    'status_id' => $model->status_id,
                     'status_name' => $model->status ? $model->status->status_name : '',
-                    'user_id' => $model->id_user,
-                    'user_name' => $model->user ? $model->user->full_name : '',
+                    'user_id' => $model->requester_id,
+                    'user_name' => $model->requester ? $model->requester->full_name : '',
                     'executor_id' => $model->executor_id,
                     'executor_name' => $model->executor ? $model->executor->full_name : '',
-                    'date' => $model->date ? Yii::$app->formatter->asDatetime($model->date, 'php:d.m.Y H:i') : '',
-                    'last_time_update' => $model->last_time_update ? Yii::$app->formatter->asDatetime($model->last_time_update, 'php:d.m.Y H:i') : '',
+                    'date' => $model->created_at ? Yii::$app->formatter->asDatetime($model->created_at, 'php:d.m.Y H:i') : '',
+                    'last_time_update' => $model->updated_at ? Yii::$app->formatter->asDatetime($model->updated_at, 'php:d.m.Y H:i') : '',
                     'comment' => $model->comment,
                     'attachments' => array_map(function($attachment) {
                         return [
-                            'id' => $attachment->attach_id,
-                            'name' => $attachment->name,
+                            'id' => $attachment->id,
+                            'name' => $attachment->original_name,
                             'icon' => $attachment->getFileIcon(),
                             'is_previewable' => $attachment->isImageOrScan(),
                             'preview_url' => $attachment->getPreviewUrl(),
@@ -681,9 +676,9 @@ class TasksController extends Controller
     public function actionExportUserStats()
     {
         $userStats = Tasks::find()
-            ->select(['id_user', 'COUNT(*) as count'])
-            ->groupBy('id_user')
-            ->with('user')
+            ->select(['requester_id', 'COUNT(*) as count'])
+            ->groupBy('requester_id')
+            ->with('requester')
             ->asArray()
             ->all();
 
@@ -719,10 +714,9 @@ class TasksController extends Controller
         /** Подсчитываем общее количество заявок для расчета процентов */
         $totalTasks = array_sum(array_column($userStats, 'count'));
 
-        /** Заполняем данные пользователей */
         $row = 2;
         foreach ($userStats as $stat) {
-            $user = Users::findOne($stat['id_user']);
+            $user = Users::findOne($stat['requester_id']);
             $percentage = $totalTasks > 0 ? round(($stat['count'] / $totalTasks) * 100, 2) : 0;
             
             $sheet->setCellValue('A' . $row, $user ? $user->full_name : 'Неизвестный пользователь');
@@ -771,9 +765,10 @@ class TasksController extends Controller
      */
     public function actionExportExecutorStats()
     {
+        $resolvedId = (int) (DicTaskStatus::find()->where(['status_code' => 'resolved'])->select('id')->scalar() ?: DicTaskStatus::find()->where(['status_code' => 'closed'])->select('id')->scalar());
         $executorStats = Tasks::find()
             ->select(['executor_id', 'COUNT(*) as count'])
-            ->where(['id_status' => 4]) // Статус "Завершено"
+            ->where(['status_id' => $resolvedId])
             ->andWhere(['not', ['executor_id' => null]])
             ->groupBy('executor_id')
             ->with('executor')
@@ -869,14 +864,12 @@ class TasksController extends Controller
         
         try {
             /** Получаем всю технику пользователя с загруженными связями */
-            $equipment = Arm::find()
-                ->where(['id_user' => $userId])
+            $equipment = Equipment::find()
+                ->where(['responsible_user_id' => $userId])
                 ->with(['location'])
                 ->all();
             
             $data = [];
-            
-            /** Если техники нет - возвращаем пустой массив */
             if (empty($equipment)) {
                 return [
                     'success' => true,
@@ -885,14 +878,13 @@ class TasksController extends Controller
                 ];
             }
             
-            /** Формируем массив данных для отображения */
-            foreach ($equipment as $arm) {
+            foreach ($equipment as $eq) {
                 $data[] = [
-                    'id' => $arm->id_arm,
-                    'name' => $arm->name,
-                    'location' => $arm->location ? $arm->location->name : 'Не указано',
-                    'description' => $arm->description ?: 'Нет описания',
-                    'created_at' => $arm->created_at,
+                    'id' => $eq->id,
+                    'name' => $eq->name,
+                    'location' => $eq->location ? $eq->location->name : 'Не указано',
+                    'description' => $eq->description ?: 'Нет описания',
+                    'created_at' => $eq->created_at,
                 ];
             }
             

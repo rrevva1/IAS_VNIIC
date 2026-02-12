@@ -2,9 +2,10 @@
 /**
  * Страница создания техники (АРМ).
  * @var yii\web\View $this
- * @var app\models\entities\Arm $model
+ * @var app\models\entities\Equipment $model
  * @var array $users
  * @var array $locations
+ * @var array $statuses
  */
 
 use yii\helpers\Html;
@@ -22,6 +23,7 @@ $this->params['breadcrumbs'][] = $this->title;
         'model' => $model,
         'users' => $users,
         'locations' => $locations,
+        'statuses' => $statuses,
     ]) ?>
 </div>
 

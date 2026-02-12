@@ -6,77 +6,66 @@ use app\models\entities\Tasks;
 use Yii;
 
 /**
- * Модель для таблицы "dic_task_status".
+ * Модель для таблицы "dic_task_status" (схема tech_accounting).
  *
- * @property int $id_status
+ * @property int $id
+ * @property string $status_code
  * @property string $status_name
+ * @property int $sort_order
+ * @property bool $is_final
+ * @property bool $is_archived
  *
  * @property Tasks[] $tasks
  */
 class DicTaskStatus extends \yii\db\ActiveRecord
 {
-    /**
-     * Возвращает имя таблицы
-     */
     public static function tableName()
     {
         return 'dic_task_status';
     }
 
-    /**
-     * Правила валидации
-     */
     public function rules()
     {
         return [
-            [['status_name'], 'required'],
-            [['status_name'], 'string', 'max' => 50],
-            [['status_name'], 'unique'],
+            [['status_code', 'status_name'], 'required'],
+            [['status_code', 'status_name'], 'string', 'max' => 100],
+            [['sort_order'], 'integer'],
+            [['is_final', 'is_archived'], 'boolean'],
+            [['status_code'], 'unique'],
         ];
     }
 
-    /**
-     * Метки атрибутов
-     */
     public function attributeLabels()
     {
         return [
-            'id_status' => 'ID Статуса',
+            'id' => 'ID',
+            'status_code' => 'Код',
             'status_name' => 'Название статуса',
         ];
     }
 
-    /**
-     * Получить запрос для [[Tasks]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
     public function getTasks()
     {
-        return $this->hasMany(Tasks::class, ['id_status' => 'id_status']);
+        return $this->hasMany(Tasks::class, ['status_id' => 'id']);
     }
 
     /**
-     * Получить список статусов для выпадающего списка
-     *
-     * @return array
+     * Список статусов для выпадающего списка [id => status_name].
      */
     public static function getStatusList()
     {
         return static::find()
-            ->select(['status_name', 'id_status'])
-            ->indexBy('id_status')
+            ->select(['status_name', 'id'])
+            ->indexBy('id')
             ->column();
     }
 
     /**
-     * Получить статус по умолчанию (первый в списке)
-     *
-     * @return int|null
+     * ID статуса по умолчанию (например, «Новая»).
      */
     public static function getDefaultStatusId()
     {
-        $status = static::find()->orderBy(['id_status' => SORT_ASC])->one();
-        return $status ? $status->id_status : null;
+        $status = static::find()->orderBy(['sort_order' => SORT_ASC])->one();
+        return $status ? (int) $status->id : null;
     }
 }

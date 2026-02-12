@@ -9,401 +9,202 @@ use yii\db\ActiveRecord;
 use yii\web\UploadedFile;
 
 /**
- * Модель для таблицы "tasks".
+ * Модель для таблицы "tasks" (схема tech_accounting).
  *
  * @property int $id
- * @property int $id_status
+ * @property string|null $task_number
+ * @property string|null $title
  * @property string $description
- * @property int $id_user
- * @property string|null $date
- * @property string|null $last_time_update
- * @property string|null $comment
+ * @property int $status_id
+ * @property int $requester_id
  * @property int|null $executor_id
- * @property int[]|null $attachments
+ * @property string $priority
+ * @property string|null $due_at
+ * @property string|null $closed_at
+ * @property string|null $comment
+ * @property string|null $created_at
+ * @property string|null $updated_at
  *
  * @property DicTaskStatus $status
- * @property Users $user
+ * @property Users $requester
  * @property Users $executor
- * @property DeskAttachments[] $taskAttachments
+ * @property DeskAttachments[] $taskAttachments через task_attachments
  */
 class Tasks extends ActiveRecord
 {
-    /**
-     * @var UploadedFile[] массив загружаемых файлов
-     */
     public $uploadFiles;
 
-    /**
-     * Возвращает имя таблицы
-     */
     public static function tableName()
     {
         return 'tasks';
     }
 
-    /**
-     * Определяет поведения модели
-     */
     public function behaviors()
     {
         return [
             [
                 'class' => TimestampBehavior::class,
-                'createdAtAttribute' => 'date',
-                'updatedAtAttribute' => 'last_time_update',
+                'createdAtAttribute' => 'created_at',
+                'updatedAtAttribute' => 'updated_at',
                 'value' => new \yii\db\Expression('CURRENT_TIMESTAMP'),
             ],
         ];
     }
 
-    /**
-     * Правила валидации
-     */
     public function rules()
     {
         return [
-            [['id_status', 'description', 'id_user'], 'required'],
-            [['id_status', 'id_user', 'executor_id'], 'integer'],
+            [['status_id', 'description', 'requester_id'], 'required'],
+            [['status_id', 'requester_id', 'executor_id'], 'integer'],
             [['description', 'comment'], 'string'],
-            [['attachments'], 'each', 'rule' => ['integer']],
-            [['attachments'], 'safe'],
-            [['date', 'last_time_update'], 'safe'],
-            [['id_status'], 'exist', 'skipOnError' => true, 'targetClass' => DicTaskStatus::class, 'targetAttribute' => ['id_status' => 'id_status']],
-            [['id_user'], 'exist', 'skipOnError' => true, 'targetClass' => Users::class, 'targetAttribute' => ['id_user' => 'id_user']],
-            [['executor_id'], 'exist', 'skipOnError' => true, 'targetClass' => Users::class, 'targetAttribute' => ['executor_id' => 'id']],
+            [['title'], 'string', 'max' => 250],
+            [['task_number'], 'string', 'max' => 50],
+            [['priority'], 'in', 'range' => ['low', 'medium', 'high', 'critical']],
+            [['due_at', 'closed_at', 'created_at', 'updated_at'], 'safe'],
+            [['status_id'], 'exist', 'targetClass' => DicTaskStatus::class, 'targetAttribute' => ['status_id' => 'id']],
+            [['requester_id'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['requester_id' => 'id']],
+            [['executor_id'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['executor_id' => 'id'], 'skipOnEmpty' => true],
             [['uploadFiles'], 'file', 'skipOnEmpty' => true, 'extensions' => 'png, jpg, jpeg, gif, pdf, doc, docx, xls, xlsx, txt', 'maxFiles' => 10],
         ];
     }
 
-    /**
-     * Метки атрибутов
-     */
     public function attributeLabels()
     {
         return [
             'id' => 'ID',
-            'id_status' => 'Статус',
+            'task_number' => 'Номер',
+            'title' => 'Тема',
+            'status_id' => 'Статус',
             'description' => 'Описание',
-            'id_user' => 'Автор',
-            'date' => 'Дата создания',
-            'last_time_update' => 'Последнее обновление',
-            'comment' => 'Комментарий',
+            'requester_id' => 'Автор',
             'executor_id' => 'Исполнитель',
-            'attachments' => 'Вложения',
-            'uploadFiles' => 'Файлы для загрузки',
+            'priority' => 'Приоритет',
+            'due_at' => 'Срок',
+            'closed_at' => 'Закрыта',
+            'comment' => 'Комментарий',
+            'created_at' => 'Дата создания',
+            'updated_at' => 'Обновлено',
+            'uploadFiles' => 'Файлы',
         ];
     }
 
-    /**
-     * Получить запрос для [[Status]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
     public function getStatus()
     {
-        return $this->hasOne(DicTaskStatus::class, ['id_status' => 'id_status']);
+        return $this->hasOne(DicTaskStatus::class, ['id' => 'status_id']);
     }
 
-    /**
-     * Получить запрос для [[User]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
-    public function getUser()
+    public function getRequester()
     {
-        return $this->hasOne(Users::class, ['id_user' => 'id_user']);
+        return $this->hasOne(Users::class, ['id' => 'requester_id']);
     }
 
-    /**
-     * Получить запрос для [[Executor]].
-     *
-     * @return \yii\db\ActiveQuery
-     */
     public function getExecutor()
     {
-        return $this->hasOne(Users::class, ['id_user' => 'executor_id']);
+        return $this->hasOne(Users::class, ['id' => 'executor_id']);
+    }
+
+    /** Для совместимости с представлениями: автор заявки */
+    public function getUser()
+    {
+        return $this->getRequester();
     }
 
     /**
-     * Получить запрос для [[TaskAttachments]].
+     * Вложения через таблицу task_attachments.
      *
      * @return \yii\db\ActiveQuery
      */
     public function getTaskAttachments()
     {
-        return $this->hasMany(DeskAttachments::class, ['attach_id' => 'attach_id'])
+        return $this->hasMany(DeskAttachments::class, ['id' => 'attachment_id'])
             ->viaTable('task_attachments', ['task_id' => 'id']);
     }
 
-    /**
-     * Получить массив ID вложений
-     *
-     * @return array
-     */
     public function getAttachmentsArray()
     {
-        return is_array($this->attachments) ? $this->attachments : [];
+        return $this->getTaskAttachments()->select('id')->column();
     }
 
-    /**
-     * Установить массив ID вложений
-     *
-     * @param array $attachments
-     */
-    public function setAttachmentsArray($attachments)
+    public function setAttachmentsArray(array $ids)
     {
-        $this->attachments = $attachments;
+        TaskAttachments::deleteAll(['task_id' => $this->id]);
+        foreach ($ids as $attachmentId) {
+            if ((int) $attachmentId > 0) {
+                $ta = new TaskAttachments();
+                $ta->task_id = $this->id;
+                $ta->attachment_id = (int) $attachmentId;
+                $ta->linked_at = date('Y-m-d H:i:s');
+                $ta->save(false);
+            }
+        }
     }
 
-    /**
-     * Добавить вложение к задаче
-     *
-     * @param int $attachmentId
-     */
     public function addAttachment($attachmentId)
     {
-        $attachments = $this->getAttachmentsArray();
-        if (!in_array($attachmentId, $attachments)) {
-            $attachments[] = $attachmentId;
-            $this->setAttachmentsArray($attachments);
-        }
-    }
-
-    /**
-     * Удалить вложение из задачи
-     *
-     * @param int $attachmentId
-     */
-    public function removeAttachment($attachmentId)
-    {
-        $attachments = $this->getAttachmentsArray();
-        $key = array_search($attachmentId, $attachments);
-        if ($key !== false) {
-            unset($attachments[$key]);
-            $this->setAttachmentsArray(array_values($attachments));
-        }
-    }
-
-    /**
-     * Получить все вложения задачи
-     *
-     * @return DeskAttachments[]
-     */
-    public function getAllAttachments()
-    {
-        $attachmentIds = $this->getAttachmentsArray(); 
-        if (!is_array($attachmentIds)) {
-            return [];
-        }
-        
-        return DeskAttachments::find()
-            ->where(['in', 'attach_id', $attachmentIds])
-            ->all();
-    }
-
-    /**
-     * Загрузить файлы и создать вложения
-     *
-     * @return bool
-     */
-    public function uploadFiles()
-    {
-        Yii::info("=== НАЧАЛО uploadFiles() ===", 'tasks');
-        Yii::info("Task ID: {$this->id}", 'tasks');
-        Yii::info("uploadFiles тип: " . gettype($this->uploadFiles), 'tasks');
-        Yii::info("uploadFiles пустой?: " . (empty($this->uploadFiles) ? 'ДА' : 'НЕТ'), 'tasks');
-        Yii::info("uploadFiles массив?: " . (is_array($this->uploadFiles) ? 'ДА' : 'НЕТ'), 'tasks');
-        
-        if (is_array($this->uploadFiles)) {
-            Yii::info("Количество файлов в uploadFiles: " . count($this->uploadFiles), 'tasks');
-            foreach ($this->uploadFiles as $i => $file) {
-                if ($file instanceof \yii\web\UploadedFile) {
-                    Yii::info("  Файл #{$i}: {$file->name} ({$file->size} байт)", 'tasks');
-                } else {
-                    Yii::info("  Файл #{$i}: НЕ UploadedFile!", 'tasks');
-                }
-            }
-        }
-        
-        /** Проверяем, что uploadFiles не пустой и является массивом */
-        if (empty($this->uploadFiles) || !is_array($this->uploadFiles)) {
-            Yii::info("uploadFiles пустой или не массив - выход", 'tasks');
-            return true; /** Не ошибка, просто нет файлов для загрузки */
-        }
-
-        if ($this->validate()) {
-            $uploadedAttachments = [];
-            
-            Yii::info("Начинаем загрузку файлов...", 'tasks');
-            foreach ($this->uploadFiles as $index => $file) {
-                Yii::info("--- Обработка файла #{$index}: {$file->name} ---", 'tasks');
-                $fileName = time() . '_' . uniqid() . '_' . $file->baseName . '.' . $file->extension;
-                $uploadPath = Yii::getAlias('@webroot/uploads/tasks/') . $fileName;
-                
-                /** Создаем директорию для загрузок, если её нет */
-                $uploadDir = Yii::getAlias('@webroot/uploads/tasks/');
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
-                
-                if ($file->saveAs($uploadPath)) {
-                    Yii::info("Файл сохранен на диск: {$uploadPath}", 'tasks');
-                    $attachment = new DeskAttachments();
-                    $attachment->name = $file->baseName . '.' . $file->extension;
-                    $attachment->path = '/uploads/tasks/' . $fileName;
-                    $attachment->extension = $file->extension;
-                    
-                    if ($attachment->save()) {
-                        $uploadedAttachments[] = $attachment->attach_id;
-                        Yii::info("Attachment сохранен в БД с ID: {$attachment->attach_id}", 'tasks');
-                    } else {
-                        Yii::error("Ошибка сохранения attachment для файла {$file->name}: " . json_encode($attachment->errors), 'tasks');
-                    }
-                } else {
-                    Yii::error("Ошибка сохранения файла {$file->name} в {$uploadPath}", 'tasks');
-                }
-            }
-            
-            Yii::info("Загружено attachments (ID): " . json_encode($uploadedAttachments), 'tasks');
-            
-            if (!empty($uploadedAttachments)) {
-                $currentAttachments = $this->getAttachmentsArray();
-                Yii::info("Текущие attachments в задаче: " . json_encode($currentAttachments), 'tasks');
-                
-                $merged = array_merge($currentAttachments, $uploadedAttachments);
-                Yii::info("После merge: " . json_encode($merged), 'tasks');
-                
-                $this->setAttachmentsArray($merged);
-                Yii::info("После setAttachmentsArray, attachments = " . json_encode($this->attachments), 'tasks');
-                
-                $saveResult = $this->save(false);
-                Yii::info("Результат save(false): " . ($saveResult ? 'УСПЕХ' : 'ОШИБКА'), 'tasks');
-                
-                if ($saveResult) {
-                    Yii::info("После save, attachments = " . json_encode($this->attachments), 'tasks');
-                }
-                
-                Yii::info("=== КОНЕЦ uploadFiles() ===", 'tasks');
-                return $saveResult;
-            }
-            
-            Yii::info("Нет загруженных attachments", 'tasks');
-            return true;
-        } else {
-            Yii::error("Ошибка валидации при загрузке файлов: " . json_encode($this->errors), 'tasks');
-        }
-        return false;
-    }
-    
-    /**
-     * Обработка массива attachments перед сохранением в БД
-     * Конвертирует PHP массив в JSON строку
-     */
-    public function beforeSave($insert)
-    {
-        if (parent::beforeSave($insert)) {
-            /** Убеждаемся, что attachments является массивом */
-            if (!is_array($this->attachments)) {
-                /** Если это строка JSON - декодируем */
-                if (is_string($this->attachments) && !empty($this->attachments)) {
-                    $decoded = json_decode($this->attachments, true);
-                    $this->attachments = is_array($decoded) ? $decoded : [];
-                } else {
-                    $this->attachments = [];
-                }
-            }
-            
-            /** Удаляем пустые и невалидные значения из массива */
-            $cleanAttachments = array_values(array_filter($this->attachments, function($val) {
-                return is_numeric($val) && $val > 0;
-            }));
-            
-            /** Конвертируем в JSON строку для хранения в БД */
-            $this->attachments = json_encode($cleanAttachments);
-            
-            return true;
-        }
-        return false;
-    }
-    
-    /**
-     * После сохранения восстанавливаем массив из JSON
-     */
-    public function afterSave($insert, $changedAttributes)
-    {
-        parent::afterSave($insert, $changedAttributes);
-        
-        /** Восстанавливаем массив из JSON для дальнейшей работы */
-        if (is_string($this->attachments)) {
-            $decoded = json_decode($this->attachments, true);
-            $this->attachments = is_array($decoded) ? $decoded : [];
-        }
-    }
-    
-    /**
-     * Обработка attachments после загрузки из БД
-     * Конвертирует JSON строку в PHP массив
-     */
-    public function afterFind()
-    {
-        parent::afterFind();
-        
-        /** Если это уже массив - ничего не делаем */
-        if (is_array($this->attachments)) {
+        if ((int) $attachmentId <= 0) {
             return;
         }
-        
-        /** Если это строка - декодируем JSON или парсим PostgreSQL массив */
-        if (is_string($this->attachments)) {
-            $trimmed = trim($this->attachments);
-            
-            /** Пустая строка или NULL */
-            if (empty($trimmed)) {
-                $this->attachments = [];
-                return;
-            }
-            
-            /** Проверяем, является ли это JSON массивом */
-            if ($trimmed[0] === '[') {
-                /** Это JSON формат: [1,2,3] */
-                $decoded = json_decode($trimmed, true);
-                $this->attachments = is_array($decoded) ? $decoded : [];
-            } 
-            /** Проверяем, является ли это PostgreSQL массивом */
-            elseif ($trimmed[0] === '{') {
-                /** Это PostgreSQL формат: {1,2,3} */
-                $value = trim($trimmed, '{}');
-                if (empty($value)) {
-                    $this->attachments = [];
-                } else {
-                    $this->attachments = array_values(array_filter(
-                        array_map('intval', explode(',', $value)),
-                        function($val) { return $val > 0; }
-                    ));
-                }
-            }
-            else {
-                /** Неизвестный формат - устанавливаем пустой массив */
-                $this->attachments = [];
-            }
-        } else {
-            /** На всякий случай устанавливаем пустой массив */
-            $this->attachments = [];
+        $exists = TaskAttachments::find()
+            ->where(['task_id' => $this->id, 'attachment_id' => $attachmentId])
+            ->exists();
+        if (!$exists) {
+            $ta = new TaskAttachments();
+            $ta->task_id = $this->id;
+            $ta->attachment_id = (int) $attachmentId;
+            $ta->linked_at = date('Y-m-d H:i:s');
+            $ta->save(false);
         }
     }
-    
-    /**
-     * Получить все задачи с связями
-     * Возвращает все задачи с подгруженными связями пользователя, исполнителя и статуса
-     * 
-     * @return Tasks[] Массив задач
-     */
+
+    public function removeAttachment($attachmentId)
+    {
+        TaskAttachments::deleteAll(['task_id' => $this->id, 'attachment_id' => $attachmentId]);
+    }
+
+    public function getAllAttachments()
+    {
+        return $this->getTaskAttachments()->all();
+    }
+
+    public function uploadFiles()
+    {
+        if (empty($this->uploadFiles) || !is_array($this->uploadFiles)) {
+            return true;
+        }
+        $uploadDir = Yii::getAlias('@webroot/uploads/tasks/');
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        foreach ($this->uploadFiles as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+            $fileName = time() . '_' . uniqid() . '_' . $file->baseName . '.' . $file->extension;
+            $relativePath = '/uploads/tasks/' . $fileName;
+            $fullPath = Yii::getAlias('@webroot') . $relativePath;
+            if (!$file->saveAs($fullPath)) {
+                continue;
+            }
+            $att = new DeskAttachments();
+            $att->storage_path = $relativePath;
+            $att->original_name = $file->baseName . '.' . $file->extension;
+            $att->file_extension = $file->extension;
+            $att->mime_type = $file->type;
+            $att->size_bytes = (int) $file->size;
+            $att->uploaded_by = Yii::$app->user->isGuest ? null : Yii::$app->user->id;
+            $att->uploaded_at = date('Y-m-d H:i:s');
+            if ($att->save(false)) {
+                $this->addAttachment($att->id);
+            }
+        }
+        return true;
+    }
+
     public static function AllTasks()
     {
-        $tasks = Tasks::find()
-        ->with(['user', 'executor', 'status'])
-        ->orderBy(['id' => SORT_DESC])
-        ->all();
-        return $tasks;
+        return self::find()
+            ->with(['requester', 'executor', 'status'])
+            ->orderBy(['id' => SORT_DESC])
+            ->all();
     }
 }

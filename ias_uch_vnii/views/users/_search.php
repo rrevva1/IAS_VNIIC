@@ -15,15 +15,13 @@ use yii\widgets\ActiveForm;
         'method' => 'get',
     ]); ?>
 
-    <?= $form->field($model, 'id_user') ?>
+    <?= $form->field($model, 'id') ?>
 
     <?= $form->field($model, 'full_name') ?>
 
     <?= $form->field($model, 'email') ?>
 
-    <?= $form->field($model, 'id_role') ?>
-
-    <?= $form->field($model, 'password') ?>
+    <?= $form->field($model, 'role_id')->dropDownList(\app\models\dictionaries\Roles::getList(), ['prompt' => '']) ?>
 
     <div class="form-group">
         <?= Html::submitButton('Search', ['class' => 'btn btn-primary']) ?>

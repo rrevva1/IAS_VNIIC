@@ -18,7 +18,6 @@ $this->registerMetaTag(['charset' => Yii::$app->charset], 'charset');
 $this->registerMetaTag(['name' => 'viewport', 'content' => 'width=device-width, initial-scale=1, shrink-to-fit=no']);
 $this->registerMetaTag(['name' => 'description', 'content' => $this->params['meta_description'] ?? '']);
 $this->registerMetaTag(['name' => 'keywords', 'content' => $this->params['meta_keywords'] ?? '']);
-$this->registerMetaTag(['name' => 'rebbe_rr', 'content' => $this->params['meta_keywords'] ?? '']);
 $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii::getAlias('@web/favicon.ico')]);
 
 $displayName = null;
@@ -57,7 +56,6 @@ if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
         $navItems = [
             ['label' => '<i class="fas fa-home"></i><span class="nav-text">     Главная</span>', 'url' => ['/site/index']],
             ['label' => '<i class="fas fa-info-circle"></i><span class="nav-text">    О проекте</span>', 'url' => ['/site/about']],
-            ['label' => '<i class="fas fa-cogs"></i><span class="nav-text">    РЕББЕ</span>', 'url' => ['/site/rebbe']],
             ['label' => '<i class="fas fa-envelope"></i><span class="nav-text">    Контакты</span>', 'url' => ['/site/contact']],
         ];
         

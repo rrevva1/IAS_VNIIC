@@ -3,208 +3,139 @@
 namespace app\models\entities;
 
 use Yii;
-use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
 
 /**
- * Модель для таблицы "desk_attachments".
+ * Модель для таблицы "desk_attachments" (схема tech_accounting).
  *
- * @property int $attach_id
- * @property string $path
- * @property string $name
- * @property string $extension
- * @property string|null $created_at
+ * @property int $id
+ * @property string $storage_path
+ * @property string $original_name
+ * @property string|null $file_extension
+ * @property string|null $mime_type
+ * @property int $size_bytes
+ * @property int|null $uploaded_by
+ * @property string $uploaded_at
  */
 class DeskAttachments extends ActiveRecord
 {
     /**
-     * Возвращает имя таблицы
+     * Совместимость: старые поля path/name/extension маппятся на storage_path/original_name/file_extension.
      */
+    public function getPath()
+    {
+        return $this->storage_path;
+    }
+
+    public function getName()
+    {
+        return $this->original_name;
+    }
+
+    public function getExtension()
+    {
+        return $this->file_extension;
+    }
+
     public static function tableName()
     {
         return 'desk_attachments';
     }
 
-    /**
-     * Определяет поведения модели
-     */
-    public function behaviors()
-    {
-        return [
-            [
-                'class' => TimestampBehavior::class,
-                'createdAtAttribute' => 'created_at',
-                'updatedAtAttribute' => false,
-                'value' => new \yii\db\Expression('CURRENT_TIMESTAMP'),
-            ],
-        ];
-    }
-
-    /**
-     * Правила валидации
-     */
     public function rules()
     {
         return [
-            [['path', 'name', 'extension'], 'required'],
-            [['created_at'], 'safe'],
-            [['path'], 'string', 'max' => 500],
-            [['name'], 'string', 'max' => 255],
-            [['extension'], 'string', 'max' => 10],
+            [['storage_path', 'original_name', 'size_bytes'], 'required'],
+            [['storage_path'], 'string', 'max' => 1000],
+            [['original_name'], 'string', 'max' => 255],
+            [['file_extension'], 'string', 'max' => 20],
+            [['mime_type'], 'string', 'max' => 150],
+            [['size_bytes'], 'integer', 'min' => 0],
+            [['uploaded_by'], 'integer'],
         ];
     }
 
-    /**
-     * Метки атрибутов
-     */
     public function attributeLabels()
     {
         return [
-            'attach_id' => 'ID Вложения',
-            'path' => 'Путь к файлу',
-            'name' => 'Имя файла',
-            'extension' => 'Расширение',
-            'created_at' => 'Дата создания',
+            'id' => 'ID',
+            'storage_path' => 'Путь',
+            'original_name' => 'Имя файла',
+            'file_extension' => 'Расширение',
+            'size_bytes' => 'Размер',
+            'uploaded_at' => 'Дата загрузки',
         ];
     }
 
-    /**
-     * Получить полный путь к файлу
-     *
-     * @return string
-     */
     public function getFullPath()
     {
-        return Yii::getAlias('@webroot') . $this->path;
+        $path = $this->storage_path;
+        if (strpos($path, '/') !== 0 && strpos($path, ':') === false) {
+            $path = '/' . $path;
+        }
+        return Yii::getAlias('@webroot') . $path;
     }
 
-    /**
-     * Проверить существование файла
-     *
-     * @return bool
-     */
     public function fileExists()
     {
         return file_exists($this->getFullPath());
     }
 
-    /**
-     * Получить размер файла
-     *
-     * @return int|false
-     */
     public function getFileSize()
     {
-        if ($this->fileExists()) {
-            return filesize($this->getFullPath());
-        }
-        return false;
+        return $this->fileExists() ? filesize($this->getFullPath()) : $this->size_bytes;
     }
 
-    /**
-     * Получить размер файла в читаемом формате
-     *
-     * @return string
-     */
     public function getFormattedFileSize()
     {
         $size = $this->getFileSize();
         if ($size === false) {
             return 'Неизвестно';
         }
-
         $units = ['B', 'KB', 'MB', 'GB'];
-        $unitIndex = 0;
-        
-        while ($size >= 1024 && $unitIndex < count($units) - 1) {
+        $i = 0;
+        while ($size >= 1024 && $i < count($units) - 1) {
             $size /= 1024;
-            $unitIndex++;
+            $i++;
         }
-        
-        return round($size, 2) . ' ' . $units[$unitIndex];
+        return round($size, 2) . ' ' . $units[$i];
     }
 
-    /**
-     * Получить иконку для типа файла
-     *
-     * @return string
-     */
     public function getFileIcon()
     {
-        $extension = strtolower($this->extension);
-        
+        $ext = strtolower((string) $this->file_extension);
         $icons = [
-            'pdf' => 'fa-file-pdf',
-            'doc' => 'fa-file-word',
-            'docx' => 'fa-file-word',
-            'xls' => 'fa-file-excel',
-            'xlsx' => 'fa-file-excel',
-            'txt' => 'fa-file-alt',
-            'jpg' => 'fa-file-image',
-            'jpeg' => 'fa-file-image',
-            'png' => 'fa-file-image',
-            'gif' => 'fa-file-image',
-            'bmp' => 'fa-file-image',
-            'svg' => 'fa-file-image',
+            'pdf' => 'fa-file-pdf', 'doc' => 'fa-file-word', 'docx' => 'fa-file-word',
+            'xls' => 'fa-file-excel', 'xlsx' => 'fa-file-excel', 'txt' => 'fa-file-alt',
+            'jpg' => 'fa-file-image', 'jpeg' => 'fa-file-image', 'png' => 'fa-file-image',
+            'gif' => 'fa-file-image', 'bmp' => 'fa-file-image', 'svg' => 'fa-file-image',
         ];
-        
-        return isset($icons[$extension]) ? $icons[$extension] : 'fa-file';
+        return $icons[$ext] ?? 'fa-file';
     }
 
-    /**
-     * Проверить, является ли файл изображением или сканом
-     *
-     * @return bool
-     */
     public function isImageOrScan()
     {
-        $extension = strtolower($this->extension);
-        $imageExtensions = ['pdf', 'png', 'jpeg', 'jpg', 'bmp', 'gif', 'svg'];
-        
-        return in_array($extension, $imageExtensions);
+        return in_array(strtolower((string) $this->file_extension), ['pdf', 'png', 'jpeg', 'jpg', 'bmp', 'gif', 'svg'], true);
     }
 
-    /**
-     * Получить URL для предпросмотра файла
-     *
-     * @return string
-     */
     public function getPreviewUrl()
     {
         if ($this->isImageOrScan()) {
-            return \yii\helpers\Url::to(['tasks/preview', 'id' => $this->attach_id]);
+            return \yii\helpers\Url::to(['tasks/preview', 'id' => $this->id]);
         }
-        return \yii\helpers\Url::to(['tasks/download', 'id' => $this->attach_id]);
+        return \yii\helpers\Url::to(['tasks/download', 'id' => $this->id]);
     }
 
-    /**
-     * Получить URL для скачивания файла
-     *
-     * @return string
-     */
     public function getDownloadUrl()
     {
-        return \yii\helpers\Url::to(['tasks/download', 'id' => $this->attach_id]);
+        return \yii\helpers\Url::to(['tasks/download', 'id' => $this->id]);
     }
 
-    /**
-     * Удалить файл с диска
-     *
-     * @return bool
-     */
     public function deleteFile()
     {
-        if ($this->fileExists()) {
-            return unlink($this->getFullPath());
-        }
-        return true;
+        return $this->fileExists() ? unlink($this->getFullPath()) : true;
     }
 
-    /**
-     * Переопределяем метод delete для удаления файла
-     *
-     * @return bool
-     */
     public function delete()
     {
         $this->deleteFile();

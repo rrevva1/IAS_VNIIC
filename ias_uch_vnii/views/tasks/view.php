@@ -42,18 +42,16 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
         'attributes' => [
             'id',
             [
-                'attribute' => 'id_status',
+                'attribute' => 'status_id',
                 'label' => 'Статус',
                 'format' => 'raw',
                 'value' => function ($model) {
                     $statusClass = 'default';
-                    switch ($model->id_status) {
-                        case 1: $statusClass = 'success'; break; // Открыта
-                        case 2: $statusClass = 'warning'; break; // В работе
-                        case 3: $statusClass = 'danger'; break; // Отменено
-                        case 4: $statusClass = 'info'; break; // Завершено
+                    if ($model->status && $model->status->status_code) {
+                        $map = ['new' => 'success', 'in_progress' => 'warning', 'resolved' => 'info', 'closed' => 'info', 'cancelled' => 'danger'];
+                        $statusClass = $map[$model->status->status_code] ?? 'default';
                     }
-                    return Html::tag('span', $model->status->status_name, [
+                    return Html::tag('span', $model->status ? $model->status->status_name : '—', [
                         'class' => 'label label-' . $statusClass
                     ]);
                 },
@@ -64,9 +62,9 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
                 'value' => nl2br(Html::encode($model->description)),
             ],
             [
-                'attribute' => 'user_id',
+                'attribute' => 'requester_id',
                 'label' => 'Автор',
-                'value' => $model->user->full_name,
+                'value' => $model->requester ? $model->requester->full_name : '—',
             ],
             [
                 'attribute' => 'executor_id',
@@ -75,11 +73,13 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
                 'value' => $model->executor ? $model->executor->full_name : '<span class="text-muted">Не назначен</span>',
             ],
             [
-                'attribute' => 'date',
+                'attribute' => 'created_at',
+                'label' => 'Дата создания',
                 'format' => ['date', 'php:d.m.Y H:i:s'],
             ],
             [
-                'attribute' => 'last_time_update',
+                'attribute' => 'updated_at',
+                'label' => 'Обновлено',
                 'format' => ['date', 'php:d.m.Y H:i:s'],
             ],
             [
@@ -94,7 +94,7 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
     <div class="row mt-4">
         <div class="col-md-6">
             <h4>Изменить статус</h4>
-            <?= Html::dropDownList('status_change', $model->id_status, 
+            <?= Html::dropDownList('status_change', $model->status_id, 
                 \app\models\dictionaries\DicTaskStatus::getStatusList(), [
                 'class' => 'form-control',
                 'id' => 'status-change',
@@ -104,7 +104,7 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
         <div class="col-md-6">
             <h4>Назначить исполнителя</h4>
             <?= Html::dropDownList('executor_change', $model->executor_id, 
-                \app\models\entities\Users::find()->select(['full_name', 'id_user'])->indexBy('id_user')->column(), [
+                \app\models\entities\Users::find()->select(['full_name', 'id'])->indexBy('id')->column(), [
                 'class' => 'form-control',
                 'id' => 'executor-change',
                 'prompt' => 'Выберите исполнителя...'
@@ -120,22 +120,22 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
             <div class="col-md-3 col-sm-4 col-xs-6 mb-3">
                 <div class="card attachment-card">
                     <div class="card-body text-center">
-                        <?php if (in_array(strtolower($attachment->extension), ['jpg', 'jpeg', 'png', 'gif'])): ?>
+                        <?php if (in_array(strtolower($attachment->file_extension), ['jpg', 'jpeg', 'png', 'gif'])): ?>
                             <!-- Предварительный просмотр изображений -->
-                            <img src="<?= \yii\helpers\Url::to(['view-attachment', 'attachmentId' => $attachment->attach_id]) ?>" 
-                                 alt="<?= Html::encode($attachment->name) ?>"
+                            <img src="<?= \yii\helpers\Url::to(['view-attachment', 'attachmentId' => $attachment->id]) ?>" 
+                                 alt="<?= Html::encode($attachment->original_name) ?>"
                                  class="img-fluid mb-2"
                                  data-bs-toggle="modal" 
                                  data-bs-target="#imageModal"
-                                 data-image-src="<?= \yii\helpers\Url::to(['view-attachment', 'attachmentId' => $attachment->attach_id]) ?>"
-                                 data-image-name="<?= Html::encode($attachment->name) ?>">
+                                 data-image-src="<?= \yii\helpers\Url::to(['view-attachment', 'attachmentId' => $attachment->id]) ?>"
+                                 data-image-name="<?= Html::encode($attachment->original_name) ?>">
                         <?php else: ?>
                             <!-- Иконка для не-изображений -->
                             <i class="fa <?= $attachment->getFileIcon() ?> fa-3x text-muted mb-2"></i>
                         <?php endif; ?>
                         
-                        <h6 class="card-title" title="<?= Html::encode($attachment->name) ?>">
-                            <?= \yii\helpers\StringHelper::truncate($attachment->name, 20) ?>
+                        <h6 class="card-title" title="<?= Html::encode($attachment->original_name) ?>">
+                            <?= \yii\helpers\StringHelper::truncate($attachment->original_name, 20) ?>
                         </h6>
                         <p class="text-muted small">
                             <?= $attachment->getFormattedFileSize() ?>
@@ -143,23 +143,23 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
                         
                         <div class="btn-group btn-group-sm">
                             <?= Html::a('<i class="glyphicon glyphicon-download-alt"></i>', 
-                                ['download-attachment', 'attachmentId' => $attachment->attach_id], [
+                                ['download-attachment', 'attachmentId' => $attachment->id], [
                                 'class' => 'btn btn-outline-primary',
                                 'title' => 'Скачать'
                             ]) ?>
-                            <?php if (in_array(strtolower($attachment->extension), ['jpg', 'jpeg', 'png', 'gif'])): ?>
+                            <?php if (in_array(strtolower($attachment->file_extension), ['jpg', 'jpeg', 'png', 'gif'])): ?>
                                 <button type="button" 
                                         class="btn btn-outline-info"
                                         data-bs-toggle="modal" 
                                         data-bs-target="#imageModal"
-                                        data-image-src="<?= \yii\helpers\Url::to(['view-attachment', 'attachmentId' => $attachment->attach_id]) ?>"
-                                        data-image-name="<?= Html::encode($attachment->name) ?>"
+                                        data-image-src="<?= \yii\helpers\Url::to(['view-attachment', 'attachmentId' => $attachment->id]) ?>"
+                                        data-image-name="<?= Html::encode($attachment->original_name) ?>"
                                         title="Просмотр">
                                     <i class="glyphicon glyphicon-eye-open"></i>
                                 </button>
                             <?php endif; ?>
                             <?= Html::a('<i class="glyphicon glyphicon-trash"></i>', 
-                                ['delete-attachment', 'taskId' => $model->id, 'attachmentId' => $attachment->attach_id], [
+                                ['delete-attachment', 'taskId' => $model->id, 'attachmentId' => $attachment->id], [
                                 'class' => 'btn btn-outline-danger',
                                 'title' => 'Удалить',
                                 'data' => [

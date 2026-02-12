@@ -6,47 +6,31 @@ use app\models\entities\Users;
 use yii\base\Model;
 use yii\data\ActiveDataProvider;
 use Yii;
+
 /**
- * UsersSearch представляет модель для формы поиска `app\models\Users`.
+ * Поиск пользователей (схема tech_accounting: id, role через user_roles).
  */
 class UsersSearch extends Users
 {
-    /**
-     * Правила валидации
-     */
     public function rules()
     {
         return [
-            [['id_user', 'id_role'], 'integer'],
-            [['full_name', 'email', 'password'], 'safe'],
+            [['id', 'role_id'], 'integer'],
+            [['full_name', 'email', 'username'], 'safe'],
         ];
     }
 
-    /**
-     * Сценарии модели
-     */
     public function scenarios()
     {
-        // обходим реализацию scenarios() в родительском классе
         return Model::scenarios();
     }
 
-    /**
-     * Создает экземпляр провайдера данных с примененным поисковым запросом
-     *
-     * @param array $params
-     * @param string|null $formName Имя формы для использования в методе `->load()`.
-     *
-     * @return ActiveDataProvider
-     */
     public function search($params, $formName = null)
     {
-        if (Yii::$app->user->identity->isAdministrator()) {
         $query = Users::find();
-        } else {
-            $query = Users::find()->where(['id_user' => Yii::$app->user->id_user]);
+        if (!Yii::$app->user->identity->isAdministrator()) {
+            $query->where(['users.id' => Yii::$app->user->id]);
         }
-        // добавьте условия, которые должны применяться всегда
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
@@ -55,20 +39,21 @@ class UsersSearch extends Users
         $this->load($params, $formName);
 
         if (!$this->validate()) {
-            // раскомментируйте следующую строку, если не хотите возвращать записи при неудачной валидации
-            // $query->where('0=1');
             return $dataProvider;
         }
 
-        // условия фильтрации grid
-        $query->andFilterWhere([
-            'id' => $this->id,
-            'id_role' => $this->id_role,
-        ]);
+        $query->andFilterWhere(['users.id' => $this->id]);
 
-        $query->andFilterWhere(['ilike', 'full_name', $this->full_name])
-            ->andFilterWhere(['ilike', 'email', $this->email])
-            ->andFilterWhere(['ilike', 'password', $this->password]);
+        if ($this->role_id !== null && $this->role_id !== '') {
+            $query->innerJoin('user_roles', 'user_roles.user_id = users.id')
+                ->andWhere(['user_roles.role_id' => $this->role_id])
+                ->andWhere(['user_roles.is_active' => true])
+                ->andWhere(['user_roles.revoked_at' => null]);
+        }
+
+        $query->andFilterWhere(['ilike', 'users.full_name', $this->full_name])
+            ->andFilterWhere(['ilike', 'users.email', $this->email])
+            ->andFilterWhere(['ilike', 'users.username', $this->username]);
 
         return $dataProvider;
     }

@@ -1,9 +1,10 @@
 <?php
 /**
- * Форма добавления техники (АРМ) для пользователя
+ * Форма добавления техники (оборудование) для пользователя
  * @var yii\web\View $this
- * @var app\models\entities\Arm $model
- * @var array $locations
+ * @var app\models\entities\Equipment $model
+ * @var array $locations [id => name]
+ * @var array $statuses [id => status_name]
  * @var int $userId
  */
 
@@ -15,22 +16,20 @@ use yii\widgets\ActiveForm;
 <div class="arm-create-form">
     <?php $form = ActiveForm::begin([
         'action' => ['users/arm-create', 'userId' => $userId],
-        'options' => [
-            'data-pjax' => 0, // при необходимости можно заменить на 1 для PJAX
-        ],
+        'options' => ['data-pjax' => 0],
     ]); ?>
 
-    <?php // Скрытое поле для назначения техники выбранному пользователю ?>
-    <?= $form->field($model, 'id_user')->hiddenInput([ 'value' => (int)$userId ])->label(false) ?>
+    <?= $form->field($model, 'responsible_user_id')->hiddenInput(['value' => (int)$userId])->label(false) ?>
 
-    <?php // Наименование техники ?>
-    <?= $form->field($model, 'name')->textInput([ 'maxlength' => true, 'placeholder' => 'Например: ПК Dell OptiPlex 7080' ]) ?>
+    <?= $form->field($model, 'inventory_number')->textInput(['maxlength' => true, 'placeholder' => 'Инв. номер']) ?>
 
-    <?php // Местоположение (кабинет/склад/и т.д.) ?>
-    <?= $form->field($model, 'id_location')->dropDownList($locations, [ 'prompt' => 'Выберите местоположение' ]) ?>
+    <?= $form->field($model, 'name')->textInput(['maxlength' => true, 'placeholder' => 'Например: ПК Dell OptiPlex 7080']) ?>
 
-    <?php // Описание/комментарий ?>
-    <?= $form->field($model, 'description')->textarea([ 'rows' => 3, 'placeholder' => 'Комментарий, комплектация, серийные номера и т.п.' ]) ?>
+    <?= $form->field($model, 'location_id')->dropDownList($locations, ['prompt' => 'Выберите местоположение']) ?>
+
+    <?= $form->field($model, 'status_id')->dropDownList($statuses, ['prompt' => '']) ?>
+
+    <?= $form->field($model, 'description')->textarea(['rows' => 3, 'placeholder' => 'Комментарий, комплектация']) ?>
 
     <div class="form-group">
         <?= Html::submitButton('Сохранить', ['class' => 'btn btn-success']) ?>
@@ -39,8 +38,3 @@ use yii\widgets\ActiveForm;
 
     <?php ActiveForm::end(); ?>
 </div>
-
-
-
-
-

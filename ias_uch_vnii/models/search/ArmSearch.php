@@ -2,51 +2,44 @@
 
 namespace app\models\search;
 
-use app\models\entities\Arm;
+use app\models\entities\Equipment;
 use yii\base\Model;
 use yii\data\ActiveDataProvider;
 
 /**
- * ArmSearch — модель поиска для техники (АРМ).
+ * Поиск по оборудованию (таблица equipment, схема tech_accounting).
  */
-class ArmSearch extends Arm
+class ArmSearch extends Model
 {
-    /**
-     * Правила валидации полей поиска
-     */
+    public $id;
+    public $name;
+    public $responsible_user_id;
+    public $location_id;
+    public $inventory_number;
+
     public function rules()
     {
         return [
-            [['id_arm', 'id_user', 'id_location'], 'integer'],
-            [['name', 'description', 'created_at'], 'safe'],
+            [['id', 'responsible_user_id', 'location_id'], 'integer'],
+            [['name', 'description', 'inventory_number'], 'safe'],
         ];
     }
 
-    /**
-     * Сценарии
-     */
     public function scenarios()
     {
         return Model::scenarios();
     }
 
-    /**
-     * Поиск по технике
-     * @param array $params
-     * @return ActiveDataProvider
-     */
     public function search(array $params): ActiveDataProvider
     {
-        $query = Arm::find()->with(['user', 'location']);
+        $query = Equipment::find()->with(['responsibleUser', 'location']);
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
-            'pagination' => [
-                'pageSize' => 20,
-            ],
+            'pagination' => ['pageSize' => 20],
             'sort' => [
-                'defaultOrder' => ['id_arm' => SORT_DESC],
-                'attributes' => ['id_arm', 'name', 'id_user', 'id_location', 'created_at'],
+                'defaultOrder' => ['id' => SORT_DESC],
+                'attributes' => ['id', 'name', 'responsible_user_id', 'location_id', 'created_at', 'inventory_number'],
             ],
         ]);
 
@@ -57,19 +50,15 @@ class ArmSearch extends Arm
         }
 
         $query->andFilterWhere([
-            'id_arm' => $this->id_arm,
-            'id_user' => $this->id_user,
-            'id_location' => $this->id_location,
+            'equipment.id' => $this->id,
+            'responsible_user_id' => $this->responsible_user_id,
+            'location_id' => $this->location_id,
         ]);
 
-        $query->andFilterWhere(['ilike', 'name', $this->name]);
-        $query->andFilterWhere(['ilike', 'description', $this->description]);
+        $query->andFilterWhere(['ilike', 'equipment.name', $this->name])
+            ->andFilterWhere(['ilike', 'equipment.description', $this->description ?? ''])
+            ->andFilterWhere(['ilike', 'equipment.inventory_number', $this->inventory_number]);
 
         return $dataProvider;
     }
 }
-
-
-
-
-

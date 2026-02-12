@@ -14,7 +14,7 @@ $roleItems = Roles::getList();
 
     <?= $form->field($model, 'email')->textInput(['maxlength' => true]) ?>
 
-    <?= $form->field($model, 'id_role')->dropDownList(
+    <?= $form->field($model, 'role_id')->dropDownList(
         $roleItems,
         ['prompt' => 'Выберите роль']
     ) ?>

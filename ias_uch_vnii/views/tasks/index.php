@@ -58,23 +58,15 @@ $gridColumns[] = [
 if ($isAdmin) {
     // Для админов - редактируемый dropdown
     $gridColumns[] = [
-        'attribute' => 'id_status',
+        'attribute' => 'status_id',
         'label' => 'Статус',
         'format' => 'raw',
         'headerOptions' => ['style' => 'text-align: center;'],
         'contentOptions' => ['style' => 'text-align: center; vertical-align: middle;'],
-        'value' => function ($model) {
-            // Цвета как в статистике - светлые фоны с темным текстом
-            $statusColors = [
-                1 => ['bg' => '#28a74520', 'text' => '#28a745'], // Открыта - светло-зеленый
-                2 => ['bg' => '#ffc10720', 'text' => '#856404'], // В работе - светло-желтый
-                3 => ['bg' => '#dc354520', 'text' => '#721c24'], // Отменено - светло-красный
-                4 => ['bg' => '#17a2b820', 'text' => '#0c5460'], // Завершено - светло-синий
-            ];
-            
-            $colorScheme = $statusColors[$model->id_status] ?? ['bg' => '#f8f9fa', 'text' => '#495057'];
-            
-            return Html::dropDownList('status_' . $model->id, $model->id_status, 
+        'value' => function ($model) use ($statusNames) {
+            $color = $statusNames[$model->status_id]['color'] ?? '#6c757d';
+            $colorScheme = ['bg' => $color . '20', 'text' => $color];
+            return Html::dropDownList('status_' . $model->id, $model->status_id, 
                 \app\models\dictionaries\DicTaskStatus::getStatusList(), [
                     'class' => 'form-control status-change',
                     'data-task-id' => $model->id,
@@ -86,7 +78,7 @@ if ($isAdmin) {
 } else {
     // Для обычных пользователей - только просмотр
     $gridColumns[] = [
-        'attribute' => 'id_status',
+        'attribute' => 'status_id',
         'label' => 'Статус',
         'width' => '120px',
         'value' => 'status.status_name',
@@ -98,11 +90,11 @@ $gridColumns[] = [
     'attribute' => 'user_name',
     'label' => 'Автор',
     'width' => '120px',
-    'value' => 'user.full_name',
+    'value' => 'requester.full_name',
     'filter' => Select2::widget([
         'model' => $searchModel,
         'attribute' => 'user_name',
-        'data' => \app\models\entities\Users::find()->select(['full_name', 'id_user'])->indexBy('id_user')->column(),
+        'data' => \app\models\entities\Users::find()->select(['full_name', 'id'])->indexBy('id')->column(),
         'options' => ['placeholder' => 'Выберите автора'],
         'pluginOptions' => [
             'allowClear' => true,
@@ -123,7 +115,7 @@ if ($isAdmin) {
         'contentOptions' => ['style' => 'text-align: center; vertical-align: middle;'],
         'value' => function ($model) {
             return Html::dropDownList('executor_' . $model->id, $model->executor_id, 
-                \app\models\entities\Users::find()->select(['full_name', 'id_user'])->indexBy('id_user')->column(), [
+                \app\models\entities\Users::find()->select(['full_name', 'id'])->indexBy('id')->column(), [
                     'class' => 'form-control executor-change',
                     'data-task-id' => $model->id,
                     'style' => 'font-size: 14px; padding: 8px 5px; width: 100%; text-align: center; text-align-last: center; border: none; border-radius: 4px; font-weight: 500;',
@@ -151,7 +143,7 @@ if ($isAdmin) {
 
 // 7. Дата создания (для всех)
 $gridColumns[] = [
-    'attribute' => 'date',
+    'attribute' => 'created_at',
     'label' => 'Создана',
     'width' => '120px',
     'format' => ['date', 'php:d.m.Y H:i'],
@@ -159,7 +151,7 @@ $gridColumns[] = [
 
 // 8. Дата обновления (для всех)
 $gridColumns[] = [
-    'attribute' => 'last_time_update',
+    'attribute' => 'updated_at',
     'label' => 'Обновлена',
     'width' => '120px',
     'format' => ['date', 'php:d.m.Y H:i'],
@@ -188,9 +180,9 @@ $gridColumns[] = [
                     'javascript:void(0);',
                     [
                         'class' => 'attachment-link preview-link',
-                        'title' => $attachment->name,
-                        'data-filename' => $attachment->name,
-                        'data-attachment-id' => $attachment->attach_id,
+                        'title' => $attachment->original_name,
+                        'data-filename' => $attachment->original_name,
+                        'data-attachment-id' => $attachment->id,
                         'data-preview-url' => $attachment->getPreviewUrl(),
                     ]
                 );
@@ -201,8 +193,8 @@ $gridColumns[] = [
                     $attachment->getDownloadUrl(),
                     [
                         'class' => 'attachment-link download-link',
-                        'title' => $attachment->name,
-                        'data-filename' => $attachment->name,
+                        'title' => $attachment->original_name,
+                        'data-filename' => $attachment->original_name,
                         'data-attachment-id' => $attachment->attach_id
                     ]
                 );
@@ -251,15 +243,15 @@ $isRegularUser = !Yii::$app->user->isGuest && Yii::$app->user->identity && Yii::
 $statusStats = [];
 if ($isRegularUser) {
     $statusStats = \app\models\entities\Tasks::find()
-        ->where(['id_user' => Yii::$app->user->id])
-        ->select(['id_status', 'COUNT(*) as count'])
-        ->groupBy('id_status')
+        ->where(['requester_id' => Yii::$app->user->id])
+        ->select(['status_id', 'COUNT(*) as count'])
+        ->groupBy('status_id')
         ->asArray()
         ->all();
 } else {
     $statusStats = \app\models\entities\Tasks::find()
-        ->select(['id_status', 'COUNT(*) as count'])
-        ->groupBy('id_status')
+        ->select(['status_id', 'COUNT(*) as count'])
+        ->groupBy('status_id')
         ->asArray()
         ->all();
 }
@@ -268,17 +260,16 @@ if ($isRegularUser) {
 $statusData = [];
 $totalTasks = 0;
 foreach ($statusStats as $stat) {
-    $statusData[$stat['id_status']] = $stat['count'];
+    $statusData[$stat['status_id']] = $stat['count'];
     $totalTasks += $stat['count'];
 }
 
-// Получаем названия статусов
-$statusNames = [
-    1 => ['name' => 'Открыта', 'color' => '#28a745', 'icon' => 'glyphicon-folder-open'],
-    2 => ['name' => 'В работе', 'color' => '#ffc107', 'icon' => 'glyphicon-cog'],
-    3 => ['name' => 'Отменено', 'color' => '#dc3545', 'icon' => 'glyphicon-remove'],
-    4 => ['name' => 'Завершено', 'color' => '#17a2b8', 'icon' => 'glyphicon-ok'],
-];
+$statusNames = [];
+foreach (\app\models\dictionaries\DicTaskStatus::find()->orderBy(['sort_order' => SORT_ASC])->all() as $s) {
+    $colors = ['new' => '#28a745', 'in_progress' => '#ffc107', 'on_hold' => '#6c757d', 'resolved' => '#17a2b8', 'closed' => '#17a2b8', 'cancelled' => '#dc3545'];
+    $icons = ['new' => 'glyphicon-folder-open', 'in_progress' => 'glyphicon-cog', 'resolved' => 'glyphicon-ok', 'closed' => 'glyphicon-ok', 'cancelled' => 'glyphicon-remove'];
+    $statusNames[$s->id] = ['name' => $s->status_name, 'color' => $colors[$s->status_code] ?? '#6c757d', 'icon' => $icons[$s->status_code] ?? 'glyphicon-tag'];
+}
 ?>
 <div class="create-task-wrapper">
     <?php if ($isRegularUser): ?>

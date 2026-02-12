@@ -22,8 +22,8 @@ $statusList = [];
 
 if ($isAdmin) {
     $usersList = Users::find()
-        ->select(['full_name', 'id_user'])
-        ->indexBy('id_user')
+        ->select(['full_name', 'id'])
+        ->indexBy('id')
         ->column();
     
     $statusList = DicTaskStatus::getStatusList();

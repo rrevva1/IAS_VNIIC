@@ -84,7 +84,7 @@ public class RunPgSqlFile {
         Set<String> existing = new HashSet<>();
         try (Connection targetConn = DriverManager.getConnection(jdbcUrl(host, port, targetDb), user, password);
              PreparedStatement ps = targetConn.prepareStatement(
-                     "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+                     "SELECT table_name FROM information_schema.tables WHERE table_schema = 'tech_accounting'"
              );
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {

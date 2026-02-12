@@ -1,10 +1,11 @@
 <?php
 /**
- * Форма создания/редактирования техники (АРМ).
+ * Форма создания/редактирования техники (оборудование).
  * @var yii\web\View $this
- * @var app\models\entities\Arm $model
- * @var array $users [id_user => name]
- * @var array $locations [id_location => name]
+ * @var app\models\entities\Equipment $model
+ * @var array $users [id => name]
+ * @var array $locations [id => name]
+ * @var array $statuses [id => status_name]
  */
 
 use yii\helpers\Html;
@@ -15,22 +16,26 @@ use yii\widgets\ActiveForm;
 <div class="arm-form">
     <?php $form = ActiveForm::begin(); ?>
 
+    <?= $form->field($model, 'inventory_number')->textInput(['maxlength' => true]) ?>
+
     <?= $form->field($model, 'name')->textInput([
         'maxlength' => true,
         'placeholder' => 'Например: ПК Lenovo ThinkCentre M720',
     ]) ?>
 
-    <?= $form->field($model, 'id_user')->dropDownList($users, [
+    <?= $form->field($model, 'responsible_user_id')->dropDownList($users, [
         'prompt' => 'Не закреплять',
     ]) ?>
 
-    <?= $form->field($model, 'id_location')->dropDownList($locations, [
+    <?= $form->field($model, 'location_id')->dropDownList($locations, [
         'prompt' => 'Выберите местоположение',
     ]) ?>
 
+    <?= $form->field($model, 'status_id')->dropDownList($statuses ?? [], ['prompt' => '']) ?>
+
     <?= $form->field($model, 'description')->textarea([
         'rows' => 4,
-        'placeholder' => 'Комментарий, комплектация, серийные номера и т.п.',
+        'placeholder' => 'Комментарий, комплектация',
     ]) ?>
 
     <div class="form-group">
@@ -40,8 +45,3 @@ use yii\widgets\ActiveForm;
 
     <?php ActiveForm::end(); ?>
 </div>
-
-
-
-
-

@@ -43,8 +43,8 @@
 | **Добавлено** | licenses | Лицензии ПО (key, valid_from, valid_to, seats, comment, software_id). |
 | **Добавлено** | software_installs | Установки ПО на оборудование (equipment_id, software_id, version, installed_at, installed_by_id, license_id). |
 | **Добавлено** | audit_events | Аудит действий (action, object_type, object_id, payload, actor_id, created_at, request_id, ip, user_agent). |
-| **Добавлено** | auth_group, auth_permission, auth_group_permissions | Django: группы и права. |
-| **Добавлено** | django_admin_log, django_content_type, django_migrations, django_session | Служебные таблицы Django. |
+| **Добавлено** | auth_group, auth_permission, auth_group_permissions | Группы и права (в дампе ias_vnii_db — следы другого стека; при работе на PHP не используются). |
+| **Добавлено** | django_admin_log, django_content_type, django_migrations, django_session | Служебные таблицы (в дампе ias_vnii_db; при работе на PHP не используются). |
 
 Таблицы **users**, **roles**, **locations**, **tasks**, **dic_task_status**, **desk_attachments**, **spr_parts**, **part_char_values**, **migration** присутствуют в обеих версиях (в v2 — с переименованными столбцами и единым стилем имён).
 
@@ -61,9 +61,9 @@
 | **Вложения** | desk_attachments: attach_id | desk_attachments: id |
 | **tasks** | attachments text | attachments text (без изменения; в данных — JSON-массив ID вложений) |
 | **locations** | — | Без изменения структуры; CHECK chk_location_type сохранён |
-| **users** | auth_key, access_token, password_reset_token (Yii2) | В v2 могут быть опущены или перенесены в слой приложения (Django) |
+| **users** | auth_key, access_token, password_reset_token (Yii2) | В v2 могут быть опущены или перенесены в слой приложения |
 
-Типы данных по сущностям не менялись: integer PK/FK, varchar с теми же длинами, text, timestamp. В v2 для audit_events и части Django-таблиц используются bigint и timestamp with time zone.
+Типы данных по сущностям не менялись: integer PK/FK, varchar с теми же длинами, text, timestamp. В v2 для audit_events и части служебных таблиц используются bigint и timestamp with time zone.
 
 ### 3. Индексы и внешние ключи
 
@@ -71,7 +71,7 @@
 arm → users, locations; arm_history → arm, users; part_char_values → arm, spr_parts, spr_char; tasks → dic_task_status, users; users → roles. В v1 нет FK для tasks.executor_id и связи desk_attachments с tasks (только логическая по attachments).
 
 **Внешние ключи (v2):**  
-equipment → users, locations; equip_history → equipment, users; part_char_values → equipment, spr_parts, spr_chars; tasks → dic_task_status, users (executor_id без FK); software_installs → software, licenses, users (equipment_id без FK к equipment); audit_events → users; Django-таблицы — связи между собой и с users.
+equipment → users, locations; equip_history → equipment, users; part_char_values → equipment, spr_parts, spr_chars; tasks → dic_task_status, users (executor_id без FK); software_installs → software, licenses, users (equipment_id без FK к equipment); audit_events → users. Таблицы auth_* и django_* в дампе v2 к доменной схеме не относятся; при целевой схеме для PHP (ias_uch_db_test) не включаются.
 
 **Индексы:**  
 В v1: idx_desk_attachments_name, idx_tasks_executor_id. В v2 сохранены те же два плюс индексы для audit_events (action, actor_id, created_at, object_type/object_id, request_id), для licenses (software_id, valid_to), для software (name, vendor), для software_installs (equipment_id, software_id, installed_at, installed_by_id, license_id), для auth_* и django_*.
@@ -215,7 +215,7 @@ equipment → users, locations; equip_history → equipment, users; part_char_va
 
 - **Загрузка из Excel:** порядок вставки: roles → locations → users → equipment → spr_parts/spr_chars → part_char_values → equip_history. Индексы по натуральным ключам (name в locations, full_name в users) ускоряют поиск при сопоставлении строк Excel с записями БД. Массовая вставка — COPY или batch INSERT с отключением проверок FK на время загрузки (по необходимости).
 - **Аналитика:** индексы по (equipment.location_id, is_deleted), (equipment.user_id, is_deleted), (equip_history.equipment_id, change_date), (part_char_values.equipment_id), (tasks.status_id, date), (audit_events.created_at) обеспечивают быструю фильтрацию и агрегацию по периодам и объектам.
-- **Интеграция:** единый стиль имён (id, *_id), явные FK и стабильный набор таблиц позволяют подключать приложения (Django, API) без изменения схемы; таблицы auth_* и django_* при необходимости размещаются в той же БД или выносятся в конфигурацию приложения.
+- **Интеграция:** единый стиль имён (id, *_id), явные FK и стабильный набор таблиц обеспечивают подключение приложения (PHP/Yii2 или иного) к целевой схеме. Таблицы auth_* и django_* из дампа ias_vnii_db при работе на PHP не используются; целевая схема — ias_uch_db_test без них.
 
 ---
 
@@ -261,7 +261,7 @@ equipment → users, locations; equip_history → equipment, users; part_char_va
 | Назначение | Расположение / содержание |
 |------------|---------------------------|
 | Создание и восстановление БД | `scripts/create_and_restore_db.cmd` — создание БД ias_vnii_db и восстановление из дампа `db/ias_vnii_db.sql`. |
-| Перенос данных из старых версий | Отдельный SQL-скрипт (или Python + psycopg2): подключение к ias_uch_vnii_db и ias_vnii_db, выборка из arm/users/locations/… и вставка в целевую схему с маппингом имён столбцов (см. п. 4.1). |
+| Перенос данных из старых версий | Отдельный SQL-скрипт или скрипт на PHP: подключение к ias_uch_vnii_db и при необходимости ias_vnii_db, выборка из arm/users/locations/… и вставка в целевую схему с маппингом имён столбцов (см. п. 4.1). |
 | Импорт из Excel | `scripts/load_osnovnoy_uchot.py` — шаблон; доработать под фактические имена столбцов листа «АРМ» (см. `docs/СТРУКТУРА_ЛИСТА_АРМ_ОСНОВНОЙ_УЧЕТ.md`) и добавить разбор неатомарных ячеек (разделители \n, запятая), валидацию ссылок на users/locations, обработку дубликатов по инв. номеру. |
 
 ---
@@ -527,7 +527,7 @@ GROUP BY s.id, s.status_name;
 
 ### 5.5. Достаточность ER-диаграммы 5.1 для реализации проекта (система учёта ТС предприятия)
 
-По результатам анализа ТЗ (`TZ.md`), описания системы (`SYSTEM_DESCRIPTION.md`), домена активов (`ias_py/docs/technical/ASSETS_DOMAIN.md`), разрывов фазы 1 (`PHASE1_GAPS.md`) и текущей схемы:
+По результатам анализа ТЗ (`TZ.md`), описания системы (`SYSTEM_DESCRIPTION.md`), документации по активам и БД (`docs/ОСНОВНОЙ_УЧЕТ_И_БД.md`, `docs/СРАВНЕНИЕ_ВЕРСИЙ_БД.md`) и текущей схемы:
 
 **Вывод: ER-диаграмма 5.1 достаточна как база (учёт ТС, заявки, пользователи, локации, история, справочники, аудит), но для полной реализации проекта по ТЗ в ней не хватает нескольких сущностей и связей.**
 
@@ -536,7 +536,7 @@ GROUP BY s.id, s.status_name;
 | Учёт активов: карточка, локация, закрепление, история (5.1.5) | Есть: equipment, locations, users, equip_history, part_char_values | Явно не отражены: **инв. номер (UNIQUE)**, **серийный номер**, **эксплуатационный статус** актива (в эксплуатации / на складе / в ремонте / списано), при необходимости — даты (постановка на учёт, гарантия). |
 | Поиск активов по инв. номеру, серийному, фильтр по статусу (5.1.8) | Поле name, нет статуса, нет отдельного inv/serial | Добавить в equipment: **inventory_number** (UNIQUE), **serial_number**, **status_id** → справочник статусов оборудования (или поле status). |
 | Связь заявки с активом — один или несколько (5.1.6) | Связи TASKS ↔ EQUIPMENT нет | **Связь заявка–оборудование:** либо tasks.equipment_id (FK, nullable), либо таблица **task_equipment** (task_id, equipment_id) для M2M. |
-| Вложения к заявкам: нормализованное хранение связи (5.1.4, PHASE1_GAPS) | tasks.attachments (text/JSON), desk_attachments | Нет таблицы связи: **task_attachments** (task_id, attachment_id) для нормализованной связи заявка–вложение. |
+| Вложения к заявкам: нормализованное хранение связи (5.1.4) | tasks.attachments (text/JSON), desk_attachments | Нет таблицы связи: **task_attachments** (task_id, attachment_id) для нормализованной связи заявка–вложение. |
 | Контур «ПО и лицензии» (ТЗ 1.4.6) | В п. 3.2 упомянуты, в ER 5.1 не показаны | Для начальной версии может не входить в приёмку; при подтверждении контура — добавить в диаграмму и DDL таблицы software, licenses, software_installs. |
 
 **Рекомендации для реализации:**
@@ -550,4 +550,4 @@ GROUP BY s.id, s.status_name;
 
 ---
 
-Итог по этапам 1–5: анализ различий между дампами (этап 1), предполагаемая структура Excel и фактическая структура листа «АРМ» с неатомарными ячейками (этапы 2 и 4), целевая схема БД с обоснованием 3НФ (этап 3), стратегия миграции и загрузки из Excel (этап 4), ER-диаграмма, словарь данных, DDL и примеры запросов (этап 5) — документированы в `DB_ias.md` и сопутствующих файлах (`docs/СТРУКТУРА_ЛИСТА_АРМ_ОСНОВНОЙ_УЧЕТ.md`, `scripts/create_target_db.sql`, `scripts/load_osnovnoy_uchot.py`).
+Итог по этапам 1–5: анализ различий между дампами (этап 1), предполагаемая структура Excel и фактическая структура листа «АРМ» с неатомарными ячейками (этапы 2 и 4), целевая схема БД с обоснованием 3НФ (этап 3), стратегия миграции и загрузки из Excel (этап 4), ER-диаграмма, словарь данных, DDL и примеры запросов (этап 5) — документированы в `DB_ias.md` и сопутствующих файлах (`docs/СТРУКТУРА_ЛИСТА_АРМ_ОСНОВНОЙ_УЧЕТ.md`, `scripts/create_target_db.sql`, при необходимости — скрипты загрузки в `scripts/`).

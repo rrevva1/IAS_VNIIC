@@ -1,6 +1,6 @@
 <?php
 /**
- * Страница учета техники (АРМ): список с фильтрами.
+ * Страница учета техники (оборудование): список с фильтрами.
  * @var yii\web\View $this
  * @var app\models\search\ArmSearch $searchModel
  * @var yii\data\ActiveDataProvider $dataProvider
@@ -17,13 +17,13 @@ $this->params['breadcrumbs'][] = $this->title;
 
 $userFilter = ArrayHelper::map(
     Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
-    'id_user',
-    function (Users $u) { return $u->full_name ?: $u->email; }
+    'id',
+    function (Users $u) { return $u->getDisplayName(); }
 );
 
 $locationFilter = ArrayHelper::map(
     Location::find()->orderBy(['name' => SORT_ASC])->all(),
-    'id_location',
+    'id',
     'name'
 );
 ?>
@@ -40,32 +40,35 @@ $locationFilter = ArrayHelper::map(
         'columns' => [
             ['class' => 'yii\grid\SerialColumn'],
             [
-                'attribute' => 'name',
-                'label' => 'Наименование',
-                'format' => 'text',
+                'attribute' => 'inventory_number',
+                'label' => 'Инв. номер',
             ],
             [
-                'attribute' => 'id_user',
-                'label' => 'Пользователь',
+                'attribute' => 'name',
+                'label' => 'Наименование',
+            ],
+            [
+                'attribute' => 'responsible_user_id',
+                'label' => 'Ответственный',
                 'value' => function ($model) {
-                    return $model->user ? ($model->user->full_name ?: $model->user->email) : '—';
+                    return $model->responsibleUser ? $model->responsibleUser->getDisplayName() : '—';
                 },
                 'filter' => Html::activeDropDownList(
                     $searchModel,
-                    'id_user',
+                    'responsible_user_id',
                     $userFilter,
                     ['class' => 'form-control', 'prompt' => 'Все']
                 ),
             ],
             [
-                'attribute' => 'id_location',
+                'attribute' => 'location_id',
                 'label' => 'Местоположение',
                 'value' => function ($model) {
                     return $model->location ? $model->location->name : '—';
                 },
                 'filter' => Html::activeDropDownList(
                     $searchModel,
-                    'id_location',
+                    'location_id',
                     $locationFilter,
                     ['class' => 'form-control', 'prompt' => 'Все']
                 ),
@@ -87,8 +90,3 @@ $locationFilter = ArrayHelper::map(
         'summary' => 'Показано {count} из {totalCount}',
     ]) ?>
 </div>
-
-
-
-
-

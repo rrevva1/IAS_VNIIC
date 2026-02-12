@@ -158,27 +158,6 @@ class SiteController extends Controller
     }
     
     /**
-     * Тестовое действие для демонстрации передачи параметров
-     * 
-     * @param string $message Сообщение для отображения
-     * @return string
-     */
-    public function actionSay($message = 'Привет')
-    {
-	return $this->render('say', ['message' => $message]);
-    }
-    
-    /**
-     * Тестовая страница Rebbe
-     * 
-     * @return string
-     */
-    public function actionRebbe()
-    {
-	return $this->render('rebbe');
-    }
-
-    /**
      * Тестирование авторизации
      * Страница для проверки текущего авторизованного пользователя
      * 

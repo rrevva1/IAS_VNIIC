@@ -3,8 +3,9 @@
 namespace app\controllers;
 
 use app\models\entities\Users;
-use app\models\entities\Arm;
+use app\models\entities\Equipment;
 use app\models\entities\Location;
+use app\models\dictionaries\DicEquipmentStatus;
 use app\models\search\UsersSearch;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
@@ -109,8 +110,8 @@ class UsersController extends Controller
 
         if ($this->request->isPost) {
             if ($model->load($this->request->post()) && $model->save()) {
-                return $this->redirect(['view', 'id' => $model->id_user]);
-            }
+return $this->redirect(['view', 'id' => $model->id]);
+        }
         } else {
             $model->loadDefaultValues();
         }
@@ -133,7 +134,7 @@ class UsersController extends Controller
         $model = $this->findModel($id);
 
         if ($this->request->isPost && $model->load($this->request->post()) && $model->save()) {
-            return $this->redirect(['view', 'id' => $model->id_user]);
+            return $this->redirect(['view', 'id' => $model->id]);
         }
 
         return $this->render('update', [
@@ -164,7 +165,7 @@ class UsersController extends Controller
      */
     protected function findModel($id)
     {
-        if (($model = Users::findOne(['id_user' => $id])) !== null) {
+        if (($model = Users::findOne(['id' => $id])) !== null) {
             return $model;
         }
 
@@ -186,10 +187,12 @@ class UsersController extends Controller
             throw new \yii\web\ForbiddenHttpException('Недостаточно прав для добавления техники этому пользователю.');
         }
 
-        $model = new Arm();
-        $model->id_user = (int)$userId;
+        $model = new Equipment();
+        $model->responsible_user_id = (int)$userId;
+        $model->loadDefaultValues();
 
-        $locations = ArrayHelper::map(Location::find()->orderBy(['name' => SORT_ASC])->all(), 'id_location', 'name');
+        $locations = ArrayHelper::map(Location::find()->orderBy(['name' => SORT_ASC])->all(), 'id', 'name');
+        $statuses = DicEquipmentStatus::getList();
 
         if ($model->load($this->request->post()) && $model->save()) {
             Yii::$app->session->setFlash('success', 'Техника успешно добавлена.');
@@ -197,7 +200,7 @@ class UsersController extends Controller
             if ($this->request->isAjax) {
                 return $this->asJson([
                     'success' => true,
-                    'id_arm' => $model->id_arm,
+                    'id' => $model->id,
                 ]);
             }
             return $this->redirect(['view', 'id' => $userId]);
@@ -207,6 +210,7 @@ class UsersController extends Controller
             return $this->renderAjax('_arm_form', [
                 'model' => $model,
                 'locations' => $locations,
+                'statuses' => $statuses,
                 'userId' => $userId,
             ]);
         }
@@ -214,6 +218,7 @@ class UsersController extends Controller
         return $this->render('arm_create', [
             'model' => $model,
             'locations' => $locations,
+            'statuses' => $statuses,
             'userId' => $userId,
         ]);
     }
@@ -252,18 +257,18 @@ class UsersController extends Controller
     {
         echo "<h2>Тестирование хешей паролей</h2>";
         
-        $users = Users::find()->where(['not', ['password' => null]])->all();
+        $users = Users::find()->where(['not', ['password_hash' => null]])->all();
         
         foreach ($users as $user) {
             echo "<h3>Пользователь ID: {$user->id}, Email: {$user->email}</h3>";
-            echo "<p>Хеш: " . substr($user->password, 0, 20) . "...</p>";
+            echo "<p>Хеш: " . substr($user->password_hash, 0, 20) . "...</p>";
             
             /** Проверяем формат хеша пароля */
-            if (strlen($user->password) === 32 && ctype_xdigit($user->password)) {
+            if (strlen($user->password_hash) === 32 && ctype_xdigit($user->password_hash)) {
                 echo "<p style='color: orange;'>Формат: MD5 (старый)</p>";
             } else {
                 try {
-                    Yii::$app->security->validatePassword('test', $user->password);
+                    Yii::$app->security->validatePassword('test', $user->password_hash);
                     echo "<p style='color: green;'>Формат: Yii2 Security (новый)</p>";
                 } catch (\Exception $e) {
                     echo "<p style='color: red;'>Формат: ПОВРЕЖДЕННЫЙ - " . $e->getMessage() . "</p>";
@@ -290,8 +295,8 @@ class UsersController extends Controller
             'id',
             'full_name',
             'email',
-            'id_role',
-            'password',
+            'role_id',
+            'password_hash',
         ];
         return $this->render('index2', [
             'searchModel' => $searchModel,

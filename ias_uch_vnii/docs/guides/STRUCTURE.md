@@ -19,7 +19,6 @@
 │   └── UsersAsset.php
 │
 ├── commands/                  # Консольные команды (CLI)
-│   └── HelloController.php
 │
 ├── components/                # Переиспользуемые компоненты приложения
 │   └── .gitkeep
