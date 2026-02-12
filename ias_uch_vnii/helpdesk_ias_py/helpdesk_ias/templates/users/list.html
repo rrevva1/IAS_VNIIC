@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Пользователи — IAS{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">Пользователи</h1>
+    <a class="btn btn-primary" href="{% url 'users:create' %}">Добавить пользователя</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>ФИО</th>
+          <th>Email</th>
+          <th>Роль</th>
+          <th>Отдел</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          <tr>
+            <td>{{ u.id }}</td>
+            <td>{{ u.full_name }}</td>
+            <td>{{ u.email }}</td>
+            <td>{{ u.role.name|default:"-" }}</td>
+            <td>{{ u.department|default:"-" }}</td>
+            <td>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'users:detail' u.id %}">Открыть</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted">Нет пользователей</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

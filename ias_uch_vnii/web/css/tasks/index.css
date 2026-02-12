@@ -1,0 +1,275 @@
+/**
+ * CSS стили для страницы списка заявок
+ */
+
+/* Основные стили для страницы списка */
+.tasks-index {
+    padding: 20px 0;
+}
+
+.tasks-index h1 {
+    color: #333;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+/* Стили для панели поиска */
+.search-panel {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.search-panel h3 {
+    color: #495057;
+    margin-bottom: 20px;
+    font-size: 18px;
+}
+
+/* Стили для фильтров */
+.filter-group {
+    margin-bottom: 15px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.filter-group .form-control {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.filter-group .form-control:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Стили для кнопок фильтров */
+.filter-buttons {
+    margin-top: 20px;
+}
+
+.filter-buttons .btn {
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+/* Стили для таблицы */
+.table-responsive {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+    padding: 15px 12px;
+}
+
+.table tbody td {
+    padding: 12px;
+    vertical-align: middle;
+    border-top: 1px solid #dee2e6;
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Стили для статусов в таблице */
+.status-badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 11px;
+    font-weight: bold;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.status-badge.status-open { background-color: #5cb85c; }
+.status-badge.status-in-progress { background-color: #f0ad4e; }
+.status-badge.status-cancelled { background-color: #d9534f; }
+.status-badge.status-completed { background-color: #5bc0de; }
+.status-badge.status-default { background-color: #777; }
+
+/* Стили для действий в таблице */
+.table-actions {
+    white-space: nowrap;
+}
+
+.table-actions .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    margin-right: 5px;
+}
+
+/* Стили для пагинации */
+.pagination {
+    margin-top: 20px;
+    justify-content: center;
+}
+
+.pagination .page-link {
+    color: #007bff;
+    border: 1px solid #dee2e6;
+    padding: 0.5rem 0.75rem;
+    margin-left: -1px;
+    line-height: 1.25;
+    background-color: #fff;
+    border-radius: 0;
+}
+
+.pagination .page-link:hover {
+    color: #0056b3;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: #fff;
+}
+
+/* Стили для пустого состояния */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 64px;
+    margin-bottom: 20px;
+    color: #dee2e6;
+}
+
+.empty-state h3 {
+    color: #495057;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    font-size: 16px;
+    margin-bottom: 30px;
+}
+
+/* Стили для статистики */
+.stats-panel {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stats-item {
+    text-align: center;
+    padding: 15px;
+}
+
+.stats-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+    display: block;
+}
+
+.stats-label {
+    font-size: 14px;
+    color: #6c757d;
+    margin-top: 5px;
+}
+
+/* Стили для быстрых действий */
+.quick-actions {
+    margin-bottom: 20px;
+}
+
+.quick-actions .btn {
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .tasks-index {
+        padding: 15px 0;
+    }
+    
+    .search-panel {
+        padding: 15px;
+    }
+    
+    .filter-buttons .btn {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+    
+    .table-responsive {
+        font-size: 14px;
+    }
+    
+    .table thead th,
+    .table tbody td {
+        padding: 8px 6px;
+    }
+    
+    .table-actions .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.8rem;
+    }
+    
+    .stats-panel {
+        padding: 15px;
+    }
+    
+    .stats-item {
+        padding: 10px;
+    }
+    
+    .stats-number {
+        font-size: 20px;
+    }
+    
+    .quick-actions .btn {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .table thead th,
+    .table tbody td {
+        padding: 6px 4px;
+        font-size: 12px;
+    }
+    
+    .status-badge {
+        font-size: 10px;
+        padding: 0.2em 0.4em;
+    }
+}

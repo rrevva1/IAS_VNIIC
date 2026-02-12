@@ -2,3 +2,10 @@
 ._*
 **/._*
 .DS_Store
+
+# ias_uch_vnii: зависимости и сгенерированные файлы
+ias_uch_vnii/vendor/
+ias_uch_vnii/node_modules/
+ias_uch_vnii/runtime/*
+!ias_uch_vnii/runtime/.gitignore
+ias_uch_vnii/web/assets/

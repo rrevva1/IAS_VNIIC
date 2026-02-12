@@ -1,0 +1,324 @@
+/**
+ * Стили для модальной формы создания/редактирования заявки
+ * Используется в AG Grid модальном окне
+ */
+
+/* Основные стили для формы в модальном окне */
+.modal-form {
+    padding: 0;
+}
+
+.task-create-form {
+    padding: 0;
+}
+
+/* Секции формы */
+.form-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #007bff;
+}
+
+.section-header i {
+    color: #007bff;
+    font-size: 16px;
+    margin-right: 8px;
+}
+
+.section-header h5 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #343a40;
+}
+
+/* Стили для полей формы */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 5px;
+    font-size: 13px;
+}
+
+.form-control {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+    outline: none;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Стили для загрузки файлов */
+.file-upload-wrapper {
+    margin-top: 10px;
+}
+
+.file-label {
+    display: block;
+    padding: 12px;
+    background: #fff;
+    border: 2px dashed #ced4da;
+    border-radius: 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    color: #495057;
+}
+
+.file-label:hover {
+    border-color: #007bff;
+    background: #f8f9ff;
+    color: #007bff;
+}
+
+.file-input-custom {
+    display: none;
+}
+
+.file-upload-wrapper small {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.file-upload-wrapper small i {
+    margin-right: 4px;
+}
+
+/* Список выбранных файлов */
+.selected-files-list {
+    margin-top: 15px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+}
+
+.selected-files-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.selected-files-header strong {
+    color: #495057;
+    font-size: 13px;
+}
+
+.clear-files-btn {
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+.files-list-container {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.file-item:hover {
+    background: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.file-item-name {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    color: #29537e;
+    word-break: break-all;
+}
+
+.file-item-name i {
+    margin-right: 8px;
+    color: #007bff;
+    font-size: 14px;
+}
+
+.file-item-size {
+    margin-left: 10px;
+    color: #6c757d;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.remove-file-btn {
+    margin-left: 10px;
+    padding: 2px 6px;
+    font-size: 11px;
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.remove-file-btn:hover {
+    background: #c82333;
+}
+
+/* Кнопки действий */
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn {
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-submit {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: #fff;
+    flex: 1;
+    margin-right: 10px;
+    box-shadow: 0 2px 5px rgba(40, 167, 69, 0.3);
+}
+
+.btn-submit:hover {
+    background: linear-gradient(135deg, #218838 0%, #1aa179 100%);
+    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4);
+    transform: translateY(-1px);
+}
+
+.btn-submit:active {
+    transform: translateY(0);
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: #fff;
+    min-width: 120px;
+}
+
+.btn-cancel:hover {
+    background: #5a6268;
+    color: #fff;
+}
+
+.btn i {
+    margin-right: 6px;
+}
+
+/* Сообщения об ошибках */
+.help-block {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Успешное поле */
+.has-success .form-control {
+    border-color: #28a745;
+}
+
+/* Поле с ошибкой */
+.has-error .form-control {
+    border-color: #dc3545;
+}
+
+.has-error .help-block {
+    display: block;
+}
+
+/* Анимация при загрузке */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.form-loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Адаптивность для модального окна */
+@media (max-width: 576px) {
+    .form-actions {
+        flex-direction: column-reverse;
+        gap: 10px;
+    }
+    
+    .btn-submit,
+    .btn-cancel {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .section-header h5 {
+        font-size: 13px;
+    }
+}
+
+/* Скрываем стандартные панели, если они есть */
+.panel {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    margin-bottom: 0;
+}
+
+.panel-heading {
+    display: none;
+}
+
+.panel-body {
+    padding: 0;
+}
+

@@ -1,0 +1,361 @@
+/**
+ * Стили для страницы заявок с AG Grid
+ * Включает кастомизацию темы Quartz и стили страницы
+ */
+
+/* ============================================
+   КОНТЕЙНЕРЫ И ОСНОВНАЯ СТРУКТУРА
+   ============================================ */
+
+/* Основной контейнер страницы */
+.tasks-index-ag {
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+}
+
+/* Контейнер AG Grid */
+#agGridTasksContainer {
+    width: 100%;
+    /* Начальная высота будет автоматически установлена через JavaScript
+       в зависимости от выбранного размера страницы (10, 20, 50, 100 строк).
+       Функция adjustGridHeight() динамически пересчитывает высоту. */
+    height: 1235px; /* начальная высота под 20 строк */
+    min-height: 500px;
+    position: relative;
+    /* Плавный переход при изменении высоты для лучшего UX */
+    transition: height 0.3s ease;
+}
+
+#agGridTasksContainer .text-center {
+    padding: 50px;
+}
+
+#agGridTasksContainer .text-center i {
+    font-size: 48px;
+    color: #667eea;
+}
+
+#agGridTasksContainer .text-center p {
+    margin-top: 20px;
+    font-size: 16px;
+}
+
+/* ============================================
+   КАСТОМИЗАЦИЯ ТЕМЫ AG GRID QUARTZ
+   ============================================ */
+
+/* Переопределение CSS-переменных темы Quartz */
+.ag-theme-quartz {
+    --ag-border-color: #e9ecef;
+    --ag-header-background-color: #f8f9fa;
+    --ag-header-foreground-color: #495057;
+    --ag-odd-row-background-color: #ffffff;
+    --ag-row-hover-color: #e3f2fd;
+    --ag-selected-row-background-color: #cce7ff;
+    --ag-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --ag-font-size: 14px;
+    --ag-row-height: 55px;
+    --ag-header-height: 55px;
+}
+
+/* Заголовки колонок */
+.ag-theme-quartz .ag-header-cell {
+    font-weight: 600;
+    font-size: 13px;
+    padding: 8px 12px;
+}
+
+/* Ячейки */
+.ag-theme-quartz .ag-cell {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    line-height: 1.5;
+}
+
+/* Стили для ссылок в ячейках */
+.ag-theme-quartz .ag-cell a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.ag-theme-quartz .ag-cell a:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+/* Стили для выпадающих списков в ячейках */
+.ag-theme-quartz .ag-cell select.form-control {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 13px;
+    padding: 4px 8px;
+    width: 100%;
+}
+
+/* Стили для панели пагинации */
+.ag-theme-quartz .ag-paging-panel {
+    border-top: 2px solid #e9ecef;
+    padding: 15px 20px;
+    background: #f8f9fa;
+}
+
+/* ============================================
+   ПАНЕЛЬ ИНСТРУМЕНТОВ
+   ============================================ */
+
+.ag-grid-toolbar {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.ag-grid-toolbar .btn-group {
+    display: flex;
+    gap: 5px;
+}
+
+.ag-grid-toolbar .btn {
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 4px;
+}
+
+/* ============================================
+   ВЛОЖЕНИЯ В ЯЧЕЙКАХ ГРИДА
+   ============================================ */
+
+/* Контейнер вложений */
+.attachments-container-ag {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+}
+
+/* Общие стили для ссылок вложений */
+.attachment-link-ag {
+    display: inline-block;
+    padding: 4px 6px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    background: #f8f9fa;
+}
+
+.attachment-link-ag:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+    color: #212529;
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Ссылка предпросмотра */
+.attachment-link-ag.preview-link {
+    color: #007bff;
+    border-color: #007bff;
+    background: #e7f3ff;
+}
+
+.attachment-link-ag.preview-link:hover {
+    background: #cce7ff;
+    border-color: #0056b3;
+    color: #0056b3;
+}
+
+/* Ссылка скачивания */
+.attachment-link-ag.download-link {
+    color: #28a745;
+    border-color: #28a745;
+    background: #e8f5e8;
+}
+
+.attachment-link-ag.download-link:hover {
+    background: #d4edda;
+    border-color: #1e7e34;
+    color: #1e7e34;
+}
+
+/* ============================================
+   МОДАЛЬНЫЕ ОКНА
+   ============================================ */
+
+/* Общие стили модальных окон */
+.modal .text-center {
+    padding: 50px;
+}
+
+.modal .text-center i.glyphicon-refresh {
+    font-size: 32px;
+    color: #667eea;
+}
+
+.modal .text-center p {
+    margin-top: 15px;
+}
+
+/* Модальное окно предпросмотра вложений */
+.preview-modal .modal-dialog {
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+.preview-modal .modal-content {
+    background: #000;
+    border: none;
+    border-radius: 8px;
+}
+
+.preview-modal .modal-header {
+    background: #333;
+    border-bottom: 1px solid #555;
+    color: #fff;
+}
+
+.preview-modal .modal-header .btn-close {
+    color: #fff;
+    opacity: 0.8;
+}
+
+.preview-modal .modal-header .btn-close:hover {
+    opacity: 1;
+}
+
+.preview-modal .modal-body {
+    padding: 0;
+    text-align: center;
+    background: #000;
+    max-height: 80vh;
+    overflow: auto;
+}
+
+.preview-modal .modal-body .text-muted {
+    padding: 30px;
+}
+
+.preview-modal .modal-body .text-muted p {
+    margin-top: 10px;
+}
+
+.preview-modal .modal-body img,
+.preview-modal .modal-body iframe {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+.preview-modal .modal-footer {
+    background: #333;
+    border-top: 1px solid #555;
+    padding: 10px 15px;
+}
+
+/* ============================================
+   АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* Контейнер страницы */
+    .tasks-index-ag {
+        padding: 10px;
+    }
+    
+    /* Контейнер грида */
+    #agGridTasksContainer {
+        height: calc(100vh - 400px);
+        min-height: 400px;
+    }
+    
+    /* Панель инструментов */
+    .ag-grid-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .ag-grid-toolbar .btn-group {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    /* Тема AG Grid */
+    .ag-theme-quartz {
+        --ag-font-size: 12px;
+        --ag-row-height: 40px;
+    }
+    
+    /* Модальное окно предпросмотра */
+    .preview-modal .modal-dialog {
+        max-width: 95vw;
+        max-height: 95vh;
+    }
+}
+
+/* ============================================
+   ВЫЕЗЖАЮЩАЯ ПАНЕЛЬ С ТЕХНИКОЙ РАБОТНИКА
+   ============================================ */
+
+/* Анимация появления панели */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Контейнер с техникой */
+.equipment-detail-container {
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Кнопка раскрытия (всегда видима) */
+.equipment-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid #667eea;
+    border-radius: 4px;
+    background: #ffffff;
+    color: #667eea;
+    font-weight: 700;
+    line-height: 1;
+    padding: 0;
+}
+
+/* Состояние раскрыто */
+.equipment-toggle-btn--expanded {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+/* Эффект при наведении */
+.equipment-toggle-btn:hover {
+    transform: scale(1.06);
+    opacity: 0.95;
+}
+
+/* Full Width Row - общие стили */
+.ag-full-width-row {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+.ag-full-width-row .equipment-detail-container {
+    width: 100%;
+}

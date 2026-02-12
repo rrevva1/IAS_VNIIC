@@ -1,0 +1,214 @@
+/**
+ * CSS стили для форм создания и редактирования заявок
+ */
+
+/* Основные стили для форм */
+.tasks-form {
+    padding: 20px 0;
+}
+
+.tasks-form h1 {
+    color: #333;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+/* Стили для формы */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+}
+
+.form-control {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    padding: 10px 12px;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+textarea.form-control {
+    min-height: 120px;
+    resize: vertical;
+}
+
+/* Стили для загрузки файлов */
+.file-upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: #007bff;
+    background-color: #e3f2fd;
+}
+
+.file-upload-area.dragover {
+    border-color: #007bff;
+    background-color: #e3f2fd;
+    transform: scale(1.02);
+}
+
+.file-upload-icon {
+    font-size: 48px;
+    color: #6c757d;
+    margin-bottom: 15px;
+}
+
+.file-upload-text {
+    color: #6c757d;
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.file-upload-hint {
+    color: #adb5bd;
+    font-size: 14px;
+}
+
+/* Стили для списка загруженных файлов */
+.uploaded-files {
+    margin-top: 20px;
+}
+
+.uploaded-file-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.uploaded-file-icon {
+    margin-right: 10px;
+    color: #6c757d;
+}
+
+.uploaded-file-name {
+    flex: 1;
+    color: #333;
+    font-weight: 500;
+}
+
+.uploaded-file-size {
+    color: #6c757d;
+    font-size: 12px;
+    margin-right: 10px;
+}
+
+.uploaded-file-remove {
+    color: #dc3545;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+.uploaded-file-remove:hover {
+    background-color: #f8d7da;
+}
+
+/* Стили для кнопок */
+.btn {
+    border-radius: 4px;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+    border-color: #545b62;
+}
+
+/* Стили для валидации */
+.has-error .form-control {
+    border-color: #dc3545;
+}
+
+.has-error .help-block {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+/* Стили для прогресс-бара загрузки */
+.upload-progress {
+    margin-top: 10px;
+    display: none;
+}
+
+.progress {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    background-color: #007bff;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .tasks-form {
+        padding: 15px 0;
+    }
+    
+    .file-upload-area {
+        padding: 20px 15px;
+    }
+    
+    .file-upload-icon {
+        font-size: 36px;
+    }
+    
+    .uploaded-file-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .uploaded-file-name {
+        margin-bottom: 5px;
+    }
+    
+    .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}

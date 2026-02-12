@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == "create" %}Новая заявка{% else %}Редактировать заявку{% endif %} — IAS{% endblock %}
+
+{% block content %}
+  <h1 class="h4 mb-3">{% if mode == "create" %}Создать заявку{% else %}Редактировать заявку{% endif %}</h1>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">Описание</label>
+      {{ form.description }}
+      {% if form.description.errors %}
+        <div class="text-danger small">{{ form.description.errors }}</div>
+      {% endif %}
+    </div>
+    {% if is_admin %}
+      <div class="mb-3">
+        <label class="form-label">Статус</label>
+        {{ form.status }}
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Исполнитель</label>
+        {{ form.executor }}
+      </div>
+    {% endif %}
+    <div class="mb-3">
+      <label class="form-label">Комментарий</label>
+      {{ form.comment }}
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Вложения</label>
+      {{ form.upload_files }}
+      <div class="form-text">До 10 файлов, до 10 МБ каждый.</div>
+    </div>
+    <button class="btn btn-primary">Сохранить</button>
+    <a class="btn btn-outline-secondary" href="{% url 'tasks:list' %}">Отмена</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,275 @@
+/**
+ * CSS стили для страницы просмотра заявки
+ * Стили для карточек вложений и модального окна
+ */
+
+/* Основные стили для страницы задач */
+.tasks-view {
+    padding: 20px 0;
+}
+
+.tasks-view h1 {
+    color: #333;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+/* Стили для кнопок действий */
+.tasks-view .btn {
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+/* Стили для DetailView */
+.tasks-view .detail-view {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+/* Стили для статусов */
+.label {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+    color: #fff;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+}
+
+.label-success { background-color: #5cb85c; }
+.label-warning { background-color: #f0ad4e; }
+.label-danger { background-color: #d9534f; }
+.label-info { background-color: #5bc0de; }
+.label-default { background-color: #777; }
+
+/* Стили для быстрого управления */
+.tasks-view .row.mt-4 {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.tasks-view .row.mt-4 h4 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+/* Стили для карточек вложений */
+.attachment-card {
+    transition: transform 0.2s ease-in-out;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.attachment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.attachment-card .card-body {
+    padding: 15px;
+}
+
+.attachment-card img {
+    border-radius: 4px;
+    max-height: 120px;
+    cursor: pointer;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.attachment-card img:hover {
+    opacity: 0.8;
+}
+
+.attachment-card .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.attachment-card .text-muted {
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+/* Стили для иконок файлов */
+.attachment-card .fa {
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+/* Стили для кнопок в группах */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 4px;
+}
+
+.btn-group-sm .btn:not(:last-child) {
+    margin-right: 2px;
+}
+
+/* Стили для модального окна */
+.modal-content {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+}
+
+.modal-title {
+    color: #333;
+    font-weight: 600;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+/* Стили для изображения в модальном окне */
+#modalImage {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-width: 100%;
+    height: auto;
+}
+
+#modalImageName {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #6c757d;
+}
+
+/* Стили для dropdown'ов */
+.form-control {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Стили для уведомлений */
+.alert {
+    border-radius: 6px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-weight: 500;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-left: 4px solid #17a2b8;
+}
+
+/* Анимация для уведомлений */
+.alert.fade.show {
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Стили для эффектов при наведении */
+.attachment-card.hover-effect {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+/* Стили для загрузки */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .tasks-view .btn {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+    
+    .tasks-view .row.mt-4 {
+        padding: 15px;
+    }
+    
+    .attachment-card {
+        margin-bottom: 15px;
+    }
+    
+    .alert {
+        position: fixed !important;
+        top: 10px !important;
+        right: 10px !important;
+        left: 10px !important;
+        min-width: auto !important;
+    }
+}

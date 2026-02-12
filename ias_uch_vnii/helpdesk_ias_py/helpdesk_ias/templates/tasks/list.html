@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Заявки — IAS{% endblock %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">Заявки</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'tasks:aggrid' %}">AG Grid</a>
+      <a class="btn btn-primary" href="{% url 'tasks:create' %}">Создать заявку</a>
+    </div>
+  </div>
+
+  <form class="row g-2 mb-3">
+    <div class="col-md-3">
+      <input class="form-control" name="q" placeholder="Поиск" value="{{ request.GET.q }}">
+    </div>
+    <div class="col-md-2">
+      <select class="form-select" name="status">
+        <option value="">Статус</option>
+        {% for s in statuses %}
+          <option value="{{ s.id }}" {% if request.GET.status == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if is_admin %}
+      <div class="col-md-2">
+        <select class="form-select" name="creator">
+          <option value="">Автор</option>
+          {% for c in creators %}
+            {% if c.creator_id %}
+              <option value="{{ c.creator_id }}" {% if request.GET.creator == c.creator_id|stringformat:"s" %}selected{% endif %}>
+                {{ c.creator__full_name }}
+              </option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select class="form-select" name="executor">
+          <option value="">Исполнитель</option>
+          {% for e in executors %}
+            {% if e.executor_id %}
+              <option value="{{ e.executor_id }}" {% if request.GET.executor == e.executor_id|stringformat:"s" %}selected{% endif %}>
+                {{ e.executor__full_name }}
+              </option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+    <div class="col-md-2">
+      <button class="btn btn-outline-primary w-100">Фильтр</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-striped align-middle">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Статус</th>
+          <th>Описание</th>
+          <th>Автор</th>
+          <th>Исполнитель</th>
+          <th>Создана</th>
+          <th>Обновлена</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+          <tr>
+            <td>#{{ task.id }}</td>
+            <td>{{ task.status.name }}</td>
+            <td>{{ task.description|truncatechars:80 }}</td>
+            <td>{{ task.creator.full_name }}</td>
+            <td>{{ task.executor.full_name|default:"-" }}</td>
+            <td>{{ task.created_at|date:"d.m.Y H:i" }}</td>
+            <td>{{ task.updated_at|date:"d.m.Y H:i" }}</td>
+            <td>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'tasks:detail' task.id %}">Открыть</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted">Нет заявок</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

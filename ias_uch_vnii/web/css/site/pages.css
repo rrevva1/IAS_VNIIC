@@ -1,0 +1,341 @@
+/* Стили для страниц сайта */
+.site-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.site-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+}
+
+.site-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.site-subtitle {
+    font-size: 1.2rem;
+    opacity: 0.9;
+    margin-bottom: 0;
+}
+
+.site-content {
+    background: #fff;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+}
+
+.site-section {
+    margin-bottom: 40px;
+}
+
+.site-section:last-child {
+    margin-bottom: 0;
+}
+
+.section-title {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.section-content {
+    color: #555;
+    line-height: 1.6;
+    font-size: 1rem;
+}
+
+.section-content p {
+    margin-bottom: 15px;
+}
+
+.section-content ul,
+.section-content ol {
+    margin-bottom: 15px;
+    padding-left: 20px;
+}
+
+.section-content li {
+    margin-bottom: 8px;
+}
+
+/* Стили для форм */
+.site-form {
+    background: #fff;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.form-control.is-valid {
+    border-color: #28a745;
+}
+
+.invalid-feedback {
+    display: block;
+    color: #dc3545;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+.valid-feedback {
+    display: block;
+    color: #28a745;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+/* Стили для кнопок */
+.btn-site {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-site.primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+}
+
+.btn-site.primary:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.btn-site.secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-site.secondary:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.btn-site.success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-site.success:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+.btn-site.danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-site.danger:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+/* Стили для карточек */
+.feature-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.feature-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    text-align: center;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+}
+
+.feature-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.feature-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.feature-description {
+    color: #666;
+    line-height: 1.5;
+}
+
+/* Стили для алертов */
+.alert-site {
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+}
+
+.alert-site.success {
+    background: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-site.error {
+    background: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.alert-site.warning {
+    background: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.alert-site.info {
+    background: #d1ecf1;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
+/* Стили для хлебных крошек */
+.breadcrumb-site {
+    background: #f8f9fa;
+    padding: 10px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.breadcrumb-site a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.breadcrumb-site a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-site .active {
+    color: #6c757d;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .site-container {
+        padding: 10px;
+    }
+    
+    .site-header {
+        padding: 30px 15px;
+    }
+    
+    .site-title {
+        font-size: 2rem;
+    }
+    
+    .site-subtitle {
+        font-size: 1rem;
+    }
+    
+    .site-content {
+        padding: 20px;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+    }
+    
+    .feature-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .site-form {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .site-title {
+        font-size: 1.8rem;
+    }
+    
+    .site-content {
+        padding: 15px;
+    }
+    
+    .section-title {
+        font-size: 1.3rem;
+    }
+    
+    .btn-site {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}

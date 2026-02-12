@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика — IAS{% endblock %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+  <h1 class="h4 mb-3">Статистика заявок</h1>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h2 class="h6">По статусам</h2>
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card mb-3">
+        <div class="card-body">
+          <h2 class="h6">По исполнителям</h2>
+          <canvas id="executorChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="h6 mt-4">Экспорт</h2>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="{% url 'tasks:export_csv' %}">CSV</a>
+    <a class="btn btn-outline-primary" href="{% url 'tasks:export_excel' %}">Excel</a>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    const statusLabels = [{% for row in by_status %}"{{ row.status__name|default:'Без статуса' }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+    const statusData = [{% for row in by_status %}{{ row.total }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    const executorLabels = [{% for row in by_executor %}"{{ row.executor__full_name|default:'Не назначен' }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+    const executorData = [{% for row in by_executor %}{{ row.total }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+    new Chart(document.getElementById("statusChart"), {
+      type: "doughnut",
+      data: { labels: statusLabels, datasets: [{ data: statusData }] },
+    });
+
+    new Chart(document.getElementById("executorChart"), {
+      type: "bar",
+      data: { labels: executorLabels, datasets: [{ data: executorData }] },
+      options: { indexAxis: "y" },
+    });
+  </script>
+{% endblock %}
