@@ -36,9 +36,11 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
     {
         return [
             [['full_name'], 'required'],
-            [['username', 'email', 'position', 'department', 'phone'], 'string', 'max' => 255],
-            [['full_name'], 'string', 'max' => 200],
+            [['username'], 'string', 'max' => 100],
+            [['position', 'department'], 'string', 'max' => 100],
+            [['phone'], 'string', 'max' => 50],
             [['email'], 'string', 'max' => 150],
+            [['full_name'], 'string', 'max' => 200],
             [['username'], 'unique'],
             [['email'], 'email'],
             [['is_active', 'is_locked', 'is_deleted'], 'boolean'],

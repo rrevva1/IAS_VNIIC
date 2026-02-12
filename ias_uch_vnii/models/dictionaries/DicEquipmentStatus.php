@@ -25,7 +25,8 @@ class DicEquipmentStatus extends ActiveRecord
     {
         return [
             [['status_code', 'status_name'], 'required'],
-            [['status_code', 'status_name'], 'string', 'max' => 100],
+            [['status_code'], 'string', 'max' => 50],
+            [['status_name'], 'string', 'max' => 100],
             [['sort_order'], 'integer'],
             [['is_final', 'is_archived'], 'boolean'],
             [['status_code'], 'unique'],

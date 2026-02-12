@@ -44,7 +44,7 @@ psql -h localhost -U postgres -d ias_vniic -f "db\IAS_VNIIC_dump.sql"
 ```cmd
 set PGPASSWORD=12345
 psql -h localhost -U postgres -d postgres -c "CREATE DATABASE ias_vniic WITH ENCODING 'UTF8' TEMPLATE template0;"
-psql -h localhost -U postgres -d ias_vniic -f "scripts\create_ias_uch_db_test.sql"
+psql -h localhost -U postgres -d ias_vniic -f "scripts\create_ias_vniic.sql"
 ```
 
 ## 3. Настройка приложения
@@ -142,6 +142,6 @@ php yii serve --port=8080
 
 - Один и тот же репозиторий (код синхронизируется через git или копирование).
 - Одинаковые учётные данные БД в `config/db.php` (на ВМ — свои host/пароль при удалённой БД).
-- Дамп БД: один и тот же файл `ias_uch_vnii_public_dump.sql` для первоначальной инициализации.
+- Дамп БД: один и тот же файл `db/IAS_VNIIC_dump.sql` для первоначальной инициализации (или DDL `scripts/create_ias_vniic.sql`).
 
 При необходимости можно вынести общие шаги (создание БД, composer, npm) в скрипты с параметрами (путь к проекту, хост/пароль БД) и использовать их и на Windows, и на ВМ.

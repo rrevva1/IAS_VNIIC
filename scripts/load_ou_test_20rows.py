@@ -161,7 +161,7 @@ def main():
     cur.execute("SELECT id FROM dic_equipment_status WHERE status_code = 'in_use' LIMIT 1")
     row = cur.fetchone()
     if not row:
-        print("В БД нет статуса in_use. Выполните create_ias_uch_db_test.sql")
+        print("В БД нет статуса in_use. Выполните create_ias_vniic.sql")
         conn.rollback()
         conn.close()
         raise SystemExit(1)

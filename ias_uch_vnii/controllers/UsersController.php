@@ -8,6 +8,7 @@ use app\models\entities\Location;
 use app\models\dictionaries\DicEquipmentStatus;
 use app\models\search\UsersSearch;
 use yii\web\Controller;
+use yii\web\Response;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
 use yii\filters\AccessControl;
@@ -33,7 +34,7 @@ class UsersController extends Controller
                     'class' => AccessControl::class,
                     'rules' => [
                         [
-                            'actions' => ['index', 'create', 'update', 'delete', 'test', 'index2', 'arm-create'],
+                            'actions' => ['index', 'create', 'update', 'delete', 'test', 'index2', 'arm-create', 'get-grid-data'],
                             'allow' => true,
                             'roles' => ['@'],
                             
@@ -63,19 +64,60 @@ class UsersController extends Controller
      */
     public function actionIndex()
     {
-        $searchModel = new UsersSearch();
-        
         /** Если пользователь не администратор, перенаправляем на просмотр только его данных */
         if (!Yii::$app->user->identity->isAdmin()) {
             return $this->redirect(['view', 'id' => Yii::$app->user->id]);
         }
-        
-        $dataProvider = $searchModel->search($this->request->queryParams);
 
-        return $this->render('index', [
-            'searchModel' => $searchModel,
-            'dataProvider' => $dataProvider,
-        ]);
+        if ($this->request->isAjax) {
+            $searchModel = new UsersSearch();
+            $dataProvider = $searchModel->search($this->request->queryParams);
+            return $this->renderAjax('index_ajax', [
+                'searchModel' => $searchModel,
+                'dataProvider' => $dataProvider,
+            ]);
+        }
+
+        return $this->render('index');
+    }
+
+    /**
+     * JSON для AG Grid пользователей.
+     *
+     * @return array
+     */
+    public function actionGetGridData()
+    {
+        if (!Yii::$app->user->identity->isAdmin()) {
+            throw new \yii\web\ForbiddenHttpException('Доступ разрешен только администраторам.');
+        }
+
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        try {
+            $searchModel = new UsersSearch();
+            $dataProvider = $searchModel->search($this->request->queryParams);
+            $dataProvider->pagination = false;
+            $dataProvider->query->with('roles');
+
+            $data = [];
+            foreach ($dataProvider->getModels() as $model) {
+                $roles = $model->roles ?? [];
+                $roleNames = [];
+                foreach ($roles as $role) {
+                    $roleNames[] = $role->role_name;
+                }
+                $data[] = [
+                    'id' => $model->id,
+                    'full_name' => $model->full_name,
+                    'email' => $model->email,
+                    'role_name' => $roleNames ? implode(', ', $roleNames) : null,
+                ];
+            }
+
+            return ['success' => true, 'data' => $data, 'total' => count($data)];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'data' => [], 'total' => 0];
+        }
     }
 
     /**

@@ -14,7 +14,22 @@
     border-radius: 8px;
 }
 
-/* Контейнер AG Grid */
+/* Основной контейнер страницы пользователей */
+.users-index-ag {
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+}
+
+/* Контейнер AG Grid — Учет ТС (arm) */
+#agGridArmContainer {
+    width: 100%;
+    height: 65vh;
+    min-height: 400px;
+    position: relative;
+}
+
+/* Контейнер AG Grid — заявки (tasks) */
 #agGridTasksContainer {
     width: 100%;
     /* Начальная высота будет автоматически установлена через JavaScript
@@ -25,6 +40,14 @@
     position: relative;
     /* Плавный переход при изменении высоты для лучшего UX */
     transition: height 0.3s ease;
+}
+
+/* Контейнер AG Grid — пользователи */
+#agGridUsersContainer {
+    width: 100%;
+    height: 65vh;
+    min-height: 420px;
+    position: relative;
 }
 
 #agGridTasksContainer .text-center {
@@ -83,6 +106,10 @@
 .ag-theme-quartz .ag-cell a:hover {
     color: #0056b3;
     text-decoration: underline;
+}
+
+.ag-theme-quartz .ag-cell .ag-actions a {
+    text-decoration: none;
 }
 
 /* Стили для выпадающих списков в ячейках */

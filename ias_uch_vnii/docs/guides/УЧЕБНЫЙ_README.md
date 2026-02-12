@@ -225,11 +225,11 @@ cp -r node_modules/ag-grid-community web/ag-grid-community
 psql -U postgres 
 
 # Создание базы данных
-CREATE DATABASE ias_uch_vnii ENCODING 'UTF8' LC_COLLATE='ru_RU.UTF-8' LC_CTYPE='ru_RU.UTF-8';
+CREATE DATABASE ias_vniic WITH ENCODING 'UTF8' TEMPLATE template0;
 \q
 
 # Импорт дампа
-psql -U postgres ias_uch_vnii < ias_uch_vnii_public_dump.sql
+psql -U postgres -d ias_vniic -f ../db/IAS_VNIIC_dump.sql
 ```
 
 5. **Конфигурация подключения к БД**
@@ -238,7 +238,7 @@ psql -U postgres ias_uch_vnii < ias_uch_vnii_public_dump.sql
 ```php
 return [
     'class' => 'yii\db\Connection',
-    'dsn' => 'pgsql:host=localhost;dbname=ias_uch_vnii',
+    'dsn' => 'pgsql:host=localhost;dbname=ias_vniic',
     'username' => 'postgres',
     'password' => 'your_password',
     'charset' => 'utf8',
@@ -3267,19 +3267,19 @@ php yii migrate --interactive=0
 
 ```bash
 # Подключение к PostgreSQL
-psql -U postgres ias_uch_vnii
+psql -U postgres ias_vniic
 
 # Резервная копия базы данных
-pg_dump -U postgres ias_uch_vnii > backup_$(date +%Y%m%d_%H%M%S).sql
+pg_dump -U postgres ias_vniic > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Восстановление из резервной копии
-psql -U postgres ias_uch_vnii < backup_20251103_120000.sql
+psql -U postgres ias_vniic < backup_20251103_120000.sql
 
 # Экспорт только структуры
-pg_dump -U postgres --schema-only ias_uch_vnii > structure.sql
+pg_dump -U postgres --schema-only ias_vniic > structure.sql
 
 # Экспорт только данных
-pg_dump -U postgres --data-only ias_uch_vnii > data.sql
+pg_dump -U postgres --data-only ias_vniic > data.sql
 ```
 
 ### Отладка и логирование
@@ -3403,8 +3403,8 @@ psql -U postgres
 ```
 3. Предоставьте права, если нужно:
 ```sql
-GRANT ALL PRIVILEGES ON DATABASE ias_uch_vnii TO your_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO your_user;
+GRANT ALL PRIVILEGES ON DATABASE ias_vniic TO your_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA tech_accounting TO your_user;
 ```
 
 ---
@@ -3583,7 +3583,7 @@ php -m
 - [ ] Выполнена команда `composer install`
 - [ ] Выполнена команда `npm install`
 - [ ] Скопированы файлы AG Grid: `cp -r node_modules/ag-grid-community web/ag-grid-community`
-- [ ] Создана база данных `ias_uch_vnii`
+- [ ] Создана база данных `ias_vniic`
 - [ ] Импортирована схема БД из дампа
 - [ ] Настроен файл `config/db.php`
 - [ ] Установлены права на директории:

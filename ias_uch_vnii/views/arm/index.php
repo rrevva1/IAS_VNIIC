@@ -1,92 +1,39 @@
 <?php
 /**
- * Страница учета техники (оборудование): список с фильтрами.
- * @var yii\web\View $this
- * @var app\models\search\ArmSearch $searchModel
- * @var yii\data\ActiveDataProvider $dataProvider
+ * Учет ТС: список оборудования в AG Grid.
+ * Колонки — по Основному учёту (см. docs/МАППИНГ_КОЛОНОК_УЧЕТ_ТС.md).
  */
 
-use app\models\entities\Location;
-use app\models\entities\Users;
-use yii\grid\GridView;
-use yii\helpers\ArrayHelper;
+use app\assets\ArmGridAsset;
 use yii\helpers\Html;
+use yii\helpers\Url;
+
+ArmGridAsset::register($this);
 
 $this->title = 'Учет ТС';
 $this->params['breadcrumbs'][] = $this->title;
-
-$userFilter = ArrayHelper::map(
-    Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
-    'id',
-    function (Users $u) { return $u->getDisplayName(); }
-);
-
-$locationFilter = ArrayHelper::map(
-    Location::find()->orderBy(['name' => SORT_ASC])->all(),
-    'id',
-    'name'
-);
 ?>
-
 <div class="arm-index">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h1 class="mb-0"><?= Html::encode($this->title) ?></h1>
-        <?= Html::a('Добавить технику', ['create'], ['class' => 'btn btn-success']) ?>
+        <div class="btn-group">
+            <?= Html::a('<i class="glyphicon glyphicon-plus"></i> Добавить технику', ['create'], ['class' => 'btn btn-success']) ?>
+            <?= Html::button('<i class="glyphicon glyphicon-refresh"></i> Обновить', [
+                'class' => 'btn btn-outline-secondary',
+                'onclick' => 'refreshArmGrid()',
+            ]) ?>
+        </div>
     </div>
 
-    <?= GridView::widget([
-        'dataProvider' => $dataProvider,
-        'filterModel' => $searchModel,
-        'columns' => [
-            ['class' => 'yii\grid\SerialColumn'],
-            [
-                'attribute' => 'inventory_number',
-                'label' => 'Инв. номер',
-            ],
-            [
-                'attribute' => 'name',
-                'label' => 'Наименование',
-            ],
-            [
-                'attribute' => 'responsible_user_id',
-                'label' => 'Ответственный',
-                'value' => function ($model) {
-                    return $model->responsibleUser ? $model->responsibleUser->getDisplayName() : '—';
-                },
-                'filter' => Html::activeDropDownList(
-                    $searchModel,
-                    'responsible_user_id',
-                    $userFilter,
-                    ['class' => 'form-control', 'prompt' => 'Все']
-                ),
-            ],
-            [
-                'attribute' => 'location_id',
-                'label' => 'Местоположение',
-                'value' => function ($model) {
-                    return $model->location ? $model->location->name : '—';
-                },
-                'filter' => Html::activeDropDownList(
-                    $searchModel,
-                    'location_id',
-                    $locationFilter,
-                    ['class' => 'form-control', 'prompt' => 'Все']
-                ),
-            ],
-            [
-                'attribute' => 'description',
-                'label' => 'Описание',
-                'contentOptions' => ['style' => 'max-width: 400px; white-space: normal;'],
-                'format' => 'ntext',
-            ],
-            [
-                'attribute' => 'created_at',
-                'label' => 'Создано',
-                'format' => ['datetime', 'php:d.m.Y H:i'],
-                'filter' => false,
-            ],
-        ],
-        'tableOptions' => ['class' => 'table table-striped table-bordered'],
-        'summary' => 'Показано {count} из {totalCount}',
-    ]) ?>
+    <div id="agGridArmContainer" class="ag-theme-quartz" style="width: 100%; height: 65vh; min-height: 400px;">
+        <div class="text-center p-4 text-muted">
+            <span class="glyphicon glyphicon-refresh glyphicon-spin"></span>
+            <p>Загрузка таблицы...</p>
+        </div>
+    </div>
 </div>
+<?php
+$this->registerJs(
+    "window.agGridArmDataUrl = " . json_encode(Url::to(['arm/get-grid-data'])) . ";",
+    \yii\web\View::POS_HEAD
+);

@@ -10,12 +10,8 @@
 --
 -- Вариант psql:
 --   psql -U postgres -d postgres -c "CREATE DATABASE ias_vniic WITH ENCODING 'UTF8' TEMPLATE template0;"
---   psql -U postgres -d ias_vniic -f scripts/create_ias_uch_db_test.sql
+--   psql -U postgres -d ias_vniic -f scripts/create_ias_vniic.sql
 --
--- Если БД уже была создана как ias_uch_db_test и нужно переименовать в боевую:
---   (отключитесь от ias_uch_db_test) затем:
---   ALTER DATABASE ias_uch_db_test RENAME TO ias_vniic;
-
 BEGIN;
 
 -- Схема учёта ТС (вместо public)

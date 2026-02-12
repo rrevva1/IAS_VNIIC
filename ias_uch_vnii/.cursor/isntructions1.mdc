@@ -161,7 +161,6 @@ alwaysApply: true
 ├── composer.json       # PHP зависимости
 ├── composer.lock       # Зафиксированные версии PHP зависимостей
 ├── docker-compose.yml  # Конфигурация Docker
-├── ias_uch_vnii_public_dump.sql  # Дамп базы данных
 ├── LICENSE.md          # Лицензия проекта
 ├── package.json        # NPM зависимости (для AG Grid и др.)
 ├── package-lock.json   # Зафиксированные версии NPM зависимостей
