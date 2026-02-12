@@ -13,6 +13,15 @@ Desktop.ini
 **/*.class
 xlsx_extract/
 
+# Python
+.venv/
+.venv_etl/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+*.egg-info/
+.eggs/
+
 # ias_uch_vnii: зависимости и сгенерированные файлы
 ias_uch_vnii/vendor/
 ias_uch_vnii/node_modules/

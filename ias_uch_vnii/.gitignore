@@ -1,6 +1,34 @@
-protected/runtime/*
-!protected/runtime/.gitignore
-protected/data/*.db
-themes/classic/views/
+# Runtime и кеш
+runtime/*
+!runtime/.gitignore
+
+# Загруженные файлы (содержимое не в репозитории)
 web/uploads/*
 !web/uploads/.gitignore
+
+# Сгенерированные assets (Yii публикует сюда из vendor)
+web/assets/
+
+# Зависимости
+vendor/
+node_modules/
+
+# Секреты и локальная конфигурация
+.env
+.env.local
+*.env
+
+# Python (если появятся скрипты)
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Логи и временные файлы
+*.log
+*.tmp

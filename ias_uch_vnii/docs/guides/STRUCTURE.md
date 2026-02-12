@@ -91,7 +91,6 @@
 │   ├── js/                   # JavaScript файлы
 │   ├── uploads/              # Загруженные пользователями файлы
 │   ├── ag-grid-community/    # Библиотека AG Grid
-│   ├── ag-charts-types/      # Типы для AG Charts
 │   ├── favicon.ico
 │   └── index.php             # Точка входа
 │

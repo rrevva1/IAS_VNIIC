@@ -34,7 +34,7 @@ class UsersController extends Controller
                     'class' => AccessControl::class,
                     'rules' => [
                         [
-                            'actions' => ['index', 'create', 'update', 'delete', 'test', 'index2', 'arm-create', 'get-grid-data'],
+                            'actions' => ['index', 'create', 'update', 'delete', 'test', 'arm-create', 'get-grid-data'],
                             'allow' => true,
                             'roles' => ['@'],
                             
@@ -322,30 +322,6 @@ return $this->redirect(['view', 'id' => $model->id]);
         die;
     }
     
-    /**
-     * Альтернативное представление списка пользователей
-     * Тестовая страница для проверки отображения данных
-     * 
-     * @return string
-     */
-    public function actionIndex2()
-    {
-        $searchModel = new UsersSearch();
-        $dataProvider = $searchModel->search($this->request->queryParams);
-        $gridColumns = [
-            ['class' => 'yii\grid\SerialColumn'],
-            'id',
-            'full_name',
-            'email',
-            'role_id',
-            'password_hash',
-        ];
-        return $this->render('index2', [
-            'searchModel' => $searchModel,
-            'dataProvider' => $dataProvider,
-            'gridColumns' => $gridColumns,
-        ]);
-    }
 }
 
 

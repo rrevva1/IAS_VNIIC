@@ -15,6 +15,10 @@ $config = [
         'request' => [
             // !!! вставьте секретный ключ ниже (если он пустой) - это требуется для валидации cookie
             'cookieValidationKey' => '3657f4cb43c013948a1c51cb152714f88b2ead4726a47e4dfe7cf758e20723cd',
+            // Явно задаём URL скрипта и базу — устраняет ошибку "Unable to determine the entry script URL"
+            // когда DocumentRoot в Apache указывает не на папку web/ (должен быть путь к .../ias_uch_vnii/web)
+            'baseUrl' => '',
+            'scriptUrl' => '/index.php',
         ],
         'cache' => [
             'class' => 'yii\caching\FileCache',
@@ -72,12 +76,13 @@ $config = [
 
 if (YII_ENV_DEV) {
     // настройки конфигурации для 'dev' окружения
-    $config['bootstrap'][] = 'debug';
-    $config['modules']['debug'] = [
-        'class' => 'yii\debug\Module',
-        // раскомментируйте следующую строку чтобы добавить свой IP, если вы не подключаетесь с localhost.
-        'allowedIPs' => ['127.0.0.1', '::1', '192.168.*.*', '10.*.*.*'],
-    ];
+    // Модуль debug отключён: в PHP 8.1+ yii2-debug падает с strncmp(null, …) при пустом REMOTE_ADDR.
+    // Включите снова после обновления пакета yiisoft/yii2-debug или при доступе только из браузера.
+    // $config['bootstrap'][] = 'debug';
+    // $config['modules']['debug'] = [
+    //     'class' => 'yii\debug\Module',
+    //     'allowedIPs' => ['127.0.0.1', '::1', '192.168.*.*', '10.*.*.*'],
+    // ];
 
     $config['bootstrap'][] = 'gii';
     $config['modules']['gii'] = [
