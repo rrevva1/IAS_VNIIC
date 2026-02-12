@@ -60,30 +60,13 @@ class TasksController extends Controller
     }
 
     /**
-     * Отображает список всех заявок.
+     * Отображает список заявок (AG Grid).
      *
      * @return string
      */
     public function actionIndex()
     {
-        $searchModel = new TasksSearch();
-        $dataProvider = $searchModel->search($this->request->queryParams);
-
-        return $this->render('index', [
-            'searchModel' => $searchModel,
-            'dataProvider' => $dataProvider,
-        ]);
-    }
-
-    /**
-     * Отображает список заявок с использованием AG Grid
-     * Возвращает представление с таблицей AG Grid для более продвинутого управления данными
-     *
-     * @return string
-     */
-    public function actionIndexAggrid()
-    {
-        return $this->render('index-aggrid');
+        return $this->render('index');
     }
 
     /**

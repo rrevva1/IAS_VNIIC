@@ -18,13 +18,11 @@ class TasksAsset extends AssetBundle
     public $css = [
         'css/tasks/view.css',
         'css/tasks/form.css',
-        'css/tasks/index.css',
     ];
     
     public $js = [
         'js/tasks/view.js',
         'js/tasks/form.js',
-        'js/tasks/index.js',
     ];
     
     public $depends = [

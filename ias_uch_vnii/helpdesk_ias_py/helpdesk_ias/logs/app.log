@@ -1,0 +1,302 @@
+2026-02-07 23:11:42,798 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:12:12,103 | WARNING | django.request | Not Found: /.
+2026-02-07 23:12:18,623 | WARNING | django.request | Not Found: /
+2026-02-07 23:12:25,295 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/users/models.py changed, reloading.
+2026-02-07 23:12:25,632 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:12:50,967 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/tasks/models.py changed, reloading.
+2026-02-07 23:12:51,242 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:13:08,469 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/config/urls.py changed, reloading.
+2026-02-07 23:13:08,713 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:13:46,192 | WARNING | django.request | Not Found: /favicon.ico
+2026-02-07 23:13:52,541 | ERROR | django.request | Internal Server Error: /admin/login/
+Traceback (most recent call last):
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/core/handlers/base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/utils/decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/cache.py", line 80, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/admin/sites.py", line 450, in login
+    return LoginView.as_view(**defaults)(request)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/generic/base.py", line 106, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/utils/decorators.py", line 48, in _wrapper
+    return bound_method(*args, **kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/debug.py", line 143, in sensitive_post_parameters_wrapper
+    return view(request, *args, **kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/utils/decorators.py", line 192, in _view_wrapper
+    result = _process_exception(request, e)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/utils/decorators.py", line 190, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/cache.py", line 80, in _view_wrapper
+    response = view_func(request, *args, **kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/views.py", line 89, in dispatch
+    return super().dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/generic/base.py", line 145, in dispatch
+    return handler(request, *args, **kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/generic/edit.py", line 150, in post
+    if form.is_valid():
+       ~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 206, in is_valid
+    return self.is_bound and not self.errors
+                                 ^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 201, in errors
+    self.full_clean()
+    ~~~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 338, in full_clean
+    self._clean_form()
+    ~~~~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 354, in _clean_form
+    cleaned_data = self.clean()
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/forms.py", line 349, in clean
+    self.user_cache = authenticate(
+                      ~~~~~~~~~~~~^
+        self.request, username=username, password=password
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/__init__.py", line 114, in authenticate
+    user = backend.authenticate(request, **credentials)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/backends.py", line 65, in authenticate
+    user = UserModel._default_manager.get_by_natural_key(username)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Manager' object has no attribute 'get_by_natural_key'
+2026-02-07 23:13:59,492 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/users/models.py changed, reloading.
+2026-02-07 23:13:59,817 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:15:22,908 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/config/settings.py changed, reloading.
+2026-02-07 23:15:23,137 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:16:53,282 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/config/urls.py changed, reloading.
+2026-02-07 23:16:53,544 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:21:07,945 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/config/settings.py changed, reloading.
+2026-02-07 23:21:08,304 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:21:17,460 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/tasks/admin.py changed, reloading.
+2026-02-07 23:21:17,738 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:21:26,890 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/users/admin.py changed, reloading.
+2026-02-07 23:21:27,168 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:21:36,325 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/assets/admin.py changed, reloading.
+2026-02-07 23:21:36,563 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:21:41,682 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/software/admin.py changed, reloading.
+2026-02-07 23:21:41,905 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:21:52,056 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/software/admin.py changed, reloading.
+2026-02-07 23:21:52,270 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:22:00,413 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/audit/admin.py changed, reloading.
+2026-02-07 23:22:00,647 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:22:22,920 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/users/models.py changed, reloading.
+2026-02-07 23:22:23,226 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:23:11,782 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/config/urls.py changed, reloading.
+2026-02-07 23:23:12,094 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:24:42,999 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/tasks/views.py changed, reloading.
+2026-02-07 23:24:43,380 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:29:22,439 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/config/settings.py changed, reloading.
+2026-02-07 23:29:22,790 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:29:54,253 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/core/views.py changed, reloading.
+2026-02-07 23:29:54,571 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:34:04,083 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:34:30,184 | ERROR | django.request | Internal Server Error: /login/
+Traceback (most recent call last):
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedColumn: column users.last_login does not exist
+LINE 1: SELECT "users"."id", "users"."password", "users"."last_login...
+                                                 ^
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/core/handlers/base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/core/views.py", line 17, in login_view
+    if request.method == "POST" and form.is_valid():
+                                    ~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 206, in is_valid
+    return self.is_bound and not self.errors
+                                 ^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 201, in errors
+    self.full_clean()
+    ~~~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 338, in full_clean
+    self._clean_form()
+    ~~~~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 354, in _clean_form
+    cleaned_data = self.clean()
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/forms.py", line 349, in clean
+    self.user_cache = authenticate(
+                      ~~~~~~~~~~~~^
+        self.request, username=username, password=password
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/__init__.py", line 114, in authenticate
+    user = backend.authenticate(request, **credentials)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/backends.py", line 65, in authenticate
+    user = UserModel._default_manager.get_by_natural_key(username)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/base_user.py", line 37, in get_by_natural_key
+    return self.get(**{self.model.USERNAME_FIELD: username})
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/query.py", line 635, in get
+    num = len(clone)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/query.py", line 372, in __len__
+    self._fetch_all()
+    ~~~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/query.py", line 2000, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/query.py", line 95, in __iter__
+    results = compiler.execute_sql(
+        chunked_fetch=self.chunked_fetch, chunk_size=self.chunk_size
+    )
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/sql/compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/debug_toolbar/panels/sql/tracking.py", line 243, in execute
+    return self._record(super().execute, sql, params)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/debug_toolbar/panels/sql/tracking.py", line 164, in _record
+    return method(sql, params)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+django.db.utils.ProgrammingError: column users.last_login does not exist
+LINE 1: SELECT "users"."id", "users"."password", "users"."last_login...
+                                                 ^
+2026-02-07 23:34:50,278 | ERROR | django.request | Internal Server Error: /login/
+Traceback (most recent call last):
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedColumn: column users.last_login does not exist
+LINE 1: SELECT "users"."id", "users"."password", "users"."last_login...
+                                                 ^
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/core/handlers/base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/core/views.py", line 17, in login_view
+    if request.method == "POST" and form.is_valid():
+                                    ~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 206, in is_valid
+    return self.is_bound and not self.errors
+                                 ^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 201, in errors
+    self.full_clean()
+    ~~~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 338, in full_clean
+    self._clean_form()
+    ~~~~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/forms/forms.py", line 354, in _clean_form
+    cleaned_data = self.clean()
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/forms.py", line 349, in clean
+    self.user_cache = authenticate(
+                      ~~~~~~~~~~~~^
+        self.request, username=username, password=password
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/views/decorators/debug.py", line 75, in sensitive_variables_wrapper
+    return func(*func_args, **func_kwargs)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/__init__.py", line 114, in authenticate
+    user = backend.authenticate(request, **credentials)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/backends.py", line 65, in authenticate
+    user = UserModel._default_manager.get_by_natural_key(username)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/contrib/auth/base_user.py", line 37, in get_by_natural_key
+    return self.get(**{self.model.USERNAME_FIELD: username})
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/manager.py", line 87, in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/query.py", line 635, in get
+    num = len(clone)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/query.py", line 372, in __len__
+    self._fetch_all()
+    ~~~~~~~~~~~~~~~^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/query.py", line 2000, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/query.py", line 95, in __iter__
+    results = compiler.execute_sql(
+        chunked_fetch=self.chunked_fetch, chunk_size=self.chunk_size
+    )
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/models/sql/compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/debug_toolbar/panels/sql/tracking.py", line 243, in execute
+    return self._record(super().execute, sql, params)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/debug_toolbar/panels/sql/tracking.py", line 164, in _record
+    return method(sql, params)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/django/db/backends/utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/Users/rure/ias_uch_vnii/helpdesk_ias_py/.venv/lib/python3.13/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+django.db.utils.ProgrammingError: column users.last_login does not exist
+LINE 1: SELECT "users"."id", "users"."password", "users"."last_login...
+                                                 ^
+2026-02-07 23:39:52,164 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-07 23:40:03,227 | INFO | django.utils.autoreload | Watching for file changes with StatReloader
+2026-02-11 17:50:05,936 | INFO | django.utils.autoreload | /Users/rure/ias_uch_vnii/helpdesk_ias_py/helpdesk_ias/apps/tasks/models.py changed, reloading.

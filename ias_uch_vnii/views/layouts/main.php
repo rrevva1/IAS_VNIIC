@@ -84,12 +84,8 @@ if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
                 ];
             }
                 $navItems[] = [
-                    'label' => '<i class="fas fa-file"></i><span class="nav-text">    Заяки</span>',
+                    'label' => '<i class="fas fa-file"></i><span class="nav-text">    Заявки</span>',
                     'url' => ['/tasks/index'],
-                ];
-                $navItems[] = [
-                    'label' => '<i class="fas fa-table"></i><span class="nav-text">    AG Grid</span>',
-                    'url' => ['/tasks/index-aggrid'],
                 ];
                 $navItems[] = [
                     'label' => '<i class="fas fa-bar-chart"></i><span class="nav-text">    Статистика заявок</span>',
