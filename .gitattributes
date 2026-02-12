@@ -1,0 +1,36 @@
+# Нормализация окончаний строк: в репозитории всегда LF.
+# На Windows Git при checkout подставит CRLF при необходимости (если core.autocrlf=true).
+* text=auto eol=lf
+
+# Явно текстовые типы
+*.md text
+*.sql text
+*.php text
+*.py text
+*.ts text
+*.js text
+*.json text
+*.yml text
+*.yaml text
+*.xml text
+*.html text
+*.css text
+*.sh text
+*.cmd text
+*.bat text
+*.mdc text
+
+# Бинарные — не трогать
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.jar binary
+*.xlsx binary
+*.doc binary
+*.docx binary
+*.zip binary

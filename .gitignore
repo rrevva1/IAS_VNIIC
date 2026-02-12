@@ -3,6 +3,11 @@
 **/._*
 .DS_Store
 
+# Служебные файлы Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
 # ias_uch_vnii: зависимости и сгенерированные файлы
 ias_uch_vnii/vendor/
 ias_uch_vnii/node_modules/
