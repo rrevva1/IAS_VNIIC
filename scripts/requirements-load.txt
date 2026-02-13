@@ -1,0 +1,4 @@
+# Зависимости для скрипта загрузки ОУ_тест.xlsx (load_ou_test.py)
+openpyxl>=3.0.0
+psycopg2-binary>=2.9.0
+python-dateutil>=2.8.0
