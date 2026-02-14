@@ -449,6 +449,7 @@ class TasksController extends Controller
                 $model->updated_at = date('Y-m-d H:i:s');
                 if ($model->save(false)) {
                     TaskHistory::log($model->id, 'status_id', (string) $oldStatus, (string) $statusId);
+                    AuditLog::log('task.change_status', 'task', $model->id, 'success', ['status_id' => $statusId]);
                     return [
                         'success' => true,
                         'message' => 'Статус успешно изменен.',
@@ -504,6 +505,7 @@ class TasksController extends Controller
             $model->updated_at = date('Y-m-d H:i:s');
             if ($model->save(false)) {
                 TaskHistory::log($model->id, 'executor_id', (string) $oldExecutor, (string) $model->executor_id);
+                AuditLog::log('task.assign_executor', 'task', $model->id, 'success', ['executor_id' => $model->executor_id]);
                 $executorName = $executorId ? Users::findOne($executorId)->full_name : 'Не назначен';
                 return [
                     'success' => true,
@@ -547,6 +549,7 @@ class TasksController extends Controller
             $model->updated_at = date('Y-m-d H:i:s');
             if ($model->save(false)) {
                 TaskHistory::log($model->id, 'comment', $oldComment, $comment);
+                AuditLog::log('task.update_comment', 'task', $model->id, 'success');
                 return [
                     'success' => true,
                     'message' => 'Комментарий успешно обновлен.'

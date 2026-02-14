@@ -13,7 +13,7 @@ use yii\db\ActiveRecord;
  * @property string $inventory_number
  * @property string|null $serial_number
  * @property string $name
- * @property string|null $equipment_type
+ * @property int|null $equipment_type_id
  * @property int $status_id
  * @property int|null $responsible_user_id
  * @property int $location_id
@@ -32,6 +32,7 @@ use yii\db\ActiveRecord;
  * @property Users $responsibleUser
  * @property PartCharValues[] $partCharValues
  * @property Location $location
+ * @property EquipmentTypes|null $equipmentType
  * @property DicEquipmentStatus $equipmentStatus
  */
 class Equipment extends ActiveRecord
@@ -45,11 +46,10 @@ class Equipment extends ActiveRecord
     {
         return [
             [['inventory_number', 'name', 'status_id', 'location_id'], 'required'],
-            [['status_id', 'responsible_user_id', 'location_id'], 'integer'],
+            [['status_id', 'responsible_user_id', 'location_id', 'equipment_type_id'], 'integer'],
             [['name'], 'string', 'max' => 200],
             [['inventory_number'], 'string', 'max' => 100],
             [['serial_number'], 'string', 'max' => 150],
-            [['equipment_type'], 'string', 'max' => 100],
             [['description', 'supplier', 'archive_reason'], 'string'],
             [['purchase_date', 'commissioning_date', 'warranty_until', 'archived_at', 'created_at', 'updated_at'], 'safe'],
             [['is_archived', 'is_deleted'], 'boolean'],
@@ -57,6 +57,7 @@ class Equipment extends ActiveRecord
             [['status_id'], 'exist', 'targetClass' => DicEquipmentStatus::class, 'targetAttribute' => ['status_id' => 'id']],
             [['responsible_user_id'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['responsible_user_id' => 'id']],
             [['location_id'], 'exist', 'targetClass' => Location::class, 'targetAttribute' => ['location_id' => 'id']],
+            [['equipment_type_id'], 'exist', 'skipOnEmpty' => true, 'targetClass' => EquipmentTypes::class, 'targetAttribute' => ['equipment_type_id' => 'id']],
         ];
     }
 
@@ -67,7 +68,7 @@ class Equipment extends ActiveRecord
             'inventory_number' => 'Инв. номер',
             'serial_number' => 'Серийный номер',
             'name' => 'Наименование',
-            'equipment_type' => 'Тип',
+            'equipment_type_id' => 'Тип',
             'status_id' => 'Статус',
             'responsible_user_id' => 'Ответственный',
             'location_id' => 'Местоположение',
@@ -83,6 +84,11 @@ class Equipment extends ActiveRecord
     public function getLocation()
     {
         return $this->hasOne(Location::class, ['id' => 'location_id']);
+    }
+
+    public function getEquipmentType()
+    {
+        return $this->hasOne(EquipmentTypes::class, ['id' => 'equipment_type_id']);
     }
 
     public function getEquipmentStatus()

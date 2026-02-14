@@ -3,34 +3,48 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.querySelector('.main-content');
     const toggleBtn = document.getElementById('toggleSidebar');
-    
-    // Проверяем сохраненное состояние (по умолчанию свернута)
-    const isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
-    if (isExpanded) {
-        sidebar.classList.add('expanded');
-        mainContent.classList.add('expanded');
+
+    function removeSidebarTooltips() {
+        sidebar.querySelectorAll('.sidebar-tooltip').forEach(function(t) { t.remove(); });
     }
-    
+
+    function setSidebarCookie(expanded) {
+        var val = expanded ? '1' : '0';
+        document.cookie = 'sidebarExpanded=' + val + ';path=/;max-age=31536000;SameSite=Lax';
+    }
+
+    // На первой загрузке без cookie подтягиваем состояние из localStorage и пишем cookie
+    if (!document.cookie.match(/\bsidebarExpanded=/)) {
+        var isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
+        if (isExpanded) {
+            sidebar.classList.add('expanded');
+            if (mainContent) mainContent.classList.add('expanded');
+            setSidebarCookie(true);
+        }
+    }
+
     // Обработчик клика на кнопку сворачивания
     toggleBtn.addEventListener('click', function() {
+        removeSidebarTooltips();
         sidebar.classList.toggle('expanded');
-        mainContent.classList.toggle('expanded');
-        
-        // Сохраняем состояние
-        const expanded = sidebar.classList.contains('expanded');
+        if (mainContent) mainContent.classList.toggle('expanded');
+
+        var expanded = sidebar.classList.contains('expanded');
         localStorage.setItem('sidebarExpanded', expanded);
+        setSidebarCookie(expanded);
     });
-    
-    // Добавляем подсказки для свернутой панели
+
+    // Подсказки только для свернутой панели; при раскрытии — удаляем
     sidebar.addEventListener('mouseenter', function() {
         if (!sidebar.classList.contains('expanded')) {
+            removeSidebarTooltips();
             const navLinks = sidebar.querySelectorAll('.nav-link');
             navLinks.forEach(link => {
                 const text = link.querySelector('.nav-text');
                 if (text) {
                     const tooltip = document.createElement('div');
                     tooltip.className = 'sidebar-tooltip';
-                    tooltip.textContent = text.textContent;
+                    tooltip.textContent = text.textContent.trim();
                     tooltip.style.cssText = `
                         position: absolute;
                         left: 60px;
@@ -49,9 +63,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    
+
     sidebar.addEventListener('mouseleave', function() {
-        const tooltips = sidebar.querySelectorAll('.sidebar-tooltip');
-        tooltips.forEach(tooltip => tooltip.remove());
+        removeSidebarTooltips();
     });
 });

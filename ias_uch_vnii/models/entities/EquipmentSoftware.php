@@ -27,4 +27,24 @@ class EquipmentSoftware extends ActiveRecord
     {
         return $this->hasOne(Software::class, ['id' => 'software_id']);
     }
+
+    public function rules()
+    {
+        return [
+            [['equipment_id', 'software_id'], 'required'],
+            [['equipment_id', 'software_id'], 'integer'],
+            [['installed_at'], 'safe'],
+            [['equipment_id'], 'exist', 'targetClass' => Equipment::class, 'targetAttribute' => ['equipment_id' => 'id']],
+            [['software_id'], 'exist', 'targetClass' => Software::class, 'targetAttribute' => ['software_id' => 'id']],
+        ];
+    }
+
+    public function attributeLabels()
+    {
+        return [
+            'equipment_id' => 'Оборудование',
+            'software_id' => 'ПО',
+            'installed_at' => 'Дата установки',
+        ];
+    }
 }

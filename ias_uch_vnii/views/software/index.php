@@ -1,48 +1,52 @@
 <?php
+/**
+ * Список ПО.
+ * @var yii\web\View $this
+ * @var app\models\entities\Software[] $list
+ */
 
 use yii\helpers\Html;
 
-/* @var $this yii\web\View */
-/* @var $software app\models\entities\Software[] */
-/* @var $licenses app\models\entities\License[] */
-
-$this->title = 'ПО и лицензии';
+$this->title = 'Учёт ПО и лицензий';
 $this->params['breadcrumbs'][] = $this->title;
 ?>
-
 <div class="software-index">
     <h1><?= Html::encode($this->title) ?></h1>
-    <p class="text-muted">Справочник программного обеспечения и учёт сроков действия лицензий (минимальный контур по ТЗ 5.1.12).</p>
-
-    <h3>Программное обеспечение</h3>
-    <?php if (empty($software)): ?>
-        <p>Список пуст. Добавление записей — через миграции или расширение функционала.</p>
-    <?php else: ?>
-        <table class="table table-bordered">
-            <thead><tr><th>Наименование</th><th>Версия</th></tr></thead>
-            <tbody>
-                <?php foreach ($software as $s): ?>
-                <tr><td><?= Html::encode($s->name) ?></td><td><?= Html::encode($s->version) ?></td></tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
-    <?php endif; ?>
-
-    <h3>Лицензии (срок действия)</h3>
-    <?php if (empty($licenses)): ?>
-        <p>Нет записей о лицензиях.</p>
-    <?php else: ?>
-        <table class="table table-bordered">
-            <thead><tr><th>ПО</th><th>Срок действия</th><th>Примечание</th></tr></thead>
-            <tbody>
-                <?php foreach ($licenses as $l): ?>
-                <tr>
-                    <td><?= $l->software ? Html::encode($l->software->name) : '—' ?></td>
-                    <td><?= Html::encode($l->valid_until) ?></td>
-                    <td><?= Html::encode($l->notes) ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+    <p><?= Html::a('Добавить ПО', ['create'], ['class' => 'btn btn-success']) ?></p>
+    <div class="border rounded p-3 mb-3">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label">Наименование</label>
+                <input type="text" name="name" class="form-control" value="<?= Html::encode(Yii::$app->request->get('name')) ?>" placeholder="Поиск..." />
+            </div>
+            <div class="col-auto">
+                <label class="form-label">Лицензии истекают в течение (дней)</label>
+                <input type="number" name="expiring_days" class="form-control" value="<?= Html::encode(Yii::$app->request->get('expiring_days')) ?>" min="1" placeholder="30" style="width:90px" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Фильтр</button>
+            </div>
+        </form>
+    </div>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Наименование</th>
+                <th>Версия</th>
+                <th>Лицензии</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($list as $item): ?>
+            <tr>
+                <td><?= Html::a(Html::encode($item->name), ['view', 'id' => $item->id]) ?></td>
+                <td><?= Html::encode($item->version ?: '—') ?></td>
+                <td><?= count($item->licenses) ?> <?= Html::a('+', ['license-create', 'software_id' => $item->id], ['class' => 'btn btn-sm btn-outline-secondary']) ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php if (empty($list)): ?>
+        <p class="text-muted">Нет записей. Добавьте ПО или восстановите БД из эталонного дампа.</p>
     <?php endif; ?>
 </div>

@@ -26,4 +26,14 @@ class Software extends ActiveRecord
             [['version'], 'string', 'max' => 100],
         ];
     }
+
+    public function getLicenses()
+    {
+        return $this->hasMany(License::class, ['software_id' => 'id']);
+    }
+
+    public function getEquipmentSoftware()
+    {
+        return $this->hasMany(EquipmentSoftware::class, ['software_id' => 'id']);
+    }
 }

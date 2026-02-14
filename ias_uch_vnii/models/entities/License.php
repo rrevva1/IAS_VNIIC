@@ -18,6 +18,26 @@ class License extends ActiveRecord
         return 'licenses';
     }
 
+    public function rules()
+    {
+        return [
+            [['software_id'], 'required'],
+            [['software_id'], 'integer'],
+            [['valid_until'], 'safe'],
+            [['notes'], 'string'],
+            [['software_id'], 'exist', 'targetClass' => Software::class, 'targetAttribute' => ['software_id' => 'id']],
+        ];
+    }
+
+    public function attributeLabels()
+    {
+        return [
+            'software_id' => 'ПО',
+            'valid_until' => 'Срок действия по',
+            'notes' => 'Примечание',
+        ];
+    }
+
     public function getSoftware()
     {
         return $this->hasOne(Software::class, ['id' => 'software_id']);

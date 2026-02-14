@@ -3,7 +3,11 @@
 namespace app\controllers;
 
 use app\models\entities\Equipment;
+use app\models\entities\EquipmentTypes;
 use app\models\entities\EquipHistory;
+use app\models\entities\PartCharValues;
+use app\models\entities\SprParts;
+use app\models\entities\SprChars;
 use app\models\entities\Users;
 use app\models\entities\Location;
 use app\models\dictionaries\DicEquipmentStatus;
@@ -37,7 +41,7 @@ class ArmController extends Controller
                         'roles' => ['@'],
                     ],
                     [
-                        'actions' => ['index', 'create', 'get-grid-data', 'delete', 'archive'],
+                        'actions' => ['index', 'create', 'get-grid-data', 'delete', 'archive', 'reassign'],
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function () {
@@ -55,6 +59,7 @@ class ArmController extends Controller
                     'delete' => ['POST'],
                     'update' => ['GET', 'POST'],
                     'archive' => ['POST'],
+                    'reassign' => ['POST'],
                 ],
             ],
         ];
@@ -65,7 +70,37 @@ class ArmController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        $equipmentTypes = $this->getEquipmentTypesForTabs();
+        $users = ArrayHelper::map(
+            Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
+            'id',
+            function (Users $u) { return $u->getDisplayName(); }
+        );
+        $locations = ArrayHelper::map(Location::find()->orderBy(['name' => SORT_ASC])->all(), 'id', 'name');
+        $statuses = DicEquipmentStatus::getList();
+        return $this->render('index', [
+            'equipmentTypes' => $equipmentTypes,
+            'users' => $users,
+            'locations' => $locations,
+            'statuses' => $statuses,
+        ]);
+    }
+
+    /**
+     * Список типов техники для вкладок из equipment_types.
+     * Возвращает [['id' => int, 'name' => string], ...]
+     */
+    private function getEquipmentTypesForTabs(): array
+    {
+        $fromTypes = EquipmentTypes::find()
+            ->where(['is_archived' => false])
+            ->orderBy(['sort_order' => SORT_ASC, 'name' => SORT_ASC])
+            ->all();
+        $result = [];
+        foreach ($fromTypes as $t) {
+            $result[] = ['id' => (int)$t->id, 'name' => $t->name];
+        }
+        return $result;
     }
 
     /**
@@ -77,8 +112,14 @@ class ArmController extends Controller
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
         try {
+            $params = Yii::$app->request->queryParams;
+            // Вкладки передают equipment_type_id в корне; ArmSearch ожидает ArmSearch[equipment_type_id]
+            if (array_key_exists('equipment_type_id', $params)) {
+                $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+                $params['ArmSearch']['equipment_type_id'] = $params['equipment_type_id'];
+            }
             $searchModel = new ArmSearch();
-            $dataProvider = $searchModel->search(Yii::$app->request->queryParams);
+            $dataProvider = $searchModel->search($params);
             $dataProvider->pagination = false;
             $charsByEquipment = $this->loadPartCharValuesByEquipment(
                 array_map(function ($m) { return $m->id; }, $dataProvider->models)
@@ -230,8 +271,10 @@ class ArmController extends Controller
         );
 
         $statuses = DicEquipmentStatus::getList();
+        $equipmentTypes = EquipmentTypes::getList();
 
         if ($model->load(Yii::$app->request->post()) && $model->save()) {
+            $this->savePartCharValuesFromPost($model->id, Yii::$app->request->post('PartChar', []));
             EquipHistory::log($model->id, 'create', null, ['inventory_number' => $model->inventory_number, 'name' => $model->name]);
             AuditLog::log('equipment.create', 'equipment', $model->id, 'success');
             Yii::$app->session->setFlash('success', 'Техника успешно добавлена.');
@@ -243,6 +286,8 @@ class ArmController extends Controller
             'users' => $users,
             'locations' => $locations,
             'statuses' => $statuses,
+            'equipmentTypes' => $equipmentTypes,
+            'chars' => [],
         ]);
     }
 
@@ -280,11 +325,14 @@ class ArmController extends Controller
         );
         $locations = ArrayHelper::map(Location::find()->orderBy(['name' => SORT_ASC])->all(), 'id', 'name');
         $statuses = DicEquipmentStatus::getList();
+        $equipmentTypes = EquipmentTypes::getList();
+        $chars = $this->loadPartCharValuesByEquipment([$model->id]);
         if ($model->load(Yii::$app->request->post())) {
             $oldStatus = $model->getOldAttribute('status_id');
             $oldLocation = $model->getOldAttribute('location_id');
             $oldResponsible = $model->getOldAttribute('responsible_user_id');
             if ($model->save()) {
+                $this->savePartCharValuesFromPost($model->id, Yii::$app->request->post('PartChar', []));
                 $eventType = 'update';
                 if ($oldLocation !== $model->location_id) {
                     EquipHistory::log($model->id, 'move', ['location_id' => $oldLocation], ['location_id' => $model->location_id]);
@@ -308,7 +356,121 @@ class ArmController extends Controller
             'users' => $users,
             'locations' => $locations,
             'statuses' => $statuses,
+            'equipmentTypes' => $equipmentTypes,
+            'chars' => $chars[$model->id] ?? [],
         ]);
+    }
+
+    /**
+     * Сохраняет значения характеристик из формы PartChar.
+     * Маппинг: cpu->(ЦП,Модель), ram->(ОЗУ,Объём), disk->(Накопитель,Объём), monitor->(Монитор,Модель),
+     * hostname->(ПК,Имя ПК), ip->(ПК,IP адрес), os->(ПК,ОС), model->(Монитор,Модель).
+     */
+    private function savePartCharValuesFromPost(int $equipmentId, array $partChar): void
+    {
+        $map = [
+            'cpu' => ['ЦП', 'Модель'],
+            'ram' => ['ОЗУ', 'Объём'],
+            'disk' => ['Накопитель', 'Объём'],
+            'monitor' => ['Монитор', 'Модель'],
+            'hostname' => ['ПК', 'Имя ПК'],
+            'ip' => ['ПК', 'IP адрес'],
+            'os' => ['ПК', 'ОС'],
+            'model' => ['Монитор', 'Модель'],
+            'diagonal' => ['Монитор', '№ монитора'],
+        ];
+        foreach ($partChar as $key => $value) {
+            $value = is_string($value) ? trim($value) : '';
+            if ($value === '') continue;
+            $m = $map[$key] ?? null;
+            if (!$m) continue;
+            $part = SprParts::find()->where(['name' => $m[0]])->one();
+            $char = SprChars::find()->where(['name' => $m[1]])->one();
+            if (!$part || !$char) continue;
+            $existing = PartCharValues::findOne([
+                'equipment_id' => $equipmentId,
+                'part_id' => $part->id,
+                'char_id' => $char->id,
+            ]);
+            if ($existing) {
+                $existing->value_text = $value;
+                $existing->save(false);
+            } else {
+                $pcv = new PartCharValues();
+                $pcv->equipment_id = $equipmentId;
+                $pcv->part_id = $part->id;
+                $pcv->char_id = $char->id;
+                $pcv->value_text = $value;
+                $pcv->save(false);
+            }
+        }
+    }
+
+    /**
+     * Массовое/одиночное переназначение техники (пользователь, локация, статус).
+     * POST: ids[] (массив id оборудования), responsible_user_id?, location_id?, status_id?
+     */
+    public function actionReassign()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $ids = Yii::$app->request->post('ids', []);
+        if (!is_array($ids)) {
+            $ids = array_filter([(int) $ids]);
+        }
+        $ids = array_map('intval', array_filter($ids));
+        if (empty($ids)) {
+            return ['success' => false, 'message' => 'Не выбрано ни одной единицы техники.'];
+        }
+
+        $responsibleUserId = Yii::$app->request->post('responsible_user_id');
+        $locationId = Yii::$app->request->post('location_id');
+        $statusId = Yii::$app->request->post('status_id');
+
+        $updated = 0;
+        foreach ($ids as $id) {
+            $model = Equipment::findOne($id);
+            if (!$model) {
+                continue;
+            }
+            $changed = false;
+            if ($responsibleUserId !== null && $responsibleUserId !== '') {
+                $newUser = (int) $responsibleUserId;
+                if ($model->responsible_user_id !== $newUser) {
+                    $oldUser = $model->responsible_user_id;
+                    $model->responsible_user_id = $newUser ?: null;
+                    EquipHistory::log($model->id, $model->responsible_user_id ? 'assign' : 'unassign', ['responsible_user_id' => $oldUser], ['responsible_user_id' => $model->responsible_user_id]);
+                    $changed = true;
+                }
+            }
+            if ($locationId !== null && $locationId !== '') {
+                $newLoc = (int) $locationId;
+                if ($model->location_id != $newLoc) {
+                    $oldLoc = $model->location_id;
+                    $model->location_id = $newLoc;
+                    EquipHistory::log($model->id, 'move', ['location_id' => $oldLoc], ['location_id' => $model->location_id]);
+                    $changed = true;
+                }
+            }
+            if ($statusId !== null && $statusId !== '') {
+                $newStatus = (int) $statusId;
+                if ($model->status_id != $newStatus) {
+                    $oldStatus = $model->status_id;
+                    $model->status_id = $newStatus;
+                    EquipHistory::log($model->id, 'status_change', ['status_id' => $oldStatus], ['status_id' => $model->status_id]);
+                    $changed = true;
+                }
+            }
+            if ($changed && $model->save(false)) {
+                $updated++;
+                AuditLog::log('equipment.reassign', 'equipment', $model->id, 'success');
+            }
+        }
+
+        return [
+            'success' => true,
+            'message' => "Обновлено единиц техники: {$updated} из " . count($ids),
+            'updated' => $updated,
+        ];
     }
 
     /**
@@ -324,6 +486,7 @@ class ArmController extends Controller
         $model->archive_reason = $reason;
         if ($model->save(false)) {
             EquipHistory::log($model->id, 'archive', ['is_archived' => false], ['is_archived' => true], $reason);
+            AuditLog::log('equipment.archive', 'equipment', $model->id, 'success', ['archive_reason' => $reason]);
             Yii::$app->session->setFlash('success', 'Актив архивирован.');
         } else {
             Yii::$app->session->setFlash('error', 'Ошибка при архивировании.');

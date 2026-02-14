@@ -11,13 +11,17 @@
 | `seed_test_data.sql` | SQL-скрипт наполнения БД тестовыми данными (10–30 записей на сущность). Запуск: см. ниже. |
 | `seed_software_licenses_only.sql` | Наполнение только разделов «ПО» и «Лицензии» (таблицы `software`, `licenses`). Требуется предварительно выполнить миграцию `m260213_120000_add_software_licenses`. |
 | `seed_audit_only.sql` | Наполнение журнала аудита (таблица `audit_events`) — 25 тестовых записей. Записи в журнале защищены от удаления триггером; для тестовой БД при необходимости удаление возможно после отключения триггера. |
+| `seed_audit_and_software_licenses.sql` | Одним скриптом: аудит (25 записей) + ПО (10 записей, id 900001–900010) + лицензии. Соответствует тестовым данным из дампа `ias_vniic_14_02_26.sql`. |
+| `LOAD_TEST_DATA_FROM_DUMP.md` | Инструкция: как загрузить тестовые данные для модулей «Журнал аудита» и «ПО и лицензии» (то, что не грузится из ОУ). |
 
 ## Наполнение БД тестовыми данными
 
 1. Убедитесь, что БД `ias_vniic` создана и схема `tech_accounting` развёрнута (например, выполнены `scripts/create_ias_vniic.sql` и миграции Yii2).
-2. Для модуля **«ПО и лицензии»**: если таблицы `software` и `licenses` ещё не созданы, выполните миграции Yii2 (`cd ias_uch_vnii && php yii migrate`), затем при необходимости только ПО и лицензии можно заполнить отдельно:  
-   `psql -U postgres -d ias_vniic -f tests/seed_software_licenses_only.sql`
-3. Полное наполнение (все сущности):
+2. Для проверки **аудита и ПО/лицензий** (как в дампе, без данных из ОУ):  
+   `psql -U postgres -d ias_vniic -f tests/seed_audit_and_software_licenses.sql`  
+   Подробнее: `tests/LOAD_TEST_DATA_FROM_DUMP.md`.
+3. Только ПО и лицензии: `psql -U postgres -d ias_vniic -f tests/seed_software_licenses_only.sql`
+4. Полное наполнение (все сущности):
    ```bash
    psql -U postgres -d ias_vniic -f tests/seed_test_data.sql
    ```

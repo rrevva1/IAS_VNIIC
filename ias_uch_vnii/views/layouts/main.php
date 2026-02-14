@@ -26,6 +26,11 @@ if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
     // подставляем что есть: ФИО -> email -> user#id
     $displayName = $u->full_name ?: $u->email ?: ('user#' . $u->id);
 }
+
+// Состояние сайдбара из cookie — чтобы при переходах по вкладкам панель не «выезжала» заново
+$sidebarExpanded = isset($_COOKIE['sidebarExpanded']) && $_COOKIE['sidebarExpanded'] === '1';
+$sidebarClass = 'sidebar bg-dark text-white d-flex flex-column' . ($sidebarExpanded ? ' expanded' : '');
+$mainClass = 'main-content flex-grow-1 d-flex flex-column' . ($sidebarExpanded ? ' expanded' : '');
 ?>
 <?php $this->beginPage() ?>
 <!DOCTYPE html>
@@ -40,7 +45,7 @@ if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
 <?php $this->beginBody() ?>
 
 <!-- Боковая панель навигации -->
-<nav class="sidebar bg-dark text-white d-flex flex-column" id="sidebar" style="width: 250px; min-height: 100vh;">
+<nav class="<?= $sidebarClass ?>" id="sidebar" style="min-height: 100vh;">
     <!-- Логотип/название с кнопкой сворачивания -->
     <div class="sidebar-header p-3 border-bottom d-flex justify-content-between align-items-center">
         <h4 class="sidebar-title mb-0"><?= Html::encode(Yii::$app->name) ?></h4>
@@ -94,6 +99,10 @@ if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
                     'label' => '<i class="fas fa-copyright"></i><span class="nav-text">    ПО и лицензии</span>',
                     'url' => ['/software/index'],
                 ];
+                $navItems[] = [
+                    'label' => '<i class="fas fa-book"></i><span class="nav-text">    Справочники</span>',
+                    'url' => ['/references/index'],
+                ];
             }
                 $navItems[] = [
                     'label' => '<i class="fas fa-file"></i><span class="nav-text">    Заявки</span>',
@@ -130,7 +139,7 @@ if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
 </nav>
 
 <!-- Основной контент -->
-<main class="main-content flex-grow-1 d-flex flex-column">
+<main class="<?= $mainClass ?>">
     <div class="content-wrapper flex-grow-1 p-4">
         <?php if (!empty($this->params['breadcrumbs'])): ?>
             <?= Breadcrumbs::widget([

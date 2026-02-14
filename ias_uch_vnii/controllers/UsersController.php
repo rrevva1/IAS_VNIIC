@@ -5,6 +5,7 @@ namespace app\controllers;
 use app\models\entities\Users;
 use app\models\entities\Equipment;
 use app\models\entities\Location;
+use app\models\entities\AuditEvent;
 use app\models\dictionaries\DicEquipmentStatus;
 use app\models\search\UsersSearch;
 use yii\web\Controller;
@@ -143,9 +144,31 @@ class UsersController extends Controller
         if (!Yii::$app->user->identity->isAdmin() && $id != Yii::$app->user->id) {
             throw new \yii\web\ForbiddenHttpException('У вас нет прав для просмотра данных других пользователей.');
         }
-        
+
+        $model = $this->findModel($id);
+        $equipment = Equipment::find()
+            ->where(['responsible_user_id' => $model->id, 'is_archived' => false])
+            ->with('location')
+            ->orderBy(['inventory_number' => SORT_ASC])
+            ->limit(10)
+            ->all();
+        $recentActions = [];
+        try {
+            if (class_exists(AuditEvent::class)) {
+                $recentActions = AuditEvent::find()
+                    ->where(['actor_id' => $model->id])
+                    ->orderBy(['event_time' => SORT_DESC])
+                    ->limit(10)
+                    ->all();
+            }
+        } catch (\Throwable $e) {
+            // audit_events может отсутствовать
+        }
+
         return $this->render('view', [
-            'model' => $this->findModel($id),
+            'model' => $model,
+            'equipment' => $equipment,
+            'recentActions' => $recentActions,
         ]);
     }
 
