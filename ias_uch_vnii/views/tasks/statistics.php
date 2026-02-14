@@ -80,8 +80,16 @@ foreach ($executorChartData as $data) {
                         <i class="glyphicon glyphicon-user"></i> Количество заявок по пользователям
                     </h3>
                     <div class="chart-actions">
-                        <?= Html::a('<i class="glyphicon glyphicon-download"></i> Экспорт в Excel', ['tasks/export-user-stats'], [
+                        <?= Html::a('<i class="glyphicon glyphicon-download"></i> Excel', ['tasks/export-user-stats'], [
                             'class' => 'btn btn-success btn-sm',
+                            'target' => '_blank'
+                        ]) ?>
+                        <?= Html::a('<i class="glyphicon glyphicon-file"></i> PDF', ['tasks/export-user-stats-pdf'], [
+                            'class' => 'btn btn-danger btn-sm',
+                            'target' => '_blank'
+                        ]) ?>
+                        <?= Html::a('<i class="glyphicon glyphicon-list-alt"></i> HTML', ['tasks/export-user-stats-html'], [
+                            'class' => 'btn btn-info btn-sm',
                             'target' => '_blank'
                         ]) ?>
                     </div>
@@ -246,8 +254,16 @@ foreach ($executorChartData as $data) {
                         <i class="glyphicon glyphicon-wrench"></i> Завершенные заявки по исполнителям
                     </h3>
                     <div class="chart-actions">
-                        <?= Html::a('<i class="glyphicon glyphicon-download"></i> Экспорт в Excel', ['tasks/export-executor-stats'], [
+                        <?= Html::a('<i class="glyphicon glyphicon-download"></i> Excel', ['tasks/export-executor-stats'], [
                             'class' => 'btn btn-success btn-sm',
+                            'target' => '_blank'
+                        ]) ?>
+                        <?= Html::a('<i class="glyphicon glyphicon-file"></i> PDF', ['tasks/export-executor-stats-pdf'], [
+                            'class' => 'btn btn-danger btn-sm',
+                            'target' => '_blank'
+                        ]) ?>
+                        <?= Html::a('<i class="glyphicon glyphicon-list-alt"></i> HTML', ['tasks/export-executor-stats-html'], [
+                            'class' => 'btn btn-info btn-sm',
                             'target' => '_blank'
                         ]) ?>
                     </div>

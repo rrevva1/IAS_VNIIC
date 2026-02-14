@@ -907,6 +907,158 @@ class TasksController extends Controller
     }
 
     /**
+     * Данные отчёта «Статистика по пользователям» для экспорта в HTML/PDF
+     * @return array
+     */
+    private function getReportDataUserStats()
+    {
+        $userStats = Tasks::find()
+            ->select(['requester_id', 'COUNT(*) as count'])
+            ->groupBy('requester_id')
+            ->with('requester')
+            ->asArray()
+            ->all();
+
+        $totalTasks = array_sum(array_column($userStats, 'count'));
+        $rows = [];
+        foreach ($userStats as $stat) {
+            $user = Users::findOne($stat['requester_id']);
+            $percentage = $totalTasks > 0 ? round(($stat['count'] / $totalTasks) * 100, 2) : 0;
+            $rows[] = [
+                'name' => $user ? $user->full_name : 'Неизвестный пользователь',
+                'count' => (int) $stat['count'],
+                'percentage' => $percentage,
+            ];
+        }
+
+        return [
+            'reportTitle' => 'Статистика заявок по пользователям',
+            'column1Label' => 'Пользователь',
+            'column2Label' => 'Количество заявок',
+            'column3Label' => 'Процент от общего количества',
+            'rows' => $rows,
+            'totalLabel' => 'Общее количество заявок',
+            'totalValue' => $totalTasks,
+        ];
+    }
+
+    /**
+     * Данные отчёта «Статистика по исполнителям» для экспорта в HTML/PDF
+     * @return array
+     */
+    private function getReportDataExecutorStats()
+    {
+        $resolvedId = (int) (DicTaskStatus::find()->where(['status_code' => 'resolved'])->select('id')->scalar()
+            ?: DicTaskStatus::find()->where(['status_code' => 'closed'])->select('id')->scalar());
+        $executorStats = Tasks::find()
+            ->select(['executor_id', 'COUNT(*) as count'])
+            ->where(['status_id' => $resolvedId])
+            ->andWhere(['not', ['executor_id' => null]])
+            ->groupBy('executor_id')
+            ->with('executor')
+            ->asArray()
+            ->all();
+
+        $totalCompletedTasks = array_sum(array_column($executorStats, 'count'));
+        $rows = [];
+        foreach ($executorStats as $stat) {
+            $executor = Users::findOne($stat['executor_id']);
+            $percentage = $totalCompletedTasks > 0 ? round(($stat['count'] / $totalCompletedTasks) * 100, 2) : 0;
+            $rows[] = [
+                'name' => $executor ? $executor->full_name : 'Неизвестный исполнитель',
+                'count' => (int) $stat['count'],
+                'percentage' => $percentage,
+            ];
+        }
+
+        return [
+            'reportTitle' => 'Статистика завершённых заявок по исполнителям',
+            'column1Label' => 'Исполнитель',
+            'column2Label' => 'Количество завершённых заявок',
+            'column3Label' => 'Процент от общего количества',
+            'rows' => $rows,
+            'totalLabel' => 'Общее количество завершённых заявок',
+            'totalValue' => $totalCompletedTasks,
+        ];
+    }
+
+    /**
+     * Экспорт статистики по пользователям в HTML (для просмотра в браузере)
+     * @return string
+     */
+    public function actionExportUserStatsHtml()
+    {
+        $data = $this->getReportDataUserStats();
+        Yii::$app->response->format = Response::FORMAT_HTML;
+        Yii::$app->response->headers->set('Content-Disposition', 'inline; filename="' . 'Статистика_по_пользователям_' . date('Y-m-d_H-i-s') . '.html"');
+        return $this->renderPartial('statistics-export-html', array_merge($data, ['forPdf' => false]));
+    }
+
+    /**
+     * Экспорт статистики по пользователям в PDF
+     * @return mixed
+     */
+    public function actionExportUserStatsPdf()
+    {
+        $data = $this->getReportDataUserStats();
+        $html = $this->renderPartial('statistics-export-html', array_merge($data, ['forPdf' => true]));
+
+        if (class_exists(\Dompdf\Dompdf::class)) {
+            $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => false]);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $filename = 'Статистика_по_пользователям_' . date('Y-m-d_H-i-s') . '.pdf';
+            Yii::$app->response->format = Response::FORMAT_RAW;
+            Yii::$app->response->headers->set('Content-Type', 'application/pdf');
+            Yii::$app->response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            return $dompdf->output();
+        }
+
+        Yii::$app->response->format = Response::FORMAT_HTML;
+        Yii::$app->response->headers->set('Content-Disposition', 'inline; filename="' . 'Статистика_по_пользователям_' . date('Y-m-d_H-i-s') . '.html"');
+        return '<p style="padding:12px;background:#fff3cd;margin:12px;">Для сохранения в PDF используйте в браузере: <strong>Печать (Ctrl+P) → Сохранить как PDF</strong>.</p>' . $html;
+    }
+
+    /**
+     * Экспорт статистики по исполнителям в HTML (для просмотра в браузере)
+     * @return string
+     */
+    public function actionExportExecutorStatsHtml()
+    {
+        $data = $this->getReportDataExecutorStats();
+        Yii::$app->response->format = Response::FORMAT_HTML;
+        Yii::$app->response->headers->set('Content-Disposition', 'inline; filename="' . 'Статистика_по_исполнителям_' . date('Y-m-d_H-i-s') . '.html"');
+        return $this->renderPartial('statistics-export-html', array_merge($data, ['forPdf' => false]));
+    }
+
+    /**
+     * Экспорт статистики по исполнителям в PDF
+     * @return mixed
+     */
+    public function actionExportExecutorStatsPdf()
+    {
+        $data = $this->getReportDataExecutorStats();
+        $html = $this->renderPartial('statistics-export-html', array_merge($data, ['forPdf' => true]));
+
+        if (class_exists(\Dompdf\Dompdf::class)) {
+            $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => false]);
+            $dompdf->loadHtml($html, 'UTF-8');
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $filename = 'Статистика_по_исполнителям_' . date('Y-m-d_H-i-s') . '.pdf';
+            Yii::$app->response->format = Response::FORMAT_RAW;
+            Yii::$app->response->headers->set('Content-Type', 'application/pdf');
+            Yii::$app->response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            return $dompdf->output();
+        }
+
+        Yii::$app->response->format = Response::FORMAT_HTML;
+        Yii::$app->response->headers->set('Content-Disposition', 'inline; filename="' . 'Статистика_по_исполнителям_' . date('Y-m-d_H-i-s') . '.html"');
+        return '<p style="padding:12px;background:#fff3cd;margin:12px;">Для сохранения в PDF используйте в браузере: <strong>Печать (Ctrl+P) → Сохранить как PDF</strong>.</p>' . $html;
+    }
+
+    /**
      * Получить информацию о технике пользователя (для AG-Grid Detail Panel)
      * Возвращает список всех АРМ (техники), закрепленных за указанным пользователем
      * 
