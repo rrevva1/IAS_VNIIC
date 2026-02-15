@@ -13,6 +13,9 @@ Desktop.ini
 **/*.class
 xlsx_extract/
 
+# Docker: локальные переопределения (не коммитить)
+docker/.env
+
 # ias_uch_vnii: зависимости и сгенерированные файлы
 ias_uch_vnii/vendor/
 ias_uch_vnii/node_modules/

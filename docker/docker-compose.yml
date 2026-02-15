@@ -15,7 +15,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init:/docker-entrypoint-initdb.d:ro
-      - ../db/ias_vniic_14_02_26.sql:/docker-entrypoint-initdb.d/dump.sql.skip:ro
+      - ../db/ias_vniic_mac_15_02_26.sql:/docker-entrypoint-initdb.d/dump.sql.skip:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ias_vniic}"]
       interval: 5s
