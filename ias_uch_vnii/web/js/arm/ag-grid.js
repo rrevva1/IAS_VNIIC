@@ -46,7 +46,7 @@
         const base = window.agGridArmDataUrl || '/index.php?r=arm/get-grid-data';
         const typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
         if (typeId) {
-            return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'equipment_type_id=' + encodeURIComponent(typeId);
+            return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'equipment_type=' + encodeURIComponent(typeId);
         }
         return base;
     }

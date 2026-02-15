@@ -8,9 +8,11 @@ use Yii;
 use yii\data\ActiveDataProvider;
 use yii\filters\AccessControl;
 use yii\web\Controller;
+use yii\web\Response;
 
 /**
  * Просмотр журнала аудита (только для администраторов).
+ * Список событий отображается в AG Grid; данные — actionGetGridData.
  */
 class AuditController extends Controller
 {
@@ -35,9 +37,41 @@ class AuditController extends Controller
         ];
     }
 
-    public function actionIndex()
+    /**
+     * Список событий с фильтрами. Данные для AG Grid.
+     */
+    public function actionGetGridData()
     {
-        $query = AuditEvent::find()->with('actor')->orderBy(['event_time' => SORT_DESC]);
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        try {
+            $query = $this->buildFilteredQuery();
+            $models = $query->with('actor')->orderBy(['event_time' => SORT_DESC])->all();
+            $data = [];
+            foreach ($models as $model) {
+                $data[] = [
+                    'id' => $model->id,
+                    'event_time' => $model->event_time,
+                    'actor_name' => $model->actor ? $model->actor->full_name : '—',
+                    'action_type' => $model->action_type,
+                    'object_type' => $model->object_type,
+                    'object_id' => $model->object_id,
+                    'result_status' => $model->result_status,
+                    'payload' => $model->payload ?? '',
+                    'error_message' => isset($model->error_message) ? (string) $model->error_message : '',
+                ];
+            }
+            return ['success' => true, 'data' => $data, 'total' => count($data)];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => $e->getMessage(), 'data' => [], 'total' => 0];
+        }
+    }
+
+    /**
+     * Построение запроса с учётом фильтров из GET.
+     */
+    private function buildFilteredQuery()
+    {
+        $query = AuditEvent::find();
         $from = Yii::$app->request->get('from');
         $to = Yii::$app->request->get('to');
         $actorId = Yii::$app->request->get('actor_id');
@@ -58,13 +92,13 @@ class AuditController extends Controller
         if ($objectType !== null && $objectType !== '') {
             $query->andWhere(['object_type' => $objectType]);
         }
-        $dataProvider = new ActiveDataProvider([
-            'query' => $query,
-            'pagination' => ['pageSize' => 50],
-        ]);
+        return $query;
+    }
+
+    public function actionIndex()
+    {
         $users = Users::find()->select(['full_name', 'id'])->indexBy('id')->orderBy('full_name')->column();
         return $this->render('index', [
-            'dataProvider' => $dataProvider,
             'users' => $users,
         ]);
     }

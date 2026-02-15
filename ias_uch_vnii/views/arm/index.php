@@ -38,7 +38,7 @@ $equipmentTypes = $equipmentTypes ?? [];
         </li>
         <?php foreach ($equipmentTypes as $type): ?>
         <li class="nav-item">
-            <a class="nav-link arm-type-tab" href="#" data-type-id="<?= (int)($type['id'] ?? 0) ?>"><?= Html::encode($type['name'] ?? '') ?></a>
+            <a class="nav-link arm-type-tab" href="#" data-type-id="<?= Html::encode($type['id'] ?? '') ?>"><?= Html::encode($type['name'] ?? '') ?></a>
         </li>
         <?php endforeach; ?>
     </ul>

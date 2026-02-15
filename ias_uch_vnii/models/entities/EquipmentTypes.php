@@ -2,39 +2,46 @@
 
 namespace app\models\entities;
 
-use yii\db\ActiveRecord;
+use yii\helpers\ArrayHelper;
 
 /**
- * Справочник типов оборудования (equipment_types, схема tech_accounting).
- *
- * @property int $id
- * @property string $name
- * @property int $sort_order
- * @property bool $is_archived
+ * Список типов оборудования по данным из equipment.equipment_type (схема как в дампе, без таблицы equipment_types).
  */
-class EquipmentTypes extends ActiveRecord
+class EquipmentTypes
 {
-    public static function tableName()
-    {
-        return 'equipment_types';
-    }
-
-    public function rules()
-    {
-        return [
-            [['name'], 'required'],
-            [['name'], 'string', 'max' => 100],
-            [['sort_order'], 'integer'],
-            [['is_archived'], 'boolean'],
-        ];
-    }
-
+    /**
+     * Список для выпадающего списка: [значение => подпись].
+     * @return array<string, string>
+     */
     public static function getList(): array
     {
-        return \yii\helpers\ArrayHelper::map(
-            self::find()->where(['is_archived' => false])->orderBy(['sort_order' => SORT_ASC])->all(),
-            'id',
-            'name'
-        );
+        $types = Equipment::find()
+            ->select('equipment_type')
+            ->distinct()
+            ->where(['not', ['equipment_type' => null]])
+            ->andWhere(['<>', 'equipment_type', ''])
+            ->orderBy('equipment_type')
+            ->column();
+        return ArrayHelper::map($types, function ($v) { return $v; }, function ($v) { return $v; });
+    }
+
+    /**
+     * Список для вкладок: [['id' => тип, 'name' => тип], ...].
+     * @return array<int, array{id: string, name: string}>
+     */
+    public static function getListForTabs(): array
+    {
+        $types = Equipment::find()
+            ->select('equipment_type')
+            ->distinct()
+            ->where(['not', ['equipment_type' => null]])
+            ->andWhere(['<>', 'equipment_type', ''])
+            ->orderBy('equipment_type')
+            ->column();
+        $result = [];
+        foreach ($types as $name) {
+            $result[] = ['id' => $name, 'name' => $name];
+        }
+        return $result;
     }
 }

@@ -29,7 +29,7 @@ $equipmentTypes = $equipmentTypes ?? [];
         'placeholder' => 'Например: ПК Lenovo ThinkCentre M720',
     ]) ?>
 
-    <?= $form->field($model, 'equipment_type_id')->dropDownList($equipmentTypes, [
+    <?= $form->field($model, 'equipment_type')->dropDownList($equipmentTypes, [
         'prompt' => 'Выберите тип техники',
         'id' => 'equipment-type-select',
     ]) ?>

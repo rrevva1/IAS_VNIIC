@@ -77,20 +77,20 @@ $config = [
 ];
 
 if (YII_ENV_DEV) {
-    // настройки конфигурации для 'dev' окружения
-    $config['bootstrap'][] = 'debug';
-    $config['modules']['debug'] = [
-        'class' => 'yii\debug\Module',
-        // раскомментируйте следующую строку чтобы добавить свой IP, если вы не подключаетесь с localhost.
-        'allowedIPs' => ['127.0.0.1', '::1', '192.168.*.*', '10.*.*.*'],
-    ];
-
-    $config['bootstrap'][] = 'gii';
-    $config['modules']['gii'] = [
-        'class' => 'yii\gii\Module',
-        // раскомментируйте следующую строку чтобы добавить свой IP, если вы не подключаетесь с localhost.
-        //'allowedIPs' => ['127.0.0.1', '::1'],
-    ];
+    // настройки конфигурации для 'dev' окружения (модули подключаются только если установлены)
+    if (class_exists('yii\debug\Module')) {
+        $config['bootstrap'][] = 'debug';
+        $config['modules']['debug'] = [
+            'class' => 'yii\debug\Module',
+            'allowedIPs' => ['127.0.0.1', '::1', '192.168.*.*', '10.*.*.*'],
+        ];
+    }
+    if (class_exists('yii\gii\Module')) {
+        $config['bootstrap'][] = 'gii';
+        $config['modules']['gii'] = [
+            'class' => 'yii\gii\Module',
+        ];
+    }
 }
 
 return $config;

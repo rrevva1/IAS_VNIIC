@@ -22,15 +22,15 @@ class ArmSearch extends Model
     public $status_id;
     /** @var int|bool Показать архивные (0 = нет по умолчанию) */
     public $is_archived = 0;
-    /** @var int|null Фильтр по типу техники (equipment_type_id) */
-    public $equipment_type_id;
+    /** @var string|null Фильтр по типу техники (equipment_type, как в дампе) */
+    public $equipment_type;
 
     public function rules()
     {
         return [
-            [['id', 'responsible_user_id', 'location_id', 'status_id', 'equipment_type_id'], 'integer'],
+            [['id', 'responsible_user_id', 'location_id', 'status_id'], 'integer'],
             [['is_archived'], 'boolean'],
-            [['name', 'description', 'inventory_number'], 'safe'],
+            [['name', 'description', 'inventory_number', 'equipment_type'], 'safe'],
         ];
     }
 
@@ -66,8 +66,8 @@ class ArmSearch extends Model
             'equipment.is_archived' => $this->is_archived,
         ]);
 
-        if ($this->equipment_type_id !== null && $this->equipment_type_id !== '') {
-            $query->andFilterWhere(['equipment.equipment_type_id' => $this->equipment_type_id]);
+        if ($this->equipment_type !== null && $this->equipment_type !== '') {
+            $query->andFilterWhere(['equipment.equipment_type' => $this->equipment_type]);
         }
 
         $query->andFilterWhere(['ilike', 'equipment.name', $this->name])
