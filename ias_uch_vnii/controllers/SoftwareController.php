@@ -14,6 +14,7 @@ use yii\filters\VerbFilter;
 use yii\web\Controller;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
+use yii\web\Response;
 
 /**
  * Учёт ПО и лицензий (ТЗ 5.1.12). Только для администраторов.
@@ -53,6 +54,23 @@ class SoftwareController extends Controller
     public function actionIndex($name = null, $expiring_days = null)
     {
         try {
+            return $this->render('index');
+        } catch (DbException $e) {
+            if (strpos($e->getMessage(), 'software') !== false && (strpos($e->getMessage(), 'не существует') !== false || strpos($e->getMessage(), 'does not exist') !== false)) {
+                return $this->render('migrate-required');
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * JSON для AG Grid: список ПО с количеством лицензий.
+     * Параметры: name (фильтр по наименованию), expiring_days (ПО с лицензиями, истекающими в течение N дней).
+     */
+    public function actionGetGridData($name = null, $expiring_days = null)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        try {
             $query = Software::find()->orderBy(['name' => SORT_ASC]);
             if ($name !== null && $name !== '') {
                 $query->andWhere(['ilike', 'name', $name]);
@@ -68,13 +86,22 @@ class SoftwareController extends Controller
                 $query->andWhere(['id' => $ids ?: [0]]);
             }
             $list = $query->all();
+            $data = [];
+            foreach ($list as $model) {
+                $data[] = [
+                    'id' => (int) $model->id,
+                    'name' => $model->name ?? '',
+                    'version' => $model->version ?? '',
+                    'licenses_count' => count($model->licenses),
+                ];
+            }
+            return ['success' => true, 'data' => $data, 'total' => count($data)];
         } catch (DbException $e) {
             if (strpos($e->getMessage(), 'software') !== false && (strpos($e->getMessage(), 'не существует') !== false || strpos($e->getMessage(), 'does not exist') !== false)) {
-                return $this->render('migrate-required');
+                return ['success' => false, 'message' => 'Таблица ПО не найдена.', 'data' => [], 'total' => 0];
             }
-            throw $e;
+            return ['success' => false, 'message' => $e->getMessage(), 'data' => [], 'total' => 0];
         }
-        return $this->render('index', ['list' => $list]);
     }
 
     public function actionView($id)

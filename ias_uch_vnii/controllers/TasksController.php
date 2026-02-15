@@ -661,6 +661,63 @@ class TasksController extends Controller
     }
 
     /**
+     * JSON для AG Grid на странице статистики: таблица «по пользователям» или «по исполнителям».
+     * @param string $type 'user' | 'executor'
+     */
+    public function actionStatisticsGetGridData($type = 'user')
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $type = $type === 'executor' ? 'executor' : 'user';
+
+        if ($type === 'user') {
+            $userStats = Tasks::find()
+                ->select(['requester_id', 'COUNT(*) as count'])
+                ->groupBy('requester_id')
+                ->asArray()
+                ->all();
+            $total = array_sum(array_column($userStats, 'count'));
+            $data = [];
+            $rowNum = 1;
+            foreach ($userStats as $stat) {
+                $user = Users::findOne($stat['requester_id']);
+                $count = (int) $stat['count'];
+                $percentage = $total > 0 ? round(($count / $total) * 100, 2) : 0;
+                $data[] = [
+                    'row_num' => $rowNum++,
+                    'name' => $user ? $user->full_name : 'Неизвестный пользователь',
+                    'count' => $count,
+                    'percentage' => $percentage,
+                ];
+            }
+        } else {
+            $resolvedStatusId = (int) (DicTaskStatus::find()->where(['status_code' => 'resolved'])->select('id')->scalar() ?: DicTaskStatus::find()->where(['status_code' => 'closed'])->select('id')->scalar());
+            $executorStats = Tasks::find()
+                ->select(['executor_id', 'COUNT(*) as count'])
+                ->where(['status_id' => $resolvedStatusId])
+                ->andWhere(['not', ['executor_id' => null]])
+                ->groupBy('executor_id')
+                ->asArray()
+                ->all();
+            $total = array_sum(array_column($executorStats, 'count'));
+            $data = [];
+            $rowNum = 1;
+            foreach ($executorStats as $stat) {
+                $executor = Users::findOne($stat['executor_id']);
+                $count = (int) $stat['count'];
+                $percentage = $total > 0 ? round(($count / $total) * 100, 2) : 0;
+                $data[] = [
+                    'row_num' => $rowNum++,
+                    'name' => $executor ? $executor->full_name : 'Неизвестный исполнитель',
+                    'count' => $count,
+                    'percentage' => $percentage,
+                ];
+            }
+        }
+
+        return ['success' => true, 'data' => $data, 'total' => count($data)];
+    }
+
+    /**
      * API endpoint для получения данных заявок в формате JSON для AG Grid
      * Возвращает все заявки с полной информацией для отображения в таблице AG Grid
      * 

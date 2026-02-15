@@ -29,6 +29,15 @@
     position: relative;
 }
 
+/* Ссылки на карточку актива в гриде Учет ТС */
+#agGridArmContainer .arm-link-to-card {
+    color: #0d6efd;
+    text-decoration: none;
+}
+#agGridArmContainer .arm-link-to-card:hover {
+    text-decoration: underline;
+}
+
 /* Контейнер AG Grid — заявки (tasks) */
 #agGridTasksContainer {
     width: 100%;

@@ -1,7 +1,9 @@
 <?php
 use yii\helpers\Html;
-use yii\grid\GridView;
-use yii\widgets\Pjax;
+use yii\helpers\Url;
+use app\assets\ReferencesGridAsset;
+
+ReferencesGridAsset::register($this);
 
 $this->title = 'Статусы заявок';
 $this->params['breadcrumbs'][] = ['label' => 'Справочники', 'url' => ['index']];
@@ -9,44 +11,18 @@ $this->params['breadcrumbs'][] = $this->title;
 ?>
 <div class="references-task-status">
     <h1><?= Html::encode($this->title) ?></h1>
-    <p><?= Html::a('Добавить статус', ['task-status-create'], ['class' => 'btn btn-success']) ?></p>
-    <?php Pjax::begin(['id' => 'ref-task-status-pjax']); ?>
-    <?= GridView::widget([
-        'dataProvider' => $dataProvider,
-        'columns' => [
-            'id',
-            'status_code',
-            'status_name',
-            'sort_order',
-            [
-                'attribute' => 'is_archived',
-                'format' => 'raw',
-                'value' => function ($model) {
-                    return $model->is_archived ? '<span class="badge bg-secondary">Архив</span>' : '<span class="badge bg-success">Активен</span>';
-                },
-            ],
-            [
-                'class' => 'yii\grid\ActionColumn',
-                'template' => '{update} {archive}',
-                'buttons' => [
-                    'archive' => function ($url, $model, $key) {
-                        if ($model->is_archived) {
-                            return '';
-                        }
-                        return Html::a('В архив', ['task-status-archive', 'id' => $model->id], [
-                            'class' => 'btn btn-sm btn-warning',
-                            'data' => ['confirm' => 'Архивировать этот статус?', 'method' => 'post'],
-                        ]);
-                    },
-                ],
-                'urlCreator' => function ($action, $model, $key, $index) {
-                    if ($action === 'update') {
-                        return ['task-status-update', 'id' => $model->id];
-                    }
-                    return null;
-                },
-            ],
-        ],
-    ]) ?>
-    <?php Pjax::end(); ?>
+    <p>
+        <?= Html::a('Добавить статус', ['task-status-create'], ['class' => 'btn btn-success']) ?>
+        <?= Html::a('Обновить', ['task-status'], ['class' => 'btn btn-outline-secondary']) ?>
+    </p>
+    <div
+        id="agGridRefTaskStatus"
+        class="ag-theme-quartz"
+        style="width: 100%; height: 60vh; min-height: 300px;"
+        data-url="<?= Html::encode(Url::to(['task-status-get-grid-data'])) ?>"
+        data-update-url="<?= Html::encode(Url::to(['task-status-update'])) ?>"
+        data-archive-url="<?= Html::encode(Url::to(['task-status-archive'])) ?>"
+    >
+        <div class="text-center text-muted p-4">Загрузка таблицы...</div>
+    </div>
 </div>

@@ -8,6 +8,14 @@
 
     let gridApi;
 
+    function getViewUrl(id) {
+        var base = window.agGridArmViewUrl || (window.location.pathname.indexOf('index.php') >= 0
+            ? window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) + 'index.php'
+            : '/index.php');
+        var sep = base.indexOf('?') >= 0 ? '&' : '?';
+        return base + sep + 'r=arm/view&id=' + encodeURIComponent(id);
+    }
+
     function getColumnDefs() {
         return [
             { headerName: 'Пользователь', field: 'user_name', flex: 1, minWidth: 140, filter: 'agTextColumnFilter' },
@@ -15,14 +23,44 @@
             { headerName: 'ЦП', field: 'cpu', width: 140, filter: 'agTextColumnFilter' },
             { headerName: 'ОЗУ', field: 'ram', width: 80, filter: 'agTextColumnFilter' },
             { headerName: 'Диск', field: 'disk', width: 120, filter: 'agTextColumnFilter' },
-            { headerName: 'Тип/Название техники', field: 'system_block', flex: 1, minWidth: 140, filter: 'agTextColumnFilter' },
-            { headerName: 'Инв. №', field: 'inventory_number', width: 110, filter: 'agTextColumnFilter' },
+            {
+                headerName: 'Тип/Название техники',
+                field: 'system_block',
+                flex: 1,
+                minWidth: 140,
+                filter: 'agTextColumnFilter',
+                cellRenderer: function(params) {
+                    if (!params.data || params.data.id == null) return params.value || '';
+                    var text = params.value || '—';
+                    var url = getViewUrl(params.data.id);
+                    return '<a href="' + url + '" class="arm-link-to-card">' + escapeHtml(String(text)) + '</a>';
+                },
+                tooltipField: 'system_block',
+            },
+            {
+                headerName: 'Инв. №',
+                field: 'inventory_number',
+                width: 110,
+                filter: 'agTextColumnFilter',
+                cellRenderer: function(params) {
+                    if (!params.data || params.data.id == null) return params.value || '';
+                    var text = params.value || '—';
+                    var url = getViewUrl(params.data.id);
+                    return '<a href="' + url + '" class="arm-link-to-card" title="Открыть карточку актива">' + escapeHtml(String(text)) + '</a>';
+                },
+            },
             { headerName: 'Монитор', field: 'monitor', width: 140, filter: 'agTextColumnFilter' },
             { headerName: 'Имя ПК', field: 'hostname', width: 120, filter: 'agTextColumnFilter' },
             { headerName: 'IP адрес', field: 'ip', width: 110, filter: 'agTextColumnFilter' },
             { headerName: 'ОС', field: 'os', width: 120, filter: 'agTextColumnFilter' },
             { headerName: 'ДР техника', field: 'other_tech', flex: 1, minWidth: 160, filter: 'agTextColumnFilter', tooltipField: 'other_tech' },
         ];
+    }
+
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     var localeTextRu = {

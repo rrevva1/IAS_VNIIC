@@ -16,6 +16,7 @@ use yii\filters\VerbFilter;
 use yii\web\Controller;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
+use yii\web\Response;
 
 /**
  * Модуль справочников (ТЗ 5.1.2). Только для администраторов.
@@ -62,11 +63,26 @@ class ReferencesController extends Controller
     /** Статусы заявок */
     public function actionTaskStatus()
     {
-        $dataProvider = new \yii\data\ActiveDataProvider([
-            'query' => DicTaskStatus::find()->orderBy(['sort_order' => SORT_ASC]),
-            'pagination' => ['pageSize' => 50],
-        ]);
-        return $this->render('task-status', ['dataProvider' => $dataProvider]);
+        return $this->render('task-status');
+    }
+
+    /**
+     * JSON для AG Grid: статусы заявок.
+     */
+    public function actionTaskStatusGetGridData()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $models = DicTaskStatus::find()->orderBy(['sort_order' => SORT_ASC])->all();
+        $data = array_map(function (DicTaskStatus $m) {
+            return [
+                'id' => (int) $m->id,
+                'status_code' => $m->status_code ?? '',
+                'status_name' => $m->status_name ?? '',
+                'sort_order' => (int) $m->sort_order,
+                'is_archived' => (bool) $m->is_archived,
+            ];
+        }, $models);
+        return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
     public function actionTaskStatusCreate()
@@ -106,11 +122,26 @@ class ReferencesController extends Controller
     /** Локации */
     public function actionLocations()
     {
-        $dataProvider = new \yii\data\ActiveDataProvider([
-            'query' => Location::find()->orderBy(['name' => SORT_ASC]),
-            'pagination' => ['pageSize' => 50],
-        ]);
-        return $this->render('locations', ['dataProvider' => $dataProvider]);
+        return $this->render('locations');
+    }
+
+    /**
+     * JSON для AG Grid: локации.
+     */
+    public function actionLocationsGetGridData()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $models = Location::find()->orderBy(['name' => SORT_ASC])->all();
+        $data = array_map(function (Location $m) {
+            return [
+                'id' => (int) $m->id,
+                'name' => $m->name ?? '',
+                'location_code' => $m->location_code ?? '',
+                'location_type' => $m->location_type ?? '',
+                'is_archived' => (bool) $m->is_archived,
+            ];
+        }, $models);
+        return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
     public function actionLocationCreate()
@@ -149,11 +180,26 @@ class ReferencesController extends Controller
     /** Статусы оборудования */
     public function actionEquipmentStatus()
     {
-        $dataProvider = new \yii\data\ActiveDataProvider([
-            'query' => DicEquipmentStatus::find()->orderBy(['sort_order' => SORT_ASC]),
-            'pagination' => ['pageSize' => 50],
-        ]);
-        return $this->render('equipment-status', ['dataProvider' => $dataProvider]);
+        return $this->render('equipment-status');
+    }
+
+    /**
+     * JSON для AG Grid: статусы оборудования.
+     */
+    public function actionEquipmentStatusGetGridData()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $models = DicEquipmentStatus::find()->orderBy(['sort_order' => SORT_ASC])->all();
+        $data = array_map(function (DicEquipmentStatus $m) {
+            return [
+                'id' => (int) $m->id,
+                'status_code' => $m->status_code ?? '',
+                'status_name' => $m->status_name ?? '',
+                'sort_order' => (int) $m->sort_order,
+                'is_archived' => (bool) $m->is_archived,
+            ];
+        }, $models);
+        return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
     public function actionEquipmentStatusCreate()
@@ -193,11 +239,25 @@ class ReferencesController extends Controller
     /** Типы частей (комплектующие) — spr_parts */
     public function actionParts()
     {
-        $dataProvider = new \yii\data\ActiveDataProvider([
-            'query' => SprParts::find()->orderBy(['name' => SORT_ASC]),
-            'pagination' => ['pageSize' => 50],
-        ]);
-        return $this->render('parts', ['dataProvider' => $dataProvider]);
+        return $this->render('parts');
+    }
+
+    /**
+     * JSON для AG Grid: типы частей.
+     */
+    public function actionPartsGetGridData()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $models = SprParts::find()->orderBy(['name' => SORT_ASC])->all();
+        $data = array_map(function (SprParts $m) {
+            return [
+                'id' => (int) $m->id,
+                'name' => $m->name ?? '',
+                'description' => $m->description ?? '',
+                'is_archived' => (bool) $m->is_archived,
+            ];
+        }, $models);
+        return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
     public function actionPartsCreate()
@@ -236,11 +296,26 @@ class ReferencesController extends Controller
     /** Характеристики — spr_chars */
     public function actionChars()
     {
-        $dataProvider = new \yii\data\ActiveDataProvider([
-            'query' => SprChars::find()->orderBy(['name' => SORT_ASC]),
-            'pagination' => ['pageSize' => 50],
-        ]);
-        return $this->render('chars', ['dataProvider' => $dataProvider]);
+        return $this->render('chars');
+    }
+
+    /**
+     * JSON для AG Grid: характеристики.
+     */
+    public function actionCharsGetGridData()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $models = SprChars::find()->orderBy(['name' => SORT_ASC])->all();
+        $data = array_map(function (SprChars $m) {
+            return [
+                'id' => (int) $m->id,
+                'name' => $m->name ?? '',
+                'measurement_unit' => $m->measurement_unit ?? '',
+                'description' => $m->description ?? '',
+                'is_archived' => (bool) $m->is_archived,
+            ];
+        }, $models);
+        return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
     public function actionCharsCreate()

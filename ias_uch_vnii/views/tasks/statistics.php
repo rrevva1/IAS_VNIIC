@@ -36,27 +36,8 @@ foreach (\app\models\dictionaries\DicTaskStatus::find()->orderBy(['sort_order' =
     $statusNames[$s->id] = ['name' => $s->status_name, 'color' => $colors[$s->status_code] ?? '#6c757d', 'icon' => $icons[$s->status_code] ?? 'glyphicon-tag'];
 }
 
-// Подготавливаем данные для таблиц
-$userTableData = [];
-foreach ($userChartData as $data) {
-    $percentage = $totalTasks > 0 ? round(($data['y'] / $totalTasks) * 100, 2) : 0;
-    $userTableData[] = [
-        'name' => $data['name'],
-        'count' => $data['y'],
-        'percentage' => $percentage
-    ];
-}
-
-$executorTableData = [];
+// Для подзаголовка диаграммы «Завершенные заявки по исполнителям»
 $totalCompletedTasks = array_sum(array_column($executorChartData, 'y'));
-foreach ($executorChartData as $data) {
-    $percentage = $totalCompletedTasks > 0 ? round(($data['y'] / $totalCompletedTasks) * 100, 2) : 0;
-    $executorTableData[] = [
-        'name' => $data['name'],
-        'count' => $data['y'],
-        'percentage' => $percentage
-    ];
-}
 
 ?>
 
@@ -203,43 +184,15 @@ foreach ($executorChartData as $data) {
                     ?>
                 </div>
                 
-                <!-- Таблица данных под диаграммой -->
+                <!-- Таблица данных под диаграммой (AG Grid) -->
                 <div class="chart-table">
                     <h4><i class="glyphicon glyphicon-list"></i> Детальные данные</h4>
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>№</th>
-                                    <th>Пользователь</th>
-                                    <th>Количество заявок</th>
-                                    <th>Процент от общего количества</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($userTableData as $index => $row): ?>
-                                    <tr>
-                                        <td><?= $index + 1 ?></td>
-                                        <td><?= Html::encode($row['name']) ?></td>
-                                        <td>
-                                            <span class="badge badge-primary"><?= $row['count'] ?></span>
-                                        </td>
-                                        <td>
-                                            <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar" role="progressbar" 
-                                                     style="width: <?= $row['percentage'] ?>%; background-color: #007bff;" 
-                                                     aria-valuenow="<?= $row['percentage'] ?>" 
-                                                     aria-valuemin="0" 
-                                                     aria-valuemax="100">
-                                                    <?= $row['percentage'] ?>%
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div
+                        id="agGridStatisticsUserContainer"
+                        class="ag-theme-quartz"
+                        style="width: 100%; height: 320px; min-height: 200px;"
+                        data-url="<?= Html::encode(Url::to(['tasks/statistics-get-grid-data', 'type' => 'user'])) ?>"
+                    ></div>
                 </div>
             </div>
         </div>
@@ -377,43 +330,15 @@ foreach ($executorChartData as $data) {
                     ?>
                 </div>
                 
-                <!-- Таблица данных под диаграммой -->
+                <!-- Таблица данных под диаграммой (AG Grid) -->
                 <div class="chart-table">
                     <h4><i class="glyphicon glyphicon-list"></i> Детальные данные</h4>
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>№</th>
-                                    <th>Исполнитель</th>
-                                    <th>Количество завершенных заявок</th>
-                                    <th>Процент от общего количества</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($executorTableData as $index => $row): ?>
-                                    <tr>
-                                        <td><?= $index + 1 ?></td>
-                                        <td><?= Html::encode($row['name']) ?></td>
-                                        <td>
-                                            <span class="badge badge-success"><?= $row['count'] ?></span>
-                                        </td>
-                                        <td>
-                                            <div class="progress" style="height: 20px;">
-                                                <div class="progress-bar" role="progressbar" 
-                                                     style="width: <?= $row['percentage'] ?>%; background-color: #28a745;" 
-                                                     aria-valuenow="<?= $row['percentage'] ?>" 
-                                                     aria-valuemin="0" 
-                                                     aria-valuemax="100">
-                                                    <?= $row['percentage'] ?>%
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div
+                        id="agGridStatisticsExecutorContainer"
+                        class="ag-theme-quartz"
+                        style="width: 100%; height: 320px; min-height: 200px;"
+                        data-url="<?= Html::encode(Url::to(['tasks/statistics-get-grid-data', 'type' => 'executor'])) ?>"
+                    ></div>
                 </div>
             </div>
         </div>

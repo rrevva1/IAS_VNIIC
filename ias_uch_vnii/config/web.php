@@ -53,6 +53,14 @@ $config = [
             ],
         ],
         'db' => $db,
+        'assetManager' => [
+            'bundles' => [
+                // Highcharts: скрипты в npm пакете лежат в подпапке package/
+                'miloschuman\highcharts\HighchartsAsset' => [
+                    'class' => 'app\assets\HighchartsAssetOverride',
+                ],
+            ],
+        ],
         /*
         'urlManager' => [
             'enablePrettyUrl' => true,
