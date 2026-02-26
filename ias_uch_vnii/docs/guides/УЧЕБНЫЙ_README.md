@@ -89,7 +89,7 @@
 │   │
 │   ├── tasks/                  # Страницы управления заявками
 │   │   ├── index.php           # Список заявок (Kartik GridView)
-│   │   ├── index-aggrid.php    # Список заявок (AG Grid)
+│   │   ├── index.php    # Список заявок (AG Grid)
 │   │   ├── view.php            # Просмотр одной заявки
 │   │   ├── create.php          # Создание новой заявки
 │   │   ├── update.php          # Редактирование заявки
@@ -1561,7 +1561,7 @@ function exportToExcel(type)
 | 4 | **form.css** | `web/css/tasks/form.css` | Форма создания/редактирования | tasks/create, tasks/update |
 | 5 | **form-modal.css** | `web/css/tasks/form-modal.css` | Модальная форма создания | Модальное окно на всех страницах |
 | 6 | **index.css** | `web/css/tasks/index.css` | Список задач (GridView) | tasks/index |
-| 7 | **ag-grid.css** | `web/css/tasks/ag-grid.css` | Специфичные стили AG Grid | tasks/index-aggrid |
+| 7 | **ag-grid.css** | `web/css/tasks/ag-grid.css` | Специфичные стили AG Grid | tasks/index |
 | 8 | **statistics.css** | `web/css/tasks/statistics.css` | Страница статистики | tasks/statistics |
 | 9 | **index.css** | `web/css/users/index.css` | Список пользователей | users/index |
 
@@ -1755,7 +1755,7 @@ function exportToExcel(type)
 .ag-editor-cell { }         /* Ячейка в режиме редактирования */
 ```
 
-**Используется**: На странице tasks/index-aggrid
+**Используется**: На странице tasks/index
 
 **Примечание**: Фильтр дат использует функцию `parseRuDateTime()` для корректного парсинга дат в формате `dd.mm.yyyy HH:MM`
 
@@ -1826,8 +1826,8 @@ function exportToExcel(type)
 | # | Файл | Путь | Назначение | Основные функции | Используется на |
 |---|------|------|------------|------------------|-----------------|
 | 1 | **pages.js** | `web/js/site/pages.js` | Скрипты общих страниц | Валидация форм, анимации | site/index, site/about, site/contact |
-| 2 | **ag-grid.js** | `web/js/tasks/ag-grid.js` | Конфигурация AG Grid | initializeAgGrid(), getColumnDefs(), loadGridData(), parseRuDateTime() | tasks/index-aggrid |
-| 3 | **ag-grid-init.js** | `web/js/tasks/ag-grid-init.js` | Инициализация AG Grid | Запуск initializeAgGrid() при загрузке | tasks/index-aggrid |
+| 2 | **ag-grid.js** | `web/js/tasks/ag-grid.js` | Конфигурация AG Grid | initializeAgGrid(), getColumnDefs(), loadGridData(), parseRuDateTime() | tasks/index |
+| 3 | **ag-grid-init.js** | `web/js/tasks/ag-grid-init.js` | Инициализация AG Grid | Запуск initializeAgGrid() при загрузке | tasks/index |
 | 4 | **form.js** | `web/js/tasks/form.js` | Форма задачи | Множественная загрузка файлов, валидация | tasks/create, tasks/update |
 | 5 | **form-modal.js** | `web/js/tasks/form-modal.js` | Модальная форма | openCreateTaskModal(), submitTaskModalForm() | Модальное окно |
 | 6 | **view.js** | `web/js/tasks/view.js` | Просмотр задачи | changeTaskStatus(), assignExecutor(), previewFile() | tasks/view |
@@ -1957,7 +1957,7 @@ AG Grid - это мощная библиотека JavaScript для созда�
 
 ### Использование в представлениях:
 
-**Представление**: `views/tasks/index-aggrid.php`
+**Представление**: `views/tasks/index.php`
 
 ```php
 use app\assets\AgGridAsset;

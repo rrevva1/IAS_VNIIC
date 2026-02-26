@@ -41,7 +41,7 @@ class ArmSearch extends Model
 
     public function search(array $params): ActiveDataProvider
     {
-        $query = Equipment::find()->with(['responsibleUser', 'location', 'equipmentStatus']);
+        $query = Equipment::find()->with(['responsibleUser', 'location']);
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
@@ -64,10 +64,12 @@ class ArmSearch extends Model
             'location_id' => $this->location_id,
             'status_id' => $this->status_id,
             'equipment.is_archived' => $this->is_archived,
+            'equipment.is_deleted' => false,
         ]);
 
-        if ($this->equipment_type !== null && $this->equipment_type !== '') {
-            $query->andFilterWhere(['equipment.equipment_type' => $this->equipment_type]);
+        $eqType = $this->equipment_type !== null ? trim((string) $this->equipment_type) : '';
+        if ($eqType !== '') {
+            $query->andFilterWhere(['equipment.equipment_type' => $eqType]);
         }
 
         $query->andFilterWhere(['ilike', 'equipment.name', $this->name])

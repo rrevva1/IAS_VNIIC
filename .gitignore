@@ -8,6 +8,10 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+# Временные файлы офисных приложений (Excel и др.)
+~$*
+**/~$*
+
 # Артефакты IDE и сгенерированные файлы
 **/.metadata/
 **/*.class
