@@ -38,9 +38,9 @@ $this->params['breadcrumbs'][] = $this->title;
             'serial_number',
             'name',
             [
-                'attribute' => 'equipment_type',
+                'attribute' => 'equipment_type_id',
                 'label' => 'Тип',
-                'value' => $model->equipment_type ?: '—',
+                'value' => $model->equipmentType ? $model->equipmentType->name : '—',
             ],
             [
                 'attribute' => 'status_id',

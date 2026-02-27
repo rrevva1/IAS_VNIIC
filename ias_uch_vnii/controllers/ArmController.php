@@ -88,8 +88,8 @@ class ArmController extends Controller
     }
 
     /**
-     * Список типов техники для вкладок (из уникальных equipment.equipment_type, как в дампе).
-     * Возвращает [['id' => тип, 'name' => тип], ...]
+     * Список типов техники для вкладок (из справочника equipment_types).
+     * Возвращает [['id' => id, 'name' => name], ...]
      */
     private function getEquipmentTypesForTabs(): array
     {
@@ -106,11 +106,11 @@ class ArmController extends Controller
         Yii::$app->response->format = Response::FORMAT_JSON;
         try {
             $params = Yii::$app->request->queryParams;
-            // Вкладки передают equipment_type в корне; ArmSearch ожидает ArmSearch[equipment_type]. Для «Вся техника» не передаём пустое значение.
-            $eqType = isset($params['equipment_type']) ? trim((string) $params['equipment_type']) : '';
-            if ($eqType !== '') {
+            // Вкладки передают equipment_type_id; ArmSearch ожидает ArmSearch[equipment_type_id].
+            $eqTypeId = isset($params['equipment_type_id']) ? (int) $params['equipment_type_id'] : 0;
+            if ($eqTypeId > 0) {
                 $params['ArmSearch'] = $params['ArmSearch'] ?? [];
-                $params['ArmSearch']['equipment_type'] = $eqType;
+                $params['ArmSearch']['equipment_type_id'] = $eqTypeId;
             }
             $searchModel = new ArmSearch();
             $dataProvider = $searchModel->search($params);

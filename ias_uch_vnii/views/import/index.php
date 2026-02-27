@@ -13,6 +13,7 @@ $this->params['breadcrumbs'][] = $this->title;
 <div class="import-index">
     <h1><?= Html::encode($this->title) ?></h1>
     <p class="text-muted">Загрузите файл Excel с листом «АРМ». Колонки: A=Пользователь, B=Отдел, C=Помещение, D=ЦП, E=ОЗУ, F=Диск, G=Системный блок, H=—, I=№ системн. блока (см. регламент парсинга).</p>
+    <p><?= Html::a('Универсальный импорт (CSV, JSON, XML, XLSX)', ['import/universal'], ['class' => 'btn btn-default']) ?></p>
 
     <?php if ($message): ?>
         <div class="alert alert-info"><?= Html::encode($message) ?></div>

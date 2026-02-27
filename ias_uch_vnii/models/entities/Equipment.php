@@ -13,7 +13,7 @@ use yii\db\ActiveRecord;
  * @property string $inventory_number
  * @property string|null $serial_number
  * @property string $name
- * @property string|null $equipment_type
+ * @property int|null $equipment_type_id
  * @property int $status_id
  * @property int|null $responsible_user_id
  * @property int $location_id
@@ -33,6 +33,7 @@ use yii\db\ActiveRecord;
  * @property PartCharValues[] $partCharValues
  * @property Location $location
  * @property DicEquipmentStatus $equipmentStatus
+ * @property EquipmentType|null $equipmentType
  */
 class Equipment extends ActiveRecord
 {
@@ -46,15 +47,16 @@ class Equipment extends ActiveRecord
         return [
             [['inventory_number', 'name', 'status_id', 'location_id'], 'required'],
             [['status_id', 'responsible_user_id', 'location_id'], 'integer'],
+            [['equipment_type_id'], 'integer'],
             [['name'], 'string', 'max' => 200],
             [['inventory_number'], 'string', 'max' => 100],
             [['serial_number'], 'string', 'max' => 150],
-            [['equipment_type'], 'string', 'max' => 100],
             [['description', 'supplier', 'archive_reason'], 'string'],
             [['purchase_date', 'commissioning_date', 'warranty_until', 'archived_at', 'created_at', 'updated_at'], 'safe'],
             [['is_archived', 'is_deleted'], 'boolean'],
             [['inventory_number'], 'unique'],
             [['status_id'], 'exist', 'targetClass' => DicEquipmentStatus::class, 'targetAttribute' => ['status_id' => 'id']],
+            [['equipment_type_id'], 'exist', 'targetClass' => EquipmentType::class, 'targetAttribute' => ['equipment_type_id' => 'id']],
             [['responsible_user_id'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['responsible_user_id' => 'id']],
             [['location_id'], 'exist', 'targetClass' => Location::class, 'targetAttribute' => ['location_id' => 'id']],
         ];
@@ -67,7 +69,7 @@ class Equipment extends ActiveRecord
             'inventory_number' => 'Инв. номер',
             'serial_number' => 'Серийный номер',
             'name' => 'Наименование',
-            'equipment_type' => 'Тип',
+            'equipment_type_id' => 'Тип',
             'status_id' => 'Статус',
             'responsible_user_id' => 'Ответственный',
             'location_id' => 'Местоположение',
@@ -88,6 +90,12 @@ class Equipment extends ActiveRecord
     public function getEquipmentStatus()
     {
         return $this->hasOne(DicEquipmentStatus::class, ['id' => 'status_id']);
+    }
+
+    /** @return \yii\db\ActiveQuery */
+    public function getEquipmentType()
+    {
+        return $this->hasOne(EquipmentType::class, ['id' => 'equipment_type_id']);
     }
 
     public function getPartCharValues()

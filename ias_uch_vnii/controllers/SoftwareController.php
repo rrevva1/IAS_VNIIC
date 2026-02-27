@@ -64,6 +64,44 @@ class SoftwareController extends Controller
     }
 
     /**
+     * Отчёт «Лицензии с истекающим сроком»: просроченные и истекающие в течение N дней.
+     * Способ уведомления — отчёт в интерфейсе (раздел «ПО и лицензии»). Регламент — см. docs/sistema/УВЕДОМЛЕНИЯ_ЛИЦЕНЗИИ.md.
+     */
+    public function actionExpiringReport($days = 90)
+    {
+        try {
+            $days = (int) $days;
+            if ($days < 1) {
+                $days = 90;
+            }
+            $today = date('Y-m-d');
+            $until = date('Y-m-d', strtotime("+{$days} days"));
+            $expired = License::find()
+                ->with('software')
+                ->andWhere(['<', 'valid_until', $today])
+                ->andWhere(['not', ['valid_until' => null]])
+                ->orderBy(['valid_until' => SORT_ASC])
+                ->all();
+            $expiring = License::find()
+                ->with('software')
+                ->andWhere(['>=', 'valid_until', $today])
+                ->andWhere(['<=', 'valid_until', $until])
+                ->orderBy(['valid_until' => SORT_ASC])
+                ->all();
+            return $this->render('expiring-report', [
+                'expired' => $expired,
+                'expiring' => $expiring,
+                'days' => $days,
+            ]);
+        } catch (DbException $e) {
+            if (strpos($e->getMessage(), 'software') !== false || strpos($e->getMessage(), 'licenses') !== false) {
+                return $this->render('migrate-required');
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * JSON для AG Grid: список ПО с количеством лицензий.
      * Параметры: name (фильтр по наименованию), expiring_days (ПО с лицензиями, истекающими в течение N дней).
      */

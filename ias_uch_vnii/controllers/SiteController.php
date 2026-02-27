@@ -9,6 +9,7 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\forms\LoginForm;
 use app\models\forms\ContactForm;
+use app\components\AuditLog;
 
 /**
  * SiteController обрабатывает основные действия сайта
@@ -101,7 +102,7 @@ class SiteController extends Controller
             Yii::debug('Model attributes: ' . print_r($model->attributes, true));
             
             if ($model->login()) {
-                Yii::debug('Login successful');
+                AuditLog::log('auth.login', 'user', (string) Yii::$app->user->id, 'success');
                 return $this->goHome();
             } else {
                 Yii::debug('Login failed. Errors: ' . print_r($model->errors, true));
@@ -124,8 +125,11 @@ class SiteController extends Controller
      */
     public function actionLogout()
     {
+        $userId = Yii::$app->user->isGuest ? null : (string) Yii::$app->user->id;
+        if ($userId !== null) {
+            AuditLog::log('auth.logout', 'user', $userId, 'success');
+        }
         Yii::$app->user->logout();
-
         return $this->goHome();
     }
 

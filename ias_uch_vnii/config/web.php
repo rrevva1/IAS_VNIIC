@@ -55,7 +55,7 @@ $config = [
         'db' => $db,
         'assetManager' => [
             'bundles' => [
-                // Highcharts: скрипты в npm пакете лежат в подпапке package/
+                // Highcharts: скрипты в npm-asset/highcharts (highcharts.js / highcharts.src.js)
                 'miloschuman\highcharts\HighchartsAsset' => [
                     'class' => 'app\assets\HighchartsAssetOverride',
                 ],

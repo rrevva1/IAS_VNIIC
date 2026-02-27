@@ -24,6 +24,7 @@ $this->params['breadcrumbs'][] = $this->title;
     <h1><?= Html::encode($this->title) ?></h1>
     <p>
         <?= Html::a('Добавить ПО', ['create'], ['class' => 'btn btn-success']) ?>
+        <?= Html::a('Лицензии: истекающие и просроченные', ['expiring-report'], ['class' => 'btn btn-warning']) ?>
         <?= Html::button('Обновить', ['class' => 'btn btn-outline-secondary', 'onclick' => 'refreshSoftwareGrid()']) ?>
     </p>
     <div class="border rounded p-3 mb-3">
