@@ -1,0 +1,183 @@
+/* Кнопка вызова ИИ-помощника */
+.assistant-toggle {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+    color: #fff;
+    border: none;
+    border-radius: 28px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    font-size: 15px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.assistant-toggle:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.assistant-toggle i {
+    font-size: 18px;
+}
+.assistant-toggle-text {
+    white-space: nowrap;
+}
+
+/* Панель чата */
+.assistant-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 400px;
+    max-width: calc(100vw - 24px);
+    height: 100vh;
+    z-index: 1001;
+    background: #fff;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+}
+.assistant-panel[aria-hidden="false"],
+.assistant-panel.assistant-panel-open {
+    transform: translateX(0);
+}
+
+.assistant-panel-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #2c3e50;
+    color: #fff;
+}
+.assistant-panel-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+.assistant-panel-close {
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 1.25rem;
+    line-height: 1;
+    opacity: 0.9;
+}
+.assistant-panel-close:hover {
+    opacity: 1;
+}
+
+.assistant-panel-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.assistant-panel-footer {
+    flex-shrink: 0;
+    padding: 12px;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.assistant-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    font-size: 14px;
+}
+.assistant-input:focus {
+    border-color: #3498db;
+    outline: 0;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+}
+.assistant-send {
+    white-space: nowrap;
+}
+
+/* Сообщения */
+.assistant-msg {
+    max-width: 100%;
+}
+.assistant-msg-user .assistant-msg-body {
+    margin-left: auto;
+    max-width: 85%;
+    padding: 10px 14px;
+    background: #e3f2fd;
+    border-radius: 12px 12px 4px 12px;
+}
+.assistant-msg-assistant .assistant-msg-body {
+    padding: 10px 0;
+    color: #333;
+}
+
+.assistant-interpretation {
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #2c3e50;
+}
+.assistant-link-wrap {
+    margin: 10px 0;
+}
+.assistant-link {
+    text-decoration: none;
+}
+.assistant-table {
+    width: 100%;
+    margin: 10px 0;
+    font-size: 13px;
+}
+.assistant-table th,
+.assistant-table td {
+    padding: 6px 8px;
+    vertical-align: top;
+}
+.assistant-table-header-row td {
+    background: #f8f9fa;
+    padding: 8px;
+}
+.assistant-no-data,
+.assistant-total {
+    margin: 8px 0;
+    color: #6c757d;
+    font-size: 13px;
+}
+.assistant-summary {
+    margin-bottom: 10px;
+}
+.assistant-help-text {
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.assistant-hints {
+    margin-top: 12px;
+    font-size: 13px;
+}
+.assistant-hints ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+}
+.assistant-loading {
+    color: #6c757d;
+    font-style: italic;
+}
+.assistant-error {
+    color: #dc3545;
+    padding: 8px 0;
+}

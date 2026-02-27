@@ -116,8 +116,8 @@ body {
     max-width: 100%;
 }
 
-/* Убираем все лишние элементы справа */
-body > div:not(.main-content):not(.sidebar):not(#footer) {
+/* Убираем все лишние элементы справа, кроме кнопки и панели ИИ-помощника */
+body > div:not(.main-content):not(.sidebar):not(#footer):not(#assistant-toggle):not(#assistant-panel) {
     display: none !important;
 }
 

@@ -8,8 +8,12 @@ use yii\bootstrap5\Breadcrumbs;
 use yii\bootstrap5\Html;
 use yii\bootstrap5\Nav;
 use yii\bootstrap5\NavBar;
+use yii\helpers\Url;
 
 LayoutAsset::register($this);
+if (!Yii::$app->user->isGuest) {
+    app\assets\AssistantAsset::register($this);
+}
 
 // CSS стили теперь подключены через LayoutAsset
 
@@ -160,6 +164,36 @@ $mainClass = 'main-content flex-grow-1 d-flex flex-column' . ($sidebarExpanded ?
         </div>
     </div>
 </footer>
+
+<?php if (!Yii::$app->user->isGuest): ?>
+<!-- Кнопка вызова ИИ-помощника и панель чата -->
+<div id="assistant-toggle" class="assistant-toggle" title="ИИ-помощник">
+    <i class="fas fa-robot"></i>
+    <span class="assistant-toggle-text">Помощник</span>
+</div>
+<div id="assistant-panel" class="assistant-panel" aria-hidden="true">
+    <div class="assistant-panel-header">
+        <h5 class="assistant-panel-title">ИИ-помощник</h5>
+        <button type="button" class="assistant-panel-close" id="assistant-close" aria-label="Закрыть">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="assistant-panel-messages" id="assistant-messages"></div>
+    <div class="assistant-panel-footer">
+        <input type="text" id="assistant-input" class="assistant-input" placeholder="Например: мои заявки, заявки за месяц..." autocomplete="off">
+        <button type="button" id="assistant-send" class="assistant-send btn btn-primary">
+            <i class="fas fa-paper-plane"></i> Отправить
+        </button>
+    </div>
+</div>
+<script>
+window.assistantConfig = {
+    queryUrl: <?= json_encode(Url::to(['/assistant/query'])) ?>,
+    csrfParam: <?= json_encode(Yii::$app->request->csrfParam) ?>,
+    csrfToken: <?= json_encode(Yii::$app->request->csrfToken) ?>
+};
+</script>
+<?php endif; ?>
 
 <!-- JavaScript теперь подключен через LayoutAsset -->
 
