@@ -1,0 +1,8 @@
+# RAG: векторная БД (ChromaDB) и эмбеддинги для помощника ИАС.
+# Установка: python -m venv venv && venv\Scripts\activate && pip install -r requirements.txt
+# Модель intfloat/multilingual-e5-base поддерживает русский язык.
+# На Windows: chroma-hnswlib==0.7.5 — готовый wheel; 0.7.6 требует сборки (C++ Build Tools).
+
+chroma-hnswlib==0.7.5
+chromadb>=0.4.22,<0.6
+sentence-transformers>=2.2.2

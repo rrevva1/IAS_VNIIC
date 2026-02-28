@@ -56,10 +56,34 @@
         return html;
     }
 
+    function renderEquipmentTable(data) {
+        if (!data || data.length === 0) return '<p class="assistant-no-data">Нет техники.</p>';
+        var html = '<table class="assistant-table table table-sm table-bordered">';
+        html += '<thead><tr><th>№</th><th>Наименование</th><th>Инв. №</th><th>Тип</th><th>Статус</th><th>Ответственный</th></tr></thead><tbody>';
+        data.forEach(function(row) {
+            html += '<tr>';
+            html += '<td>' + (row.id || '') + '</td>';
+            html += '<td>' + escapeHtml((row.name || '').substring(0, 50)) + (row.name && row.name.length > 50 ? '…' : '') + '</td>';
+            html += '<td>' + escapeHtml(row.inventory_number || '') + '</td>';
+            html += '<td>' + escapeHtml(row.equipment_type || '') + '</td>';
+            html += '<td>' + escapeHtml(row.status_name || '') + '</td>';
+            html += '<td>' + escapeHtml(row.responsible_name || '') + '</td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
     function renderStatisticsRows(rows, summary) {
         var html = '';
         if (summary) {
-            html += '<p class="assistant-summary">Всего заявок: <strong>' + (summary.total_tasks || 0) + '</strong>. Завершённых: <strong>' + (summary.total_resolved || 0) + '</strong>.</p>';
+            if (summary.total_tasks != null) {
+                html += '<p class="assistant-summary">Всего заявок: <strong>' + (summary.total_tasks || 0) + '</strong>. Завершённых: <strong>' + (summary.total_resolved || 0) + '</strong>.</p>';
+            } else if (summary.total_locations != null) {
+                html += '<p class="assistant-summary">Локаций: <strong>' + (summary.total_locations || 0) + '</strong>. Единиц техники: <strong>' + (summary.total_units || 0) + '</strong>.</p>';
+            } else if (summary.total_users != null) {
+                html += '<p class="assistant-summary">Пользователей: <strong>' + (summary.total_users || 0) + '</strong>.</p>';
+            }
         }
         if (!rows || rows.length === 0) return html || '<p class="assistant-no-data">Нет данных.</p>';
         html += '<table class="assistant-table table table-sm table-bordered">';
@@ -106,7 +130,12 @@
 
         if (resp.data && resp.data.length > 0) {
             var first = resp.data[0];
-            if (first.type === 'header' || first.type === 'row') {
+            if (resp.dataType === 'equipment') {
+                parts.push(renderEquipmentTable(resp.data));
+                if (resp.total != null) {
+                    parts.push('<p class="assistant-total">Найдено единиц техники: ' + resp.total + '</p>');
+                }
+            } else if (first.type === 'header' || first.type === 'row') {
                 parts.push(renderStatisticsRows(resp.data, resp.summary));
             } else {
                 parts.push(renderTasksTable(resp.data));
