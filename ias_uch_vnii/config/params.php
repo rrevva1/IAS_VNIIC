@@ -30,9 +30,26 @@ return [
         $e = strtolower(trim((string) (getenv('LLM_USE_RAG') ?: '')));
         return !in_array($e, ['0', 'false', 'no'], true);
     })(),
+    /** Использовать историю диалога при вызове LLM (свободный чат). Включено по умолчанию; выключить: LLM_USE_HISTORY=0. */
+    'llm_use_history' => (function () {
+        $e = strtolower(trim((string) (getenv('LLM_USE_HISTORY') ?: '')));
+        return !in_array($e, ['0', 'false', 'no'], true);
+    })(),
+    /** Максимум пар «user/assistant» в истории диалога в сессии (например 10). */
+    'llm_history_max_pairs' => (int) (getenv('LLM_HISTORY_MAX_PAIRS') ?: 10),
+    /** Таймаут запроса к LLM в секундах. При длинном RAG-контексте и медленной модели 30 с может не хватить — клиент разрывает соединение до ответа. По умолчанию 120. */
+    'llm_timeout_seconds' => (int) (getenv('LLM_TIMEOUT') ?: 120),
 
-    // --- Векторный RAG (ChromaDB + эмбеддинги), опционально ---
-    /** Использовать поиск по векторной БД при неопределённом интенте. Включить: LLM_USE_VECTOR_RAG=1 или в конфиге true; выключить: LLM_USE_VECTOR_RAG=0 */
+    /** Текст «описание системы» для ориентации модели (что за ИАС, разделы). Если пусто — используется встроенное описание. Можно задать через ASSISTANT_SYSTEM_DESCRIPTION (многострочный). */
+    'assistant_system_description' => trim((string) (getenv('ASSISTANT_SYSTEM_DESCRIPTION') ?: '')),
+    /** Добавлять в контекст сводные цифры (всего техники, локаций, пользователей) для ориентации модели. По умолчанию true. */
+    'assistant_orientation_include_stats' => (function () {
+        $e = strtolower(trim((string) (getenv('ASSISTANT_ORIENTATION_STATS') ?: '')));
+        return !in_array($e, ['0', 'false', 'no'], true);
+    })(),
+
+    // --- Векторный RAG
+    /** Использовать поиск по векторной БД при неопределённом интенте. По умолчанию выключено (требуется Python). Включить: LLM_USE_VECTOR_RAG=1 */
     'llm_use_vector_rag' => (function () {
         $e = strtolower(trim((string) (getenv('LLM_USE_VECTOR_RAG') ?: '')));
         if (in_array($e, ['0', 'false', 'no'], true)) {
@@ -41,7 +58,7 @@ return [
         if (in_array($e, ['1', 'true', 'yes'], true)) {
             return true;
         }
-        return true;
+        return false;
     })(),
     /** Путь к каталогу ChromaDB (алиас или абсолютный путь, резолвится через Yii::getAlias) */
     'rag_vector_db_path' => getenv('RAG_VECTOR_DB_PATH') ?: '@runtime/chroma_db',

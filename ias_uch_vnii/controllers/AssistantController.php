@@ -14,6 +14,7 @@ use app\models\entities\Tasks;
 use app\models\entities\Users;
 use app\models\search\TasksSearch;
 use Yii;
+use yii\db\Query;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
 use yii\helpers\Url;
@@ -91,9 +92,31 @@ class AssistantController extends Controller
                         $ragContext = ($ragContext !== null ? $ragContext . "\n\n" : '') . $vectorBlock;
                     }
                 }
-                $llmReply = LlmClient::completion($message, LlmClient::buildSystemContext($userName, $ragContext));
+                $systemPrompt = LlmClient::buildSystemContext($userName, $ragContext);
+
+                $useHistory = !empty(Yii::$app->params['llm_use_history']);
+                $history = $useHistory ? $this->getAssistantHistory() : [];
+
+                $llmReply = null;
+                if (!empty(Yii::$app->params['llm_enabled'])) {
+                    if ($history !== []) {
+                        $llmReply = LlmClient::completionWithHistory($history, $message, $systemPrompt);
+                    } else {
+                        $llmReply = LlmClient::completion($message, $systemPrompt);
+                    }
+                }
+
                 if ($llmReply !== null) {
                     $result['interpretation'] = $llmReply;
+                    if ($useHistory) {
+                        $this->appendAssistantHistory($message, $llmReply, Yii::$app->params['llm_history_max_pairs'] ?? 10);
+                    }
+                } else {
+                    if (empty(Yii::$app->params['llm_enabled'])) {
+                        $result['interpretation'] = 'Ответ на свободный вопрос возможен при включённой модели (параметр llm_enabled в настройках). Ниже — примеры запросов, которые обрабатываются без модели.';
+                    } else {
+                        $result['interpretation'] = 'Не удалось получить ответ от модели. Проверьте, что LM Studio запущен и доступен по адресу из настроек (llm_base_url). Ниже — примеры запросов без модели.';
+                    }
                 }
             }
 
@@ -139,6 +162,9 @@ class AssistantController extends Controller
             if ($intent === 'equipment_by_person') {
                 $namePart = trim((string) ($params['responsible_name'] ?? ''));
                 $this->buildEquipmentByPersonResponse($response, $namePart, $userId, $isAdmin, $isOperator, $result['hints'] ?? []);
+                if ((int) ($response['total'] ?? 0) === 0 && !empty(Yii::$app->params['llm_enabled']) && ($response['interpretation'] ?? '') !== '') {
+                    $this->maybeEnrichEmptyResultWithLlm($response, $message, $identity, 'пользователь', $namePart, 'Список пользователей');
+                }
                 $this->normalizeResponse($response);
                 AuditLog::log('assistant.query', 'assistant', 0, 'success', ['query' => mb_substr($message, 0, 200)]);
                 return $response;
@@ -148,6 +174,17 @@ class AssistantController extends Controller
                 $locationQuery = $params['location_query'] ?? null;
                 $locationName = trim((string) ($params['location_name'] ?? ''));
                 $this->buildEquipmentByLocationResponse($response, $locationQuery, $locationName);
+                if ((int) ($response['total'] ?? 0) === 0 && !empty(Yii::$app->params['llm_enabled']) && ($response['interpretation'] ?? '') !== '') {
+                    $this->maybeEnrichEmptyResultWithLlm($response, $message, $identity, 'локация', $locationName, 'Список кабинетов');
+                }
+                $this->normalizeResponse($response);
+                AuditLog::log('assistant.query', 'assistant', 0, 'success', ['query' => mb_substr($message, 0, 200)]);
+                return $response;
+            }
+
+            if ($intent === 'equipment_top_by_ram') {
+                $limit = (int) ($params['limit'] ?? 15);
+                $this->buildEquipmentTopByRamResponse($response, $limit);
                 $this->normalizeResponse($response);
                 AuditLog::log('assistant.query', 'assistant', 0, 'success', ['query' => mb_substr($message, 0, 200)]);
                 return $response;
@@ -201,6 +238,85 @@ class AssistantController extends Controller
             'query' => $message,
             'context_used' => $context,
         ];
+    }
+
+    /**
+     * Возвращает историю диалога помощника из сессии для передачи в LLM.
+     * Формат: массив пар [['role' => 'user', 'content' => ...], ['role' => 'assistant', 'content' => ...], ...].
+     */
+    private function getAssistantHistory(): array
+    {
+        $session = Yii::$app->getSession();
+        $raw = $session->get('assistant_history', []);
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $item) {
+            if (!is_array($item) || !isset($item['role'], $item['content'])) {
+                continue;
+            }
+            $role = (string) $item['role'];
+            $content = (string) $item['content'];
+            if ($role !== 'user' && $role !== 'assistant') {
+                continue;
+            }
+            $out[] = ['role' => $role, 'content' => $content];
+        }
+        return $out;
+    }
+
+    /**
+     * Добавляет пару «запрос — ответ» в историю диалога в сессии и обрезает до maxPairs пар.
+     */
+    private function appendAssistantHistory(string $userMessage, string $assistantReply, int $maxPairs): void
+    {
+        $session = Yii::$app->getSession();
+        $raw = $session->get('assistant_history', []);
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+        $raw[] = ['role' => 'user', 'content' => $userMessage];
+        $raw[] = ['role' => 'assistant', 'content' => $assistantReply];
+        $pairs = (int) floor(count($raw) / 2);
+        if ($pairs > $maxPairs) {
+            $raw = array_slice($raw, -($maxPairs * 2));
+        }
+        $session->set('assistant_history', $raw);
+    }
+
+    /**
+     * При пустом результате (локация/пользователь не найден) опционально подменяет interpretation ответом LLM.
+     *
+     * @param array $response Ответ по ссылке (interpretation, hints, data, total)
+     * @param string $userMessage Исходный запрос пользователя
+     * @param mixed $identity Текущий пользователь (для имени в контексте)
+     * @param string $entityLabel «локация» или «пользователь»
+     * @param string $queryPart Запрос пользователя (например «помещении 314» или ФИО)
+     * @param string $suggestionHint Подсказка вида «Список кабинетов» или «Список пользователей»
+     */
+    private function maybeEnrichEmptyResultWithLlm(
+        array &$response,
+        string $userMessage,
+        $identity,
+        string $entityLabel,
+        string $queryPart,
+        string $suggestionHint
+    ): void {
+        if (empty(Yii::$app->params['llm_use_rag'])) {
+            $ragContext = null;
+        } else {
+            $ragContext = AssistantContextBuilder::buildRagContext([]);
+        }
+        $systemPrompt = LlmClient::buildSystemContext(
+            ($identity && isset($identity->full_name)) ? $identity->full_name : null,
+            $ragContext
+        );
+        $systemPrompt .= "\n\nСейчас по запросу пользователя в БД не найдена " . $entityLabel . " («" . $queryPart . "»). Сформулируй короткий вежливый ответ (1–2 предложения): что не найдено, и предложи проверить «" . $suggestionHint . "» или уточнить запрос. Не придумывай данные и номера.";
+        $llmReply = LlmClient::completion($userMessage, $systemPrompt);
+        if ($llmReply !== null && $llmReply !== '') {
+            $response['interpretation'] = $llmReply;
+        }
     }
 
     /**
@@ -478,7 +594,7 @@ class AssistantController extends Controller
             [$type, $rest] = $typeAndRest;
             $query->andWhere([
                 'and',
-                ['location_type' => $type],
+                ['ilike', 'location_type', $type],
                 [
                     'or',
                     ['ilike', 'name', '%' . $rest . '%'],
@@ -486,15 +602,33 @@ class AssistantController extends Controller
                 ],
             ]);
         } elseif (in_array(mb_strtolower($normalized), $typeValues, true)) {
-            $query->andWhere(['location_type' => mb_strtolower($normalized)]);
+            $query->andWhere(['ilike', 'location_type', mb_strtolower($normalized)]);
         } else {
             $query->andWhere([
                 'or',
-                ['ilike', 'name', $normalized],
-                ['ilike', 'location_code', $normalized],
+                ['ilike', 'name', '%' . $normalized . '%'],
+                ['ilike', 'location_code', '%' . $normalized . '%'],
             ]);
         }
         $locations = $query->all();
+
+        // Запасной поиск: если по типу+номеру не нашли, ищем только по номеру/названию (например "314" в name/code при любом типе)
+        if (empty($locations) && $typeAndRest !== null) {
+            [$type, $rest] = $typeAndRest;
+            $rest = trim($rest);
+            if ($rest !== '') {
+                $fallbackQuery = Location::find()
+                    ->where(['is_archived' => false])
+                    ->andWhere([
+                        'or',
+                        ['ilike', 'name', '%' . $rest . '%'],
+                        ['ilike', 'location_code', '%' . $rest . '%'],
+                    ])
+                    ->orderBy('name')
+                    ->limit(20);
+                $locations = $fallbackQuery->all();
+            }
+        }
 
         if (empty($locations)) {
             $response['interpretation'] = 'Локация по запросу «' . $locationName . '» не найдена. Уточните кабинет или название (например: кабинет 203, серверная).';
@@ -534,6 +668,142 @@ class AssistantController extends Controller
         $response['link'] = [
             'label' => 'Открыть в разделе Технические средства',
             'url' => Url::to(['/arm/index', 'ArmSearch' => ['location_id' => $location->id]], true),
+        ];
+        $response['dataType'] = 'equipment';
+    }
+
+    /**
+     * Заполняет response списком техники с наибольшим объёмом ОЗУ (топ по убыванию).
+     *
+     * @param int $limit Максимальное количество записей (по умолчанию 15)
+     */
+    private function buildEquipmentTopByRamResponse(array &$response, int $limit = 15): void
+    {
+        $limit = max(1, min(50, $limit));
+        $db = Yii::$app->db;
+        $idCol = 'equipment_id';
+        try {
+            $schema = $db->getTableSchema('part_char_values', true);
+            if ($schema && !isset($schema->columns['equipment_id']) && isset($schema->columns['id_arm'])) {
+                $idCol = 'id_arm';
+            }
+        } catch (\Throwable $e) {
+            $response['interpretation'] = 'Техника по объёму ОЗУ: данные недоступны.';
+            $response['data'] = [];
+            $response['total'] = 0;
+            return;
+        }
+
+        try {
+            $rows = (new Query())
+                ->select([
+                    'e.id',
+                    'e.name',
+                    'e.inventory_number',
+                    'pcv.value_num',
+                    'pcv.value_text',
+                ])
+                ->from(['e' => 'equipment'])
+                ->innerJoin(['pcv' => 'part_char_values'], 'pcv.' . $idCol . ' = e.id')
+                ->innerJoin(['sp' => 'spr_parts'], 'sp.id = pcv.part_id')
+                ->innerJoin(['sc' => 'spr_chars'], 'sc.id = pcv.char_id')
+                ->where([
+                    'and',
+                    ['e.is_archived' => false, 'e.is_deleted' => false],
+                    ['sp.name' => 'ОЗУ', 'sc.name' => 'Объём'],
+                ])
+                ->all($db);
+        } catch (\Throwable $e) {
+            Yii::warning('buildEquipmentTopByRamResponse query: ' . $e->getMessage(), __METHOD__);
+            $response['interpretation'] = 'Техника по объёму ОЗУ: ошибка выборки.';
+            $response['data'] = [];
+            $response['total'] = 0;
+            return;
+        }
+
+        $withSort = [];
+        foreach ($rows as $row) {
+            $id = (int) $row['id'];
+            $valueNum = isset($row['value_num']) && $row['value_num'] !== '' && $row['value_num'] !== null
+                ? (float) $row['value_num'] : null;
+            $valueText = trim((string) ($row['value_text'] ?? ''));
+            $sortValue = $valueNum;
+            if ($sortValue === null && $valueText !== '') {
+                if (preg_match('/^(\d+)/', $valueText, $m)) {
+                    $sortValue = (float) $m[1];
+                } else {
+                    $sortValue = 0.0;
+                }
+            }
+            $ramDisplay = $valueText !== '' ? $valueText : (string) (int) ($valueNum ?? 0);
+            $sortValue = $sortValue === null ? 0.0 : $sortValue;
+            if (!isset($withSort[$id]) || $sortValue > $withSort[$id]['sortValue']) {
+                $withSort[$id] = [
+                    'id' => $id,
+                    'name' => trim((string) ($row['name'] ?? '')),
+                    'inventory_number' => trim((string) ($row['inventory_number'] ?? '')),
+                    'ram' => $ramDisplay,
+                    'sortValue' => $sortValue,
+                ];
+            }
+        }
+        $withSort = array_values($withSort);
+
+        usort($withSort, static function ($a, $b) {
+            return $b['sortValue'] <=> $a['sortValue'];
+        });
+        $top = array_slice($withSort, 0, $limit);
+        $orderedIds = array_column($top, 'id');
+        $ramById = [];
+        foreach ($top as $t) {
+            $ramById[$t['id']] = $t['ram'];
+        }
+
+        if (empty($orderedIds)) {
+            $response['interpretation'] = 'Нет техники с указанной характеристикой ОЗУ.';
+            $response['data'] = [];
+            $response['total'] = 0;
+            $response['link'] = [
+                'label' => 'Открыть в разделе Технические средства',
+                'url' => Url::to(['/arm/index'], true),
+            ];
+            return;
+        }
+
+        $equipmentList = Equipment::find()
+            ->where(['id' => $orderedIds])
+            ->with(['responsibleUser', 'equipmentStatus', 'equipmentType'])
+            ->all();
+        $byId = [];
+        foreach ($equipmentList as $e) {
+            $byId[$e->id] = $e;
+        }
+        $ordered = [];
+        foreach ($orderedIds as $id) {
+            if (isset($byId[$id])) {
+                $ordered[] = $byId[$id];
+            }
+        }
+
+        $data = [];
+        foreach ($ordered as $e) {
+            $data[] = [
+                'id' => $e->id,
+                'name' => $e->name ?? '',
+                'inventory_number' => $e->inventory_number ?? '',
+                'equipment_type' => $e->equipmentType ? $e->equipmentType->name : '',
+                'status_name' => $e->equipmentStatus ? $e->equipmentStatus->status_name : '',
+                'responsible_name' => $e->responsibleUser ? $e->responsibleUser->full_name : '',
+                'ram' => $ramById[$e->id] ?? '',
+            ];
+        }
+
+        $response['data'] = $data;
+        $response['total'] = count($data);
+        $response['interpretation'] = 'Техника с наибольшим объёмом оперативной памяти (по убыванию), до ' . $limit . ' записей.';
+        $response['link'] = [
+            'label' => 'Открыть в разделе Технические средства',
+            'url' => Url::to(['/arm/index'], true),
         ];
         $response['dataType'] = 'equipment';
     }
@@ -675,6 +945,10 @@ class AssistantController extends Controller
             'лаборатория' => 'лаборатория',
             'помещении' => 'кабинет',
             'помещение' => 'кабинет',
+            'комнате' => 'кабинет',
+            'комната' => 'кабинет',
+            'офисе' => 'кабинет',
+            'офис' => 'кабинет',
         ];
         foreach ($map as $from => $to) {
             if (mb_strtolower($s) === $from || mb_strpos(mb_strtolower($s), $from) === 0) {

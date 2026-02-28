@@ -1,6 +1,5 @@
-protected/runtime/*
-!protected/runtime/.gitignore
-protected/data/*.db
-themes/classic/views/
+﻿runtime/*
+!runtime/.gitignore
+data/*.db
 web/uploads/*
 !web/uploads/.gitignore

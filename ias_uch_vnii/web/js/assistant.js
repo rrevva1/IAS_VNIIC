@@ -144,7 +144,11 @@
                 }
             }
         } else if (resp.total === 0 && !resp.helpText && resp.data && Array.isArray(resp.data)) {
-            parts.push('<p class="assistant-no-data">Нет данных по запросу.</p>');
+            // Не показывать «Нет данных», если уже есть развёрнутый ответ (приветствие, описание системы, сообщение об ошибке модели)
+            var interpretationLong = (resp.interpretation || '').length > 80;
+            if (!interpretationLong) {
+                parts.push('<p class="assistant-no-data">Нет данных по запросу.</p>');
+            }
         }
 
         if (resp.hints && resp.hints.length > 0) {
