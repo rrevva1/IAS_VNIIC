@@ -1,0 +1,14 @@
+graph TB
+  subgraph clientLayer["Клиентский уровень"]
+    browser["Веб-браузер<br/>AG Grid и формы"]
+  end
+  subgraph appLayer["Сервер приложений"]
+    webServer["Веб-сервер<br/>Apache/nginx + PHP-FPM"]
+    yiiApp["Приложение Yii2<br/>контроллеры, модели, API"]
+    webServer --> yiiApp
+  end
+  subgraph dataLayer["Слой данных"]
+    db["PostgreSQL<br/>ias_vniic / tech_accounting"]
+  end
+  browser <-->|"HTTP/HTTPS, JSON"| webServer
+  yiiApp <-->|"SQL, транзакции"| db

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1360" height="820" viewBox="0 0 1360 820">
+  <defs>
+    <style>
+      .page { fill: #ffffff; }
+      .frame { fill: #ffffff; stroke: #000000; stroke-width: 2; }
+      .node { fill: #ffffff; stroke: #000000; stroke-width: 1.5; }
+      .title { font-family: Arial, "Helvetica Neue", sans-serif; font-size: 26px; font-weight: 700; fill: #000000; }
+      .group-title { font-family: Arial, "Helvetica Neue", sans-serif; font-size: 22px; font-weight: 700; fill: #000000; }
+      .label { font-family: Arial, "Helvetica Neue", sans-serif; font-size: 18px; fill: #000000; text-anchor: middle; }
+      .edge { stroke: #000000; stroke-width: 1.8; fill: none; }
+      .edge-label { font-family: Arial, "Helvetica Neue", sans-serif; font-size: 17px; fill: #000000; text-anchor: middle; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#000000"/>
+    </marker>
+  </defs>
+
+  <rect class="page" x="0" y="0" width="1360" height="820"/>
+  <text class="title" x="680" y="42">&#1056;&#1080;&#1089;&#1091;&#1085;&#1086;&#1082; 2.2. &#1050;&#1086;&#1084;&#1087;&#1086;&#1085;&#1077;&#1085;&#1090;&#1085;&#1072;&#1103; &#1089;&#1090;&#1088;&#1091;&#1082;&#1090;&#1091;&#1088;&#1072; &#1087;&#1088;&#1086;&#1090;&#1086;&#1090;&#1080;&#1087;&#1072; &#1048;&#1040;&#1057;</text>
+
+  <rect class="frame" x="60" y="84" width="880" height="680" rx="6"/>
+  <text class="group-title" x="100" y="116">&#1060;&#1091;&#1085;&#1082;&#1094;&#1080;&#1086;&#1085;&#1072;&#1083;&#1100;&#1085;&#1099;&#1077; &#1084;&#1086;&#1076;&#1091;&#1083;&#1080;</text>
+
+  <rect class="frame" x="990" y="84" width="310" height="680" rx="6"/>
+  <text class="group-title" x="1030" y="116">&#1054;&#1073;&#1097;&#1080;&#1081; &#1089;&#1083;&#1086;&#1081; &#1076;&#1072;&#1085;&#1085;&#1099;&#1093;</text>
+
+  <rect class="node" x="110" y="160" width="180" height="120" rx="4"/>
+  <text class="label" x="200" y="205">
+    <tspan x="200" dy="0">&#1059;&#1095;&#1105;&#1090;</tspan>
+    <tspan x="200" dy="24">&#1072;&#1082;&#1090;&#1080;&#1074;&#1086;&#1074;</tspan>
+  </text>
+
+  <rect class="node" x="320" y="160" width="180" height="120" rx="4"/>
+  <text class="label" x="410" y="193">
+    <tspan x="410" dy="0">Help Desk</tspan>
+    <tspan x="410" dy="24">&#1079;&#1072;&#1103;&#1074;&#1082;&#1080;</tspan>
+    <tspan x="410" dy="24">&#1080; &#1074;&#1083;&#1086;&#1078;&#1077;&#1085;&#1080;&#1103;</tspan>
+  </text>
+
+  <rect class="node" x="530" y="160" width="180" height="120" rx="4"/>
+  <text class="label" x="620" y="205">
+    <tspan x="620" dy="0">&#1057;&#1087;&#1088;&#1072;&#1074;&#1086;&#1095;&#1085;&#1080;&#1082;&#1080;</tspan>
+  </text>
+
+  <rect class="node" x="740" y="160" width="150" height="120" rx="4"/>
+  <text class="label" x="815" y="193">
+    <tspan x="815" dy="0">&#1055;&#1054;</tspan>
+    <tspan x="815" dy="24">&#1080; &#1083;&#1080;&#1094;&#1077;&#1085;&#1079;&#1080;&#1080;</tspan>
+  </text>
+
+  <rect class="node" x="110" y="360" width="180" height="120" rx="4"/>
+  <text class="label" x="200" y="393">
+    <tspan x="200" dy="0">&#1055;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1080;</tspan>
+    <tspan x="200" dy="24">&#1080; &#1088;&#1086;&#1083;&#1080;</tspan>
+  </text>
+
+  <rect class="node" x="320" y="360" width="180" height="120" rx="4"/>
+  <text class="label" x="410" y="405">
+    <tspan x="410" dy="0">&#1048;&#1084;&#1087;&#1086;&#1088;&#1090;</tspan>
+  </text>
+
+  <rect class="node" x="530" y="360" width="180" height="120" rx="4"/>
+  <text class="label" x="620" y="393">
+    <tspan x="620" dy="0">&#1054;&#1090;&#1095;&#1105;&#1090;&#1085;&#1086;&#1089;&#1090;&#1100;</tspan>
+    <tspan x="620" dy="24">&#1080; &#1101;&#1082;&#1089;&#1087;&#1086;&#1088;&#1090;</tspan>
+  </text>
+
+  <rect class="node" x="740" y="360" width="150" height="120" rx="4"/>
+  <text class="label" x="815" y="405">
+    <tspan x="815" dy="0">&#1040;&#1091;&#1076;&#1080;&#1090;</tspan>
+  </text>
+
+  <rect class="node" x="1045" y="340" width="200" height="160" rx="4"/>
+  <text class="label" x="1145" y="397">
+    <tspan x="1145" dy="0">&#1057;&#1059;&#1041;&#1044;</tspan>
+    <tspan x="1145" dy="24">&#1077;&#1076;&#1080;&#1085;&#1086;&#1077; &#1093;&#1088;&#1072;&#1085;&#1080;&#1083;&#1080;&#1097;&#1077;</tspan>
+    <tspan x="1145" dy="24">&#1076;&#1072;&#1085;&#1085;&#1099;&#1093;</tspan>
+  </text>
+
+  <line class="edge" x1="290" y1="220" x2="980" y2="220" marker-end="url(#arrow)"/>
+  <line class="edge" x1="500" y1="220" x2="980" y2="220" marker-end="url(#arrow)"/>
+  <line class="edge" x1="710" y1="220" x2="980" y2="220" marker-end="url(#arrow)"/>
+  <line class="edge" x1="890" y1="220" x2="980" y2="220" marker-end="url(#arrow)"/>
+
+  <line class="edge" x1="290" y1="420" x2="980" y2="420" marker-end="url(#arrow)"/>
+  <line class="edge" x1="500" y1="420" x2="980" y2="420" marker-end="url(#arrow)"/>
+  <line class="edge" x1="710" y1="420" x2="980" y2="420" marker-end="url(#arrow)"/>
+  <line class="edge" x1="890" y1="420" x2="980" y2="420" marker-end="url(#arrow)"/>
+
+  <text class="edge-label" x="948" y="202">&#1076;&#1086;&#1089;&#1090;&#1091;&#1087; &#1082; &#1076;&#1072;&#1085;&#1085;&#1099;&#1084;</text>
+  <text class="edge-label" x="948" y="402">&#1076;&#1086;&#1089;&#1090;&#1091;&#1087; &#1082; &#1076;&#1072;&#1085;&#1085;&#1099;&#1084;</text>
+</svg>

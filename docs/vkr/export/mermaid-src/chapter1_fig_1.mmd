@@ -1,0 +1,14 @@
+graph LR
+  subgraph currentState["Текущее состояние"]
+    journals["Журналы<br/>подразделений"]
+    tables["Таблицы<br/>ответственных"]
+    tickets["Разрозненные<br/>заявки"]
+    reports["Ручная<br/>отчётность"]
+  end
+  subgraph targetState["Целевое состояние"]
+    ias["Единая ИАС:<br/>активы + заявки<br/>+ справочники + аудит"]
+  end
+  journals --> ias
+  tables --> ias
+  tickets --> ias
+  reports --> ias

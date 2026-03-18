@@ -1,0 +1,22 @@
+graph LR
+  subgraph modules["Функциональные модули"]
+    assets["Учёт активов"]
+    helpDesk["Help Desk<br/>заявки и вложения"]
+    dictionaries["Справочники"]
+    software["ПО и лицензии"]
+    access["Пользователи<br/>и роли"]
+    imports["Импорт"]
+    reports["Отчётность<br/>и экспорт"]
+    audit["Аудит"]
+  end
+  subgraph storage["Общий слой данных"]
+    dbCore["СУБД"]
+  end
+  assets --> dbCore
+  helpDesk --> dbCore
+  dictionaries --> dbCore
+  software --> dbCore
+  access --> dbCore
+  imports --> dbCore
+  reports --> dbCore
+  audit --> dbCore

@@ -1,0 +1,6 @@
+graph LR
+  clientNode["Клиентский узел<br/>браузер пользователя"]
+  appNode["Узел приложения<br/>веб-сервер + PHP-FPM + Yii2"]
+  dbNode["Узел БД<br/>PostgreSQL"]
+  clientNode -->|"HTTP/HTTPS"| appNode
+  appNode -->|"TCP/5432"| dbNode

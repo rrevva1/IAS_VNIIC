@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1380" height="900" viewBox="0 0 1380 900">
+  <defs>
+    <style>
+      .bg { fill: #ffffff; }
+      .frame { fill: #ffffff; stroke: #000000; stroke-width: 1.8; }
+      .node { fill: #ffffff; stroke: #000000; stroke-width: 1.4; }
+      .title { font-family: Arial, sans-serif; font-size: 24px; font-weight: 700; }
+      .h { font-family: Arial, sans-serif; font-size: 20px; font-weight: 700; }
+      .t { font-family: Arial, sans-serif; font-size: 17px; text-anchor: middle; }
+      .edge { stroke: #000000; stroke-width: 1.6; fill: none; }
+    </style>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#000000"/>
+    </marker>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1380" height="900"/>
+  <text class="title" x="690" y="42" text-anchor="middle">&#1056;&#1080;&#1089;&#1091;&#1085;&#1086;&#1082; 2.2. &#1050;&#1086;&#1084;&#1087;&#1086;&#1085;&#1077;&#1085;&#1090;&#1085;&#1072;&#1103; &#1089;&#1090;&#1088;&#1091;&#1082;&#1090;&#1091;&#1088;&#1072;</text>
+
+  <rect class="frame" x="70" y="90" width="900" height="720" rx="4"/>
+  <text class="h" x="100" y="120">&#1052;&#1086;&#1076;&#1091;&#1083;&#1080;</text>
+  <rect class="frame" x="1030" y="90" width="270" height="720" rx="4"/>
+  <text class="h" x="1060" y="120">&#1061;&#1088;&#1072;&#1085;&#1080;&#1083;&#1080;&#1097;&#1077;</text>
+
+  <rect class="node" x="130" y="170" width="280" height="84" rx="3"/>
+  <text class="t" x="270" y="220">&#1059;&#1095;&#1105;&#1090; &#1072;&#1082;&#1090;&#1080;&#1074;&#1086;&#1074;</text>
+  <rect class="node" x="470" y="170" width="280" height="84" rx="3"/>
+  <text class="t" x="610" y="220">Help Desk</text>
+
+  <rect class="node" x="130" y="300" width="280" height="84" rx="3"/>
+  <text class="t" x="270" y="350">&#1057;&#1087;&#1088;&#1072;&#1074;&#1086;&#1095;&#1085;&#1080;&#1082;&#1080;</text>
+  <rect class="node" x="470" y="300" width="280" height="84" rx="3"/>
+  <text class="t" x="610" y="350">&#1055;&#1054; &#1080; &#1083;&#1080;&#1094;&#1077;&#1085;&#1079;&#1080;&#1080;</text>
+
+  <rect class="node" x="130" y="430" width="280" height="84" rx="3"/>
+  <text class="t" x="270" y="480">&#1055;&#1086;&#1083;&#1100;&#1079;&#1086;&#1074;&#1072;&#1090;&#1077;&#1083;&#1080; &#1080; &#1088;&#1086;&#1083;&#1080;</text>
+  <rect class="node" x="470" y="430" width="280" height="84" rx="3"/>
+  <text class="t" x="610" y="480">&#1048;&#1084;&#1087;&#1086;&#1088;&#1090;</text>
+
+  <rect class="node" x="130" y="560" width="280" height="84" rx="3"/>
+  <text class="t" x="270" y="610">&#1054;&#1090;&#1095;&#1105;&#1090;&#1085;&#1086;&#1089;&#1090;&#1100; &#1080; &#1101;&#1082;&#1089;&#1087;&#1086;&#1088;&#1090;</text>
+  <rect class="node" x="470" y="560" width="280" height="84" rx="3"/>
+  <text class="t" x="610" y="610">&#1040;&#1091;&#1076;&#1080;&#1090;</text>
+
+  <rect class="node" x="1075" y="360" width="180" height="180" rx="3"/>
+  <text class="t" x="1165" y="440">&#1057;&#1059;&#1041;&#1044;</text>
+  <text class="t" x="1165" y="468">&#1077;&#1076;&#1080;&#1085;&#1086;&#1077;</text>
+  <text class="t" x="1165" y="496">&#1093;&#1088;&#1072;&#1085;&#1080;&#1083;&#1080;&#1097;&#1077;</text>
+
+  <line class="edge" x1="410" y1="212" x2="1020" y2="212" marker-end="url(#a)"/>
+  <line class="edge" x1="750" y1="212" x2="1020" y2="212" marker-end="url(#a)"/>
+  <line class="edge" x1="410" y1="342" x2="1020" y2="342" marker-end="url(#a)"/>
+  <line class="edge" x1="750" y1="342" x2="1020" y2="342" marker-end="url(#a)"/>
+  <line class="edge" x1="410" y1="472" x2="1020" y2="472" marker-end="url(#a)"/>
+  <line class="edge" x1="750" y1="472" x2="1020" y2="472" marker-end="url(#a)"/>
+  <line class="edge" x1="410" y1="602" x2="1020" y2="602" marker-end="url(#a)"/>
+  <line class="edge" x1="750" y1="602" x2="1020" y2="602" marker-end="url(#a)"/>
+</svg>

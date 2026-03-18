@@ -1,0 +1,12 @@
+graph LR
+  loginScreen["Вход в систему"] --> dashboard["Главная страница"]
+  dashboard --> tasksList["Список заявок"]
+  dashboard --> assetsList["Список активов"]
+  dashboard --> usersList["Пользователи"]
+  dashboard --> reportsPage["Отчёты"]
+  dashboard --> auditPage["Журнал аудита"]
+  tasksList --> taskView["Карточка заявки"]
+  taskView --> assetView["Карточка актива"]
+  assetsList --> assetView
+  usersList --> userCard["Карточка пользователя"]
+  userCard --> assetView
