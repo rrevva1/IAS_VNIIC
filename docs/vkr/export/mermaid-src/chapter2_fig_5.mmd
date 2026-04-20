@@ -1,12 +1,11 @@
-graph LR
-  loginScreen["Вход в систему"] --> dashboard["Главная страница"]
-  dashboard --> tasksList["Список заявок"]
-  dashboard --> assetsList["Список активов"]
-  dashboard --> usersList["Пользователи"]
-  dashboard --> reportsPage["Отчёты"]
-  dashboard --> auditPage["Журнал аудита"]
-  tasksList --> taskView["Карточка заявки"]
-  taskView --> assetView["Карточка актива"]
-  assetsList --> assetView
-  usersList --> userCard["Карточка пользователя"]
-  userCard --> assetView
+%% Рисунок 2.5 — Диаграмма процесса обработки заявки, связанной с техническим средством
+%% Нотация: BPMN/Activity (адаптировано в flowchart)
+graph TB
+  startNode["Пользователь создает заявку"] --> describeIssue["Заполняет описание и выбирает актив"]
+  describeIssue --> validateRights["Проверка прав и корректности данных"]
+  validateRights --> saveTask["Сохранение заявки и связей с активами"]
+  saveTask --> attachFiles["Сохранение вложений и метаданных"]
+  attachFiles --> assignExecutor["Назначение исполнителя"]
+  assignExecutor --> workTask["Обработка заявки и изменение статуса"]
+  workTask --> closeTask["Завершение или закрытие заявки"]
+  closeTask --> auditEvent["Фиксация истории и событий аудита"]

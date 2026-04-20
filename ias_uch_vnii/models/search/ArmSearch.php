@@ -3,6 +3,7 @@
 namespace app\models\search;
 
 use app\models\entities\Equipment;
+use app\models\entities\EquipmentTypes;
 use yii\base\Model;
 use yii\data\ActiveDataProvider;
 
@@ -22,7 +23,7 @@ class ArmSearch extends Model
     public $status_id;
     /** @var int|bool Показать архивные (0 = нет по умолчанию) */
     public $is_archived = 0;
-    /** @var string|null Фильтр по типу техники (equipment_type, как в дампе) */
+    /** @var string|null Фильтр по типу техники */
     public $equipment_type;
 
     public function rules()
@@ -69,7 +70,16 @@ class ArmSearch extends Model
 
         $eqType = $this->equipment_type !== null ? trim((string) $this->equipment_type) : '';
         if ($eqType !== '') {
-            $query->andFilterWhere(['equipment.equipment_type' => $eqType]);
+            if (EquipmentTypes::usesDictionary()) {
+                $typeId = EquipmentTypes::resolveIdByName($eqType);
+                if ($typeId === null) {
+                    $query->andWhere('1 = 0');
+                } else {
+                    $query->andWhere(['equipment.equipment_type_id' => $typeId]);
+                }
+            } else {
+                $query->andFilterWhere(['equipment.equipment_type' => $eqType]);
+            }
         }
 
         $query->andFilterWhere(['ilike', 'equipment.name', $this->name])

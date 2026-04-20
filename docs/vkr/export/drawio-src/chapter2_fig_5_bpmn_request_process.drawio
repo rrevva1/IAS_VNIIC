@@ -1,0 +1,116 @@
+<mxfile host="app.diagrams.net" agent="codex">
+  <diagram id="chapter2-fig-5-bpmn-request-process" name="Page-1">
+    <mxGraphModel dx="1800" dy="980" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Рисунок 5 — BPMN-процесс обработки заявки (глава 2)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontFamily=Arial;fontSize=20;fontStyle=1;fontColor=#2A2A2A;" vertex="1" parent="1">
+          <mxGeometry x="160" y="20" width="1480" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="notation" value="Нотация: BPMN 2.0 (pool/lanes, tasks, gateways, events)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontFamily=Arial;fontSize=14;fontColor=#4A4A4A;" vertex="1" parent="1">
+          <mxGeometry x="160" y="56" width="1480" height="24" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pool" value="Процесс: жизненный цикл заявки Help Desk" style="swimlane;startSize=32;rounded=0;horizontal=0;whiteSpace=wrap;html=1;fillColor=#F7F4D7;strokeColor=#CDBF63;fontFamily=Arial;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="100" width="1640" height="940" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lane_user" value="Пользователь" style="swimlane;startSize=26;horizontal=0;whiteSpace=wrap;html=1;fillColor=#FFFBEA;strokeColor=#CDBF63;fontFamily=Arial;fontSize=13;fontStyle=1;" vertex="1" parent="pool">
+          <mxGeometry x="0" y="0" width="1640" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_operator" value="Оператор/Исполнитель" style="swimlane;startSize=26;horizontal=0;whiteSpace=wrap;html=1;fillColor=#FFFBEA;strokeColor=#CDBF63;fontFamily=Arial;fontSize=13;fontStyle=1;" vertex="1" parent="pool">
+          <mxGeometry x="0" y="240" width="1640" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="lane_system" value="Система (Yii2 + БД)" style="swimlane;startSize=26;horizontal=0;whiteSpace=wrap;html=1;fillColor=#FFFBEA;strokeColor=#CDBF63;fontFamily=Arial;fontSize=13;fontStyle=1;" vertex="1" parent="pool">
+          <mxGeometry x="0" y="520" width="1640" height="420" as="geometry" />
+        </mxCell>
+
+        <mxCell id="start" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#222222;strokeColor=#222222;" vertex="1" parent="lane_user">
+          <mxGeometry x="80" y="100" width="26" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="u_create" value="Создать заявку" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EEF7;strokeColor=#C5CEDA;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_user">
+          <mxGeometry x="150" y="78" width="190" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="u_fill" value="Заполнить описание&#xa;и выбрать актив" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EEF7;strokeColor=#C5CEDA;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_user">
+          <mxGeometry x="380" y="78" width="230" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="u_attach" value="Прикрепить файлы&#xa;(опционально)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EEF7;strokeColor=#C5CEDA;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_user">
+          <mxGeometry x="650" y="78" width="210" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_validate" value="Проверка прав&#xa;и валидация данных" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECE6FF;strokeColor=#B8A8E6;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_system">
+          <mxGeometry x="650" y="120" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="g_valid" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C5CEDA;strokeWidth=1.5;" vertex="1" parent="lane_system">
+          <mxGeometry x="930" y="130" width="70" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="s_reject" value="Отклонить заявку&#xa;(ошибка/нет прав)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDEAEA;strokeColor=#D6A6A6;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_system">
+          <mxGeometry x="1030" y="40" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="end_reject" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#222222;strokeWidth=2;" vertex="1" parent="lane_system">
+          <mxGeometry x="1310" y="62" width="26" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_save_task" value="Сохранить заявку&#xa;и связи с активами" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECE6FF;strokeColor=#B8A8E6;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_system">
+          <mxGeometry x="1030" y="170" width="240" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="s_save_attach" value="Сохранить вложения&#xa;и метаданные" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECE6FF;strokeColor=#B8A8E6;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_system">
+          <mxGeometry x="1310" y="170" width="220" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="s_notify" value="Уведомить оператора&#xa;о новой заявке" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECE6FF;strokeColor=#B8A8E6;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_system">
+          <mxGeometry x="1310" y="280" width="220" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="o_assign" value="Назначить исполнителя" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EEF7;strokeColor=#C5CEDA;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_operator">
+          <mxGeometry x="1120" y="90" width="210" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="o_process" value="Обработать заявку&#xa;и изменить статус" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EEF7;strokeColor=#C5CEDA;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_operator">
+          <mxGeometry x="1120" y="180" width="230" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="g_resolved" value="" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#C5CEDA;strokeWidth=1.5;" vertex="1" parent="lane_operator">
+          <mxGeometry x="1380" y="176" width="70" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="o_rework" value="Запросить уточнение&#xa;у пользователя" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EEF7;strokeColor=#C5CEDA;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_operator">
+          <mxGeometry x="1480" y="80" width="220" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="o_close" value="Закрыть заявку" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8EEF7;strokeColor=#C5CEDA;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_operator">
+          <mxGeometry x="1480" y="230" width="170" height="64" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s_history" value="Записать историю&#xa;изменений (task_history)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECE6FF;strokeColor=#B8A8E6;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_system">
+          <mxGeometry x="1480" y="360" width="220" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="s_audit" value="Записать событие&#xa;в аудит (audit_events)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECE6FF;strokeColor=#B8A8E6;strokeWidth=1.5;fontFamily=Arial;fontSize=14;" vertex="1" parent="lane_system">
+          <mxGeometry x="1480" y="450" width="220" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="end_ok" value="" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#222222;strokeWidth=2;" vertex="1" parent="lane_system">
+          <mxGeometry x="1730" y="468" width="26" height="26" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" edge="1" parent="lane_user" source="start" target="u_create" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e2" edge="1" parent="lane_user" source="u_create" target="u_fill" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e3" edge="1" parent="lane_user" source="u_fill" target="u_attach" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e4" edge="1" parent="pool" source="u_attach" target="s_validate" value="submit" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;labelBackgroundColor=#FFFFFF;fontSize=12;"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="850" y="305" /></Array></mxGeometry></mxCell>
+        <mxCell id="e5" edge="1" parent="lane_system" source="s_validate" target="g_valid" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e6" edge="1" parent="lane_system" source="g_valid" target="s_reject" value="нет" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;labelBackgroundColor=#FFFFFF;fontSize=12;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e7" edge="1" parent="lane_system" source="s_reject" target="end_reject" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e8" edge="1" parent="lane_system" source="g_valid" target="s_save_task" value="да" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;labelBackgroundColor=#FFFFFF;fontSize=12;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e9" edge="1" parent="lane_system" source="s_save_task" target="s_save_attach" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e10" edge="1" parent="lane_system" source="s_save_attach" target="s_notify" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <mxCell id="e11" edge="1" parent="pool" source="s_notify" target="o_assign" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1420" y="490" /></Array></mxGeometry></mxCell>
+        <mxCell id="e12" edge="1" parent="lane_operator" source="o_assign" target="o_process" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e13" edge="1" parent="lane_operator" source="o_process" target="g_resolved" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e14" edge="1" parent="lane_operator" source="g_resolved" target="o_rework" value="нет" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;labelBackgroundColor=#FFFFFF;fontSize=12;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e15" edge="1" parent="lane_operator" source="g_resolved" target="o_close" value="да" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;labelBackgroundColor=#FFFFFF;fontSize=12;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e16" edge="1" parent="pool" source="o_rework" target="u_fill" value="уточнение" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;labelBackgroundColor=#FFFFFF;fontSize=12;"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1710" y="220" /><mxPoint x="1710" y="110" /><mxPoint x="500" y="110" /></Array></mxGeometry></mxCell>
+
+        <mxCell id="e17" edge="1" parent="pool" source="o_close" target="s_history" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1560" y="630" /></Array></mxGeometry></mxCell>
+        <mxCell id="e18" edge="1" parent="lane_system" source="s_history" target="s_audit" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e19" edge="1" parent="lane_system" source="s_audit" target="end_ok" style="endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

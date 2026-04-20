@@ -1,22 +1,32 @@
+%% Рисунок 2.2 — Компонентная структура прототипа ИАС
+%% Нотация: UML Component Diagram (адаптировано в flowchart)
 graph LR
-  subgraph modules["Функциональные модули"]
-    assets["Учёт активов"]
-    helpDesk["Help Desk<br/>заявки и вложения"]
-    dictionaries["Справочники"]
-    software["ПО и лицензии"]
-    access["Пользователи<br/>и роли"]
-    imports["Импорт"]
-    reports["Отчётность<br/>и экспорт"]
-    audit["Аудит"]
-  end
-  subgraph storage["Общий слой данных"]
-    dbCore["СУБД"]
-  end
+  browser["Пользовательский интерфейс"]
+  auth["Пользователи и роли"]
+  assets["Учёт активов"]
+  helpDesk["Help Desk"]
+  dictionaries["Справочники"]
+  reports["Отчётность и экспорт"]
+  imports["Импорт"]
+  audit["Аудит"]
+  dbCore["СУБД"]
+
+  browser --> auth
+  browser --> assets
+  browser --> helpDesk
+  browser --> reports
+  auth --> assets
+  auth --> helpDesk
+  auth --> dictionaries
+  dictionaries --> assets
+  dictionaries --> helpDesk
   assets --> dbCore
   helpDesk --> dbCore
   dictionaries --> dbCore
-  software --> dbCore
-  access --> dbCore
-  imports --> dbCore
   reports --> dbCore
+  imports --> dbCore
+  assets --> audit
+  helpDesk --> audit
+  auth --> audit
+  imports --> audit
   audit --> dbCore

@@ -36,6 +36,8 @@ use yii\db\ActiveRecord;
  */
 class Equipment extends ActiveRecord
 {
+    public ?string $equipment_type = null;
+
     public static function tableName()
     {
         return 'equipment';
@@ -45,7 +47,7 @@ class Equipment extends ActiveRecord
     {
         return [
             [['inventory_number', 'name', 'status_id', 'location_id'], 'required'],
-            [['status_id', 'responsible_user_id', 'location_id'], 'integer'],
+            [['status_id', 'responsible_user_id', 'location_id', 'equipment_type_id'], 'integer'],
             [['name'], 'string', 'max' => 200],
             [['inventory_number'], 'string', 'max' => 100],
             [['serial_number'], 'string', 'max' => 150],
@@ -73,6 +75,39 @@ class Equipment extends ActiveRecord
             'location_id' => 'Местоположение',
             'description' => 'Описание',
         ];
+    }
+
+    public function afterFind()
+    {
+        parent::afterFind();
+
+        $schema = static::getTableSchema();
+        if ($schema && isset($schema->columns['equipment_type'])) {
+            $this->equipment_type = $this->getAttribute('equipment_type');
+            return;
+        }
+
+        $this->equipment_type = EquipmentTypes::resolveNameById($this->equipment_type_id ? (int) $this->equipment_type_id : null);
+    }
+
+    public function beforeValidate()
+    {
+        if (!parent::beforeValidate()) {
+            return false;
+        }
+
+        $typeName = trim((string) $this->equipment_type);
+        $schema = static::getTableSchema();
+
+        if ($schema && isset($schema->columns['equipment_type'])) {
+            $this->setAttribute('equipment_type', $typeName !== '' ? $typeName : null);
+        } elseif (EquipmentTypes::usesDictionary()) {
+            $this->equipment_type_id = $typeName !== ''
+                ? EquipmentTypes::resolveIdByName($typeName)
+                : null;
+        }
+
+        return true;
     }
 
     public function getResponsibleUser()

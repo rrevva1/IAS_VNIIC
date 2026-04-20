@@ -1,6 +1,21 @@
-graph LR
-  clientNode["Клиентский узел<br/>браузер пользователя"]
-  appNode["Узел приложения<br/>веб-сервер + PHP-FPM + Yii2"]
-  dbNode["Узел БД<br/>PostgreSQL"]
+%% Рисунок 2.3 — UML-диаграмма развёртывания прототипа
+%% Нотация: UML Deployment Diagram (адаптировано в graph TB)
+graph TB
+  clientNode["Внешний клиентский узел<br/>веб-браузер пользователя"]
+
+  subgraph internalContour["Внутренний контур"]
+    direction TB
+    subgraph presentationLayer["Уровень представления (внутренний доступ)"]
+      adminNode["Административный узел<br/>рабочее место администратора"]
+    end
+    subgraph appLayer["Уровень приложений"]
+      appNode["Веб-узел / сервер приложений<br/>Apache/nginx + PHP-FPM + Yii2"]
+    end
+    subgraph dataLayer["Уровень данных"]
+      dbNode["Узел СУБД<br/>PostgreSQL (schema tech_accounting)"]
+    end
+  end
+
   clientNode -->|"HTTP/HTTPS"| appNode
+  adminNode -->|"Внутренний доступ (HTTPS)"| appNode
   appNode -->|"TCP/5432"| dbNode

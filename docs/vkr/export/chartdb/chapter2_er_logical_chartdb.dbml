@@ -1,0 +1,181 @@
+Project IAS_VNIIC_LOGICAL_ER {
+  database_type: "PostgreSQL"
+  Note: "Логическая ER-модель для ВКР (в стиле ChartDB)"
+}
+
+Table users {
+  id bigint [pk]
+  login varchar
+  full_name varchar
+}
+
+Table roles {
+  id bigint [pk]
+  name varchar
+}
+
+Table permissions {
+  id bigint [pk]
+  name varchar
+}
+
+Table user_roles {
+  id bigint [pk]
+  user_id bigint [not null]
+  role_id bigint [not null]
+}
+
+Table role_permissions {
+  id bigint [pk]
+  role_id bigint [not null]
+  permission_id bigint [not null]
+}
+
+Table locations {
+  id bigint [pk]
+  name varchar
+  parent_id bigint
+}
+
+Table dic_equipment_status {
+  id bigint [pk]
+  name varchar
+}
+
+Table dic_task_status {
+  id bigint [pk]
+  name varchar
+}
+
+Table spr_parts {
+  id bigint [pk]
+  name varchar
+}
+
+Table spr_chars {
+  id bigint [pk]
+  part_id bigint [not null]
+  name varchar
+}
+
+Table equipment {
+  id bigint [pk]
+  inventory_no varchar
+  serial_no varchar
+  name varchar
+  model varchar
+  location_id bigint [not null]
+  responsible_user_id bigint [not null]
+  status_id bigint [not null]
+}
+
+Table equip_history {
+  id bigint [pk]
+  equipment_id bigint [not null]
+  actor_id bigint [not null]
+  event_type varchar
+}
+
+Table part_char_values {
+  id bigint [pk]
+  equipment_id bigint [not null]
+  part_id bigint [not null]
+  char_id bigint [not null]
+  value text
+}
+
+Table tasks {
+  id bigint [pk]
+  requester_id bigint [not null]
+  executor_id bigint
+  status_id bigint [not null]
+  description text
+}
+
+Table task_history {
+  id bigint [pk]
+  task_id bigint [not null]
+  actor_id bigint [not null]
+  old_state text
+  new_state text
+}
+
+Table task_equipment {
+  id bigint [pk]
+  task_id bigint [not null]
+  equipment_id bigint [not null]
+}
+
+Table desk_attachments {
+  id bigint [pk]
+  uploaded_by bigint [not null]
+  file_name varchar
+}
+
+Table task_attachments {
+  id bigint [pk]
+  task_id bigint [not null]
+  attachment_id bigint [not null]
+}
+
+Table inventory_runs {
+  id bigint [pk]
+  location_id bigint [not null]
+  responsible_user_id bigint [not null]
+  status varchar
+}
+
+Table inventory_items {
+  id bigint [pk]
+  inventory_run_id bigint [not null]
+  equipment_id bigint [not null]
+  fact_status varchar
+  discrepancy_type varchar
+}
+
+Table audit_events {
+  id bigint [pk]
+  actor_id bigint [not null]
+  object_type varchar
+  object_id bigint
+  result varchar
+}
+
+Ref: user_roles.user_id > users.id
+Ref: user_roles.role_id > roles.id
+Ref: role_permissions.role_id > roles.id
+Ref: role_permissions.permission_id > permissions.id
+
+Ref: locations.parent_id > locations.id
+Ref: spr_chars.part_id > spr_parts.id
+
+Ref: equipment.location_id > locations.id
+Ref: equipment.responsible_user_id > users.id
+Ref: equipment.status_id > dic_equipment_status.id
+
+Ref: equip_history.equipment_id > equipment.id
+Ref: equip_history.actor_id > users.id
+
+Ref: part_char_values.equipment_id > equipment.id
+Ref: part_char_values.part_id > spr_parts.id
+Ref: part_char_values.char_id > spr_chars.id
+
+Ref: tasks.requester_id > users.id
+Ref: tasks.executor_id > users.id
+Ref: tasks.status_id > dic_task_status.id
+Ref: task_history.task_id > tasks.id
+Ref: task_history.actor_id > users.id
+
+Ref: task_equipment.task_id > tasks.id
+Ref: task_equipment.equipment_id > equipment.id
+
+Ref: desk_attachments.uploaded_by > users.id
+Ref: task_attachments.task_id > tasks.id
+Ref: task_attachments.attachment_id > desk_attachments.id
+
+Ref: inventory_runs.location_id > locations.id
+Ref: inventory_runs.responsible_user_id > users.id
+Ref: inventory_items.inventory_run_id > inventory_runs.id
+Ref: inventory_items.equipment_id > equipment.id
+
+Ref: audit_events.actor_id > users.id

@@ -1,0 +1,26 @@
+%% Рисунок 2.7 — Схема подсистемы администрирования и разграничения доступа
+%% Нотация: UML Component / Access Control Flow (адаптировано в flowchart)
+graph LR
+  adminRole["Администратор"] --> usersMgmt["Управление пользователями"]
+  adminRole --> rolesMgmt["Управление ролями"]
+  adminRole --> dictMgmt["Управление справочниками"]
+  adminRole --> inventoryAdmin["Настройки инвентаризации"]
+  adminRole --> auditPage["Журнал аудита"]
+  adminRole --> importPage["Импорт и протоколы"]
+
+  operatorRole["Оператор"] --> taskOps["Операции по заявкам"]
+  operatorRole --> inventoryOps["Проведение инвентаризации"]
+  userRole["Пользователь"] --> ownRequests["Собственные заявки"]
+
+  usersMgmt --> rbacService["RBAC и проверки прав"]
+  rolesMgmt --> rbacService
+  taskOps --> rbacService
+  ownRequests --> rbacService
+  inventoryOps --> rbacService
+  inventoryAdmin --> rbacService
+
+  dictMgmt --> adminData["Административные данные"]
+  inventoryAdmin --> adminData
+  auditPage --> adminData
+  importPage --> adminData
+  rbacService --> adminData

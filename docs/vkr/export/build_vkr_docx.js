@@ -16,7 +16,6 @@ const {
   ShadingType,
   Footer,
   PageNumber,
-  PageBreak,
   LevelFormat,
 } = require("docx");
 
@@ -56,8 +55,14 @@ const chapters = [
         "fig_1_3_helpdesk_lifecycle.png",
       "Рисунок 4 — Ключевые сущности предметной области и связи между ними":
         "fig_1_4_domain_entities_er.png",
+      "Рисунок 4а — DFD уровня 1 (потоки данных для учёта технических средств и заявок)":
+        "fig_1_4a_dfd_level1.png",
       "Рисунок 5 — Распределение базовых сценариев по ролям пользователей":
         "fig_1_5_roles_and_scenarios.png",
+      "Рисунок 1.6 — Контекстная IDEF0-диаграмма процессов учёта технических средств и обработки заявок (A-0)":
+        "fig_1_6_idef0_context.png",
+      "Рисунок 1.7 — Декомпозиция основных процессов прототипа ИАС в нотации IDEF0 (A0)":
+        "fig_1_7_idef0_decomposition.png",
     },
     tableMap: {
       "Таблица 1 — Сопоставление аналогов применительно к задаче учёта ТС и Help Desk":
@@ -68,25 +73,49 @@ const chapters = [
   },
   {
     key: "ch2",
-    file: path.join(baseDir, "Раздел_2_Архитектурное_проектирование.md"),
+    file: path.join(baseDir, "Раздел_2_Архитектурное_проектирование_эталон.md"),
     figureMap: {
-      "Рисунок 1 — Многослойная клиент-серверная архитектура прототипа ИАС":
+      "Рисунок 2.1 — Многослойная клиент-серверная архитектура прототипа ИАС":
         "fig_2_1_layered_architecture.png",
-      "Рисунок 2 — Компонентная структура прототипа ИАС":
+      "Рисунок 2.2 — Компонентная структура прототипа ИАС":
         "fig_2_2_component_structure.png",
-      "Рисунок 3 — Схема развёртывания прототипа":
+      "Рисунок 2.3 — UML-диаграмма развёртывания прототипа":
         "fig_2_3_deployment_scheme.png",
-      "Рисунок 4 — Логическая модель данных (ключевые сущности и связи)":
+      "Рисунок 2.4 — Логическая модель данных (ключевые сущности и связи)":
         "fig_2_4_logical_data_model.png",
-      "Рисунок 5 — Карта основных экранов и переходов в интерфейсе":
-        "fig_2_5_ui_navigation_map.png",
+      "Рисунок 2.5 — Диаграмма процесса обработки заявки, связанной с техническим средством":
+        "fig_2_5_request_process.png",
+      "Рисунок 2.6 — Карта основных пользовательских экранов и переходов":
+        "fig_2_6_user_navigation_map.png",
+      "Рисунок 2.7 — Схема подсистемы администрирования и разграничения доступа":
+        "fig_2_7_admin_subsystem.png",
     },
     tableMap: {
-      "Таблица 3 — Сопоставление архитектурных вариантов для прототипа ИАС":
+      "Таблица 2.1 — Сопоставление архитектурных вариантов для прототипа ИАС":
         "Таблица 2.1 — Сопоставление архитектурных вариантов для прототипа ИАС",
     },
   },
 ];
+
+function getBuildConfig() {
+  const mode = process.argv[2] ?? "all";
+  if (mode === "ch1") {
+    return {
+      chapters: chapters.filter((chapter) => chapter.key === "ch1"),
+      outFile: "ВКР_глава_1_04.docx",
+    };
+  }
+  if (mode === "ch2") {
+    return {
+      chapters: chapters.filter((chapter) => chapter.key === "ch2"),
+      outFile: "ВКР_глава_2_03.docx",
+    };
+  }
+  return {
+    chapters,
+    outFile: "ВКР_1_2_01.docx",
+  };
+}
 
 function stripMarkdownTail(text) {
   const marker = "\n## Рекомендуемые иллюстрации для раздела ";
@@ -322,15 +351,9 @@ function parseBlocks(text, chapter) {
       const rawCaption = figureMatch[1];
       const mappedFile = chapter.figureMap[rawCaption];
       if (mappedFile) {
-        const normalizedCaption = rawCaption
-          .replace(/^Рисунок 1 —/, chapter.key === "ch1" ? "Рисунок 1.1 —" : "Рисунок 2.1 —")
-          .replace(/^Рисунок 2 —/, chapter.key === "ch1" ? "Рисунок 1.2 —" : "Рисунок 2.2 —")
-          .replace(/^Рисунок 3 —/, chapter.key === "ch1" ? "Рисунок 1.3 —" : "Рисунок 2.3 —")
-          .replace(/^Рисунок 4 —/, chapter.key === "ch1" ? "Рисунок 1.4 —" : "Рисунок 2.4 —")
-          .replace(/^Рисунок 5 —/, chapter.key === "ch1" ? "Рисунок 1.5 —" : "Рисунок 2.5 —");
         blocks.push({
           type: "figure",
-          caption: normalizedCaption,
+          caption: rawCaption,
           file: path.join(imagesDir, mappedFile),
         });
       }
@@ -366,11 +389,11 @@ function parseBlocks(text, chapter) {
   return blocks;
 }
 
-function buildChildren() {
+function buildChildren(selectedChapters) {
   const children = [];
   let chapterIndex = 0;
 
-  for (const chapter of chapters) {
+  for (const chapter of selectedChapters) {
     const text = fs.readFileSync(chapter.file, "utf8");
     const blocks = parseBlocks(text, chapter);
 
@@ -407,13 +430,12 @@ function buildChildren() {
     }
     chapterIndex += 1;
   }
-
-  children.push(new Paragraph({ children: [new PageBreak()] }));
   return children;
 }
 
 async function main() {
-  const children = buildChildren();
+  const buildConfig = getBuildConfig();
+  const children = buildChildren(buildConfig.chapters);
 
   const doc = new Document({
     styles: {
@@ -525,7 +547,7 @@ async function main() {
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const outPath = path.join(outDir, "ВКР_главы_1_2_DOCX_skill_сборка.docx");
+  const outPath = path.join(outDir, buildConfig.outFile);
   fs.writeFileSync(outPath, buffer);
   process.stdout.write(`${outPath}\n`);
 }

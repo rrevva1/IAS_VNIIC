@@ -1,0 +1,73 @@
+@startuml
+title DFD уровня 1: потоки данных для учета технических средств и заявок
+top to bottom direction
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam rectangle {
+  BackgroundColor #E8EEF7
+  BorderColor #C5CEDA
+  FontColor #2A2A2A
+  RoundCorner 6
+}
+skinparam package {
+  BackgroundColor #F7F4D7
+  BorderColor #CDBF63
+  FontColor #2A2A2A
+}
+skinparam database {
+  BackgroundColor #ECE6FF
+  BorderColor #B8A8E6
+  FontColor #2A2A2A
+}
+skinparam ArrowColor #555555
+
+package "Внешние сущности" as EXT {
+  rectangle "Пользователь" as User
+  rectangle "Оператор / Администратор" as AdminOp
+
+  User -[hidden]right-> AdminOp
+}
+
+package "Процессы прототипа ИАС" as PRC {
+  rectangle "1.3 Управление вложениями к заявкам" as P3
+  rectangle "1.2 Регистрация и обработка заявок" as P2
+  rectangle "1.1 Ведение карточек активов" as P1
+
+  P3 -[hidden]right-> P2
+  P2 -[hidden]right-> P1
+}
+
+package "Хранилища данных" as DS {
+  database "D5: Вложения" as D5
+  database "D2: Заявки" as D2
+  database "D3: Пользователи" as D3
+  database "D1: Активы" as D1
+  database "D4: Локации" as D4
+
+  D5 -[hidden]right-> D2
+  D2 -[hidden]right-> D3
+  D3 -[hidden]right-> D1
+  D1 -[hidden]right-> D4
+}
+
+User --> P2 : заявки, просмотр
+AdminOp --> P2 : маршрутизация заявок
+AdminOp --> P1 : ведение учета ТС
+
+P1 --> D1
+P1 --> D3
+P1 --> D4
+
+P2 --> D2
+P2 --> D3
+P2 --> D1
+P2 --> P3
+
+P3 --> D5
+P3 --> D2
+
+@enduml

@@ -1,0 +1,21 @@
+%% Рисунок 2.6 — Карта основных пользовательских экранов и переходов
+%% Нотация: UML Navigation Map / UI Flow (адаптировано в flowchart)
+graph LR
+  loginScreen["Вход в систему"] --> dashboard["Главная страница"]
+
+  dashboard --> tasksList["Список заявок"]
+  tasksList --> taskView["Карточка заявки"]
+  taskView --> assetView["Карточка актива"]
+
+  dashboard --> assetsList["Список активов"]
+  assetsList --> assetView
+
+  dashboard --> userCard["Карточка пользователя"]
+  userCard --> assetView
+
+  dashboard --> inventoryList["Инвентаризационные ведомости"]
+  inventoryList --> inventoryRun["Карточка инвентаризации"]
+  inventoryRun --> assetView
+
+  dashboard --> reportsPage["Отчеты"]
+  dashboard --> auditPage["Журнал аудита"]

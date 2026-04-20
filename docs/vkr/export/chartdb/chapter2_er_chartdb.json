@@ -1,0 +1,1098 @@
+{
+  "format": "chartdb-json-v1",
+  "project": {
+    "name": "IAS_VNIIC_ER",
+    "database_type": "PostgreSQL",
+    "source": "D:/Projects/IAS_VNIIC/docs/vkr/export/chartdb/chapter2_er_chartdb.dbml",
+    "note": "Подробная логическая модель для импорта в ChartDB"
+  },
+  "tables": [
+    {
+      "name": "users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "login",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "full_name",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "email",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "is_blocked",
+          "type": "boolean",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "roles",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "code",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "permissions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "code",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "user_roles",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "user_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "role_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "role_permissions",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "role_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "permission_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "locations",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "parent_id",
+          "type": "bigint",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "dic_equipment_status",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "code",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "dic_task_status",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "code",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "spr_parts",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "spr_chars",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "part_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "equipment",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "inventory_no",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "serial_no",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "name",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "model",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "location_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "responsible_user_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "status_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "is_deleted",
+          "type": "boolean",
+          "constraints": []
+        },
+        {
+          "name": "is_archived",
+          "type": "boolean",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "equip_history",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "equipment_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "actor_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "event_type",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "event_at",
+          "type": "timestamptz",
+          "constraints": []
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "part_char_values",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "equipment_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "part_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "char_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "value",
+          "type": "text",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "tasks",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "requester_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "executor_id",
+          "type": "bigint",
+          "constraints": []
+        },
+        {
+          "name": "status_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "title",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "constraints": []
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "constraints": []
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "task_history",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "task_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "actor_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "changed_at",
+          "type": "timestamptz",
+          "constraints": []
+        },
+        {
+          "name": "old_state",
+          "type": "text",
+          "constraints": []
+        },
+        {
+          "name": "new_state",
+          "type": "text",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "task_equipment",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "task_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "equipment_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "desk_attachments",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "uploaded_by",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "file_name",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "mime_type",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "size_bytes",
+          "type": "bigint",
+          "constraints": []
+        },
+        {
+          "name": "uploaded_at",
+          "type": "timestamptz",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "task_attachments",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "task_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "attachment_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "inventory_runs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "location_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "responsible_user_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "run_date",
+          "type": "timestamptz",
+          "constraints": []
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "inventory_items",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "inventory_run_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "equipment_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "fact_status",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "discrepancy_type",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "comment",
+          "type": "text",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "audit_events",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "actor_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "event_at",
+          "type": "timestamptz",
+          "constraints": []
+        },
+        {
+          "name": "object_type",
+          "type": "varchar",
+          "constraints": []
+        },
+        {
+          "name": "object_id",
+          "type": "bigint",
+          "constraints": []
+        },
+        {
+          "name": "result",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "import_runs",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "started_at",
+          "type": "timestamptz",
+          "constraints": []
+        },
+        {
+          "name": "finished_at",
+          "type": "timestamptz",
+          "constraints": []
+        },
+        {
+          "name": "status",
+          "type": "varchar",
+          "constraints": []
+        }
+      ]
+    },
+    {
+      "name": "import_errors",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "constraints": [
+            "pk",
+            "increment"
+          ]
+        },
+        {
+          "name": "import_run_id",
+          "type": "bigint",
+          "constraints": [
+            "not null"
+          ]
+        },
+        {
+          "name": "row_no",
+          "type": "int",
+          "constraints": []
+        },
+        {
+          "name": "error_text",
+          "type": "text",
+          "constraints": []
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "from": {
+        "table": "user_roles",
+        "column": "user_id"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "user_roles",
+        "column": "role_id"
+      },
+      "to": {
+        "table": "roles",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "role_permissions",
+        "column": "role_id"
+      },
+      "to": {
+        "table": "roles",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "role_permissions",
+        "column": "permission_id"
+      },
+      "to": {
+        "table": "permissions",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "locations",
+        "column": "parent_id"
+      },
+      "to": {
+        "table": "locations",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "spr_chars",
+        "column": "part_id"
+      },
+      "to": {
+        "table": "spr_parts",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "equipment",
+        "column": "location_id"
+      },
+      "to": {
+        "table": "locations",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "equipment",
+        "column": "responsible_user_id"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "equipment",
+        "column": "status_id"
+      },
+      "to": {
+        "table": "dic_equipment_status",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "equip_history",
+        "column": "equipment_id"
+      },
+      "to": {
+        "table": "equipment",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "equip_history",
+        "column": "actor_id"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "part_char_values",
+        "column": "equipment_id"
+      },
+      "to": {
+        "table": "equipment",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "part_char_values",
+        "column": "part_id"
+      },
+      "to": {
+        "table": "spr_parts",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "part_char_values",
+        "column": "char_id"
+      },
+      "to": {
+        "table": "spr_chars",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "tasks",
+        "column": "requester_id"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "tasks",
+        "column": "executor_id"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "tasks",
+        "column": "status_id"
+      },
+      "to": {
+        "table": "dic_task_status",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "task_history",
+        "column": "task_id"
+      },
+      "to": {
+        "table": "tasks",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "task_history",
+        "column": "actor_id"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "task_equipment",
+        "column": "task_id"
+      },
+      "to": {
+        "table": "tasks",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "task_equipment",
+        "column": "equipment_id"
+      },
+      "to": {
+        "table": "equipment",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "desk_attachments",
+        "column": "uploaded_by"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "task_attachments",
+        "column": "task_id"
+      },
+      "to": {
+        "table": "tasks",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "task_attachments",
+        "column": "attachment_id"
+      },
+      "to": {
+        "table": "desk_attachments",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "inventory_runs",
+        "column": "location_id"
+      },
+      "to": {
+        "table": "locations",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "inventory_runs",
+        "column": "responsible_user_id"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "inventory_items",
+        "column": "inventory_run_id"
+      },
+      "to": {
+        "table": "inventory_runs",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "inventory_items",
+        "column": "equipment_id"
+      },
+      "to": {
+        "table": "equipment",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "audit_events",
+        "column": "actor_id"
+      },
+      "to": {
+        "table": "users",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    },
+    {
+      "from": {
+        "table": "import_errors",
+        "column": "import_run_id"
+      },
+      "to": {
+        "table": "import_runs",
+        "column": "id"
+      },
+      "relation": "many_to_one"
+    }
+  ]
+}
