@@ -7,6 +7,7 @@ $port = getenv('DB_PORT') ?: '5432';
 $dbname = getenv('DB_NAME') ?: 'ias_vniic';
 $username = getenv('DB_USER') ?: 'postgres';
 $password = getenv('DB_PASSWORD') ?: '12345';
+$yiiEnv = getenv('YII_ENV') ?: 'prod';
 
 return [
     'class' => 'yii\db\Connection',
@@ -30,9 +31,9 @@ return [
     },
 
     // Schema cache options (for production environment)
-    //'enableSchemaCache' => true,
-    //'schemaCacheDuration' => 60,
-    //'schemaCache' => 'cache',
+    'enableSchemaCache' => $yiiEnv === 'prod',
+    'schemaCacheDuration' => 3600,
+    'schemaCache' => 'cache',
 ];
 
 

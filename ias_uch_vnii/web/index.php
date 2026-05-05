@@ -1,14 +1,17 @@
 <?php
 
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
+// По умолчанию работаем в production; параметры можно переопределить через env.
+$yiiEnv = getenv('YII_ENV') ?: 'prod';
+$yiiDebugRaw = getenv('YII_DEBUG');
+$yiiDebug = $yiiDebugRaw !== false
+    ? in_array(strtolower((string) $yiiDebugRaw), ['1', 'true', 'yes', 'on'], true)
+    : ($yiiEnv !== 'prod');
 
-/** 
- * Закомментируйте следующие две строки при развертывании на продакшен сервере
- * Эти настройки включают режим отладки и режим разработки
- */
-defined('YII_DEBUG') or define('YII_DEBUG', true);
-defined('YII_ENV') or define('YII_ENV', 'dev');
+error_reporting($yiiDebug ? E_ALL : (E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT));
+ini_set('display_errors', $yiiDebug ? '1' : '0');
+
+defined('YII_DEBUG') or define('YII_DEBUG', $yiiDebug);
+defined('YII_ENV') or define('YII_ENV', $yiiEnv);
 
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/../vendor/yiisoft/yii2/Yii.php';

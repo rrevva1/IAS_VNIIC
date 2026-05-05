@@ -24,9 +24,6 @@ services:
 
   php:
     image: yiisoftware/yii2-php:7.4-apache
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       DB_HOST: db
       DB_PORT: "5432"

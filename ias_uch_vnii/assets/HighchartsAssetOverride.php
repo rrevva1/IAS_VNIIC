@@ -5,13 +5,13 @@ namespace app\assets;
 use yii\web\AssetBundle;
 
 /**
- * Переопределение HighchartsAsset: скрипты лежат в подпапке package (npm-asset/highcharts/package/).
+ * Переопределение HighchartsAsset для текущей структуры npm-asset/highcharts.
  * Подключается через assetManager.bundles в config.
  */
 class HighchartsAssetOverride extends AssetBundle
 {
-    /** Путь к папке, где лежит highcharts.js (в npm пакете это package/) */
-    public $sourcePath = '@vendor/npm-asset/highcharts/package';
+    /** Путь к папке, где лежит highcharts.js в установленном npm-asset пакете */
+    public $sourcePath = '@vendor/npm-asset/highcharts';
 
     public $depends = ['yii\web\JqueryAsset'];
 
