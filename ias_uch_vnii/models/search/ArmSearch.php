@@ -27,13 +27,17 @@ class ArmSearch extends Model
     public $status_group;
     /** @var string|null Фильтр по типу техники */
     public $equipment_type;
+    /** @var string|null JSON filterModel AG Grid */
+    public $ag_filter_model;
+    /** @var string|null JSON sortModel AG Grid */
+    public $ag_sort_model;
 
     public function rules()
     {
         return [
             [['id', 'responsible_user_id', 'location_id', 'status_id'], 'integer'],
             [['is_archived'], 'boolean'],
-            [['name', 'description', 'inventory_number', 'equipment_type', 'status_group'], 'safe'],
+            [['name', 'description', 'inventory_number', 'equipment_type', 'status_group', 'ag_filter_model', 'ag_sort_model'], 'safe'],
         ];
     }
 
@@ -103,6 +107,105 @@ class ArmSearch extends Model
             }
         }
 
+        $this->applyAgGridFilterModel($query);
+        $this->applyAgGridSortModel($dataProvider);
+
         return $dataProvider;
+    }
+
+    private function applyAgGridFilterModel($query): void
+    {
+        $raw = trim((string) $this->ag_filter_model);
+        if ($raw === '') {
+            return;
+        }
+        $model = json_decode($raw, true);
+        if (!is_array($model) || empty($model)) {
+            return;
+        }
+
+        $map = [
+            'user_name' => ['column' => 'u.full_name', 'join' => ['responsibleUser u']],
+            'location_name' => ['column' => 'l.name', 'join' => ['location l']],
+            'status_name' => ['column' => 'dstatus.status_name', 'join' => ['equipmentStatus dstatus']],
+            'cpu' => ['column' => 'equipment.description'],
+            'ram' => ['column' => 'equipment.description'],
+            'disk' => ['column' => 'equipment.description'],
+            'system_block' => ['column' => 'equipment.name'],
+            'inventory_number' => ['column' => 'equipment.inventory_number'],
+            'monitor' => ['column' => 'equipment.description'],
+            'hostname' => ['column' => 'equipment.description'],
+            'ip' => ['column' => 'equipment.description'],
+            'os' => ['column' => 'equipment.description'],
+            'other_tech' => ['column' => 'equipment.description'],
+        ];
+
+        foreach ($model as $field => $cfg) {
+            if (!isset($map[$field]) || !is_array($cfg)) {
+                continue;
+            }
+            $column = $map[$field]['column'];
+            if (!empty($map[$field]['join'])) {
+                [$rel, $alias] = explode(' ', $map[$field]['join'][0], 2);
+                $query->joinWith([$rel . ' ' . $alias]);
+            }
+
+            $type = (string) ($cfg['type'] ?? '');
+            $value = trim((string) ($cfg['filter'] ?? ''));
+            if ($value === '' && $type !== 'blank' && $type !== 'notBlank') {
+                continue;
+            }
+
+            if ($type === 'equals') {
+                $query->andWhere(['ilike', $column, $value]);
+            } elseif ($type === 'startsWith') {
+                $query->andWhere(['ilike', $column, $value . '%', false]);
+            } elseif ($type === 'endsWith') {
+                $query->andWhere(['ilike', $column, '%' . $value, false]);
+            } elseif ($type === 'blank') {
+                $query->andWhere(['or', [$column => null], [$column => '']]);
+            } elseif ($type === 'notBlank') {
+                $query->andWhere(['and', ['not', [$column => null]], ['<>', $column, '']]);
+            } else {
+                $query->andWhere(['ilike', $column, $value]);
+            }
+        }
+    }
+
+    private function applyAgGridSortModel(ActiveDataProvider $dataProvider): void
+    {
+        $raw = trim((string) $this->ag_sort_model);
+        if ($raw === '') {
+            return;
+        }
+        $sortModel = json_decode($raw, true);
+        if (!is_array($sortModel) || empty($sortModel)) {
+            return;
+        }
+        $map = [
+            'user_name' => 'responsible_user_id',
+            'location_name' => 'location_id',
+            'status_name' => 'status_id',
+            'system_block' => 'name',
+            'inventory_number' => 'inventory_number',
+            'other_tech' => 'description',
+            'id' => 'id',
+            'name' => 'name',
+        ];
+        $order = [];
+        foreach ($sortModel as $sortEntry) {
+            if (!is_array($sortEntry)) {
+                continue;
+            }
+            $col = (string) ($sortEntry['colId'] ?? '');
+            $dir = strtolower((string) ($sortEntry['sort'] ?? 'asc')) === 'desc' ? SORT_DESC : SORT_ASC;
+            if (!isset($map[$col])) {
+                continue;
+            }
+            $order[$map[$col]] = $dir;
+        }
+        if (!empty($order) && $dataProvider->sort) {
+            $dataProvider->sort->defaultOrder = $order;
+        }
     }
 }

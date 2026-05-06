@@ -88,6 +88,10 @@ $mainClass = 'main-content flex-grow-1 d-flex flex-column' . ($sidebarExpanded ?
                     'url' => ['/arm/index'],
                 ];
                 $navItems[] = [
+                    'label' => '<i class="fas fa-id-card"></i><span class="nav-text">    Карточки пользователей</span>',
+                    'url' => ['/user-equipment-cards/index'],
+                ];
+                $navItems[] = [
                     'label' => '<i class="fas fa-history"></i><span class="nav-text">    Журнал аудита</span>',
                     'url' => ['/audit/index'],
                 ];

@@ -147,8 +147,17 @@ $equipmentTypes = $equipmentTypes ?? [];
                         <option value="disk">Диск</option>
                         <option value="ups">ИБП</option>
                     </select>
-                    <label class="form-label mt-2">Целевой системный блок (ID)</label>
-                    <input id="targetSystemBlockId" class="form-control" placeholder="Введите ID системного блока">
+                    <label class="form-label mt-2">Выберите пользователя (владелец целевого ПК)</label>
+                    <select id="targetSystemBlockUserId" class="form-select">
+                        <option value="">— выберите пользователя —</option>
+                        <?php foreach ($users ?? [] as $uid => $uname): ?>
+                        <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label class="form-label mt-2">Целевой системный блок</label>
+                    <select id="targetSystemBlockId" class="form-select">
+                        <option value="">— сначала выберите пользователя —</option>
+                    </select>
                 </div>
 
                 <div class="mb-3 form-check" id="dismissalWarehouseWrap" style="display:none;">
@@ -272,7 +281,47 @@ $this->registerJs(
 );
 $this->registerJs("
 (function(){
-    var reassignModal, pendingIds = [], equipmentData = [], equipmentSummary = {};
+    var reassignModal, pendingIds = [], equipmentData = [], equipmentSummary = {}, armSystemBlocksCache = {};
+
+    function renderSystemBlocks(rows) {
+        var sbSelect = document.getElementById('targetSystemBlockId');
+        if (!sbSelect) return;
+        var html = '<option value=\"\">— выберите системный блок —</option>';
+        rows.forEach(function(row) {
+            var label = (row.name || '—') + (row.inventory_number ? ' [' + row.inventory_number + ']' : '');
+            html += '<option value=\"' + escapeHtml(String(row.id)) + '\">' + escapeHtml(label) + '</option>';
+        });
+        sbSelect.innerHTML = html;
+    }
+
+    function fetchSystemBlocksForUser(userId) {
+        var sbSelect = document.getElementById('targetSystemBlockId');
+        if (!sbSelect) return;
+        if (!userId) {
+            sbSelect.innerHTML = '<option value=\"\">— сначала выберите пользователя —</option>';
+            return;
+        }
+        if (armSystemBlocksCache[userId]) {
+            renderSystemBlocks(armSystemBlocksCache[userId]);
+            return;
+        }
+        sbSelect.innerHTML = '<option value=\"\">Загрузка...</option>';
+        var url = window.agGridArmSystemBlocksUrl + '&user_id=' + encodeURIComponent(userId);
+        fetch(url)
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+            .then(function(result) {
+                if (!result || !result.success) {
+                    throw new Error((result && result.message) || 'Ошибка загрузки списка');
+                }
+                var rows = Array.isArray(result.data) ? result.data : [];
+                armSystemBlocksCache[userId] = rows;
+                renderSystemBlocks(rows);
+            })
+            .catch(function(err) {
+                console.error('Ошибка загрузки системных блоков:', err);
+                sbSelect.innerHTML = '<option value=\"\">Ошибка загрузки списка</option>';
+            });
+    }
     
     // Загрузка информации о выбранных единицах техники
     function loadSelectedEquipmentInfo(ids) {
@@ -565,11 +614,12 @@ $this->registerJs("
         
         var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
+        var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
         var dismissalTargetUserId = (document.getElementById('dismissalTargetUserId') || {}).value || '';
         var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
         var hasAnyChange = (userId !== '' || locationId !== '' || statusId !== '');
         if (mode === 'move_component') {
-            hasAnyChange = targetSystemBlockId !== '';
+            hasAnyChange = targetSystemBlockUserId !== '' && targetSystemBlockId !== '';
         } else if (mode === 'dismissal') {
             hasAnyChange = dismissalToWarehouse || dismissalTargetUserId !== '';
         }
@@ -632,10 +682,11 @@ $this->registerJs("
         var statusId = document.getElementById('reassignStatusId').value;
         var mode = modeEl ? modeEl.value : 'reassign';
         var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
+        var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
         var dismissalTargetUserId = (document.getElementById('dismissalTargetUserId') || {}).value || '';
         var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
         if (mode === 'move_component') {
-            return targetSystemBlockId !== '';
+            return targetSystemBlockUserId !== '' && targetSystemBlockId !== '';
         }
         if (mode === 'dismissal') {
             return dismissalToWarehouse || dismissalTargetUserId !== '';
@@ -648,9 +699,13 @@ $this->registerJs("
         var moveWrap = document.getElementById('moveComponentWrap');
         var dismissalUserWrap = document.getElementById('dismissalUserWrap');
         var dismissalWarehouseWrap = document.getElementById('dismissalWarehouseWrap');
+        var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
         if (moveWrap) moveWrap.style.display = mode === 'move_component' ? 'block' : 'none';
         if (dismissalUserWrap) dismissalUserWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
         if (dismissalWarehouseWrap) dismissalWarehouseWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
+        if (mode === 'move_component' && targetSystemBlockUserId !== '') {
+            fetchSystemBlocksForUser(targetSystemBlockUserId);
+        }
         updatePreview();
     }
     
@@ -701,14 +756,16 @@ $this->registerJs("
         var locationId = document.getElementById('reassignLocationId').value;
         var statusId = document.getElementById('reassignStatusId').value;
         var operationMode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        var hasFormChanges = validateForm();
         var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
+        var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
         var componentLinkType = (document.getElementById('componentLinkType') || {}).value || '';
         var dismissalTargetUserId = (document.getElementById('dismissalTargetUserId') || {}).value || '';
         var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
         
         console.log('submitReassign: userId=', userId, 'locationId=', locationId, 'statusId=', statusId, 'pendingIds.length=', pendingIds.length);
         
-        if (!userId && !locationId && !statusId) {
+        if (!hasFormChanges) {
             console.warn('Нет изменений для сохранения');
             showNotification('Выберите хотя бы одно поле для изменения.', 'error');
             return;
@@ -721,9 +778,13 @@ $this->registerJs("
         }
         
         // Проверяем, не заблокирована ли кнопка (но не останавливаем выполнение, если есть изменения)
-        if (submitBtn.disabled && (!userId && !locationId && !statusId)) {
+        if (submitBtn.disabled && !hasFormChanges) {
             console.warn('Кнопка заблокирована и нет изменений');
             showNotification('Выберите хотя бы одно поле для изменения.', 'error');
+            return;
+        }
+        if (operationMode === 'move_component' && (!targetSystemBlockUserId || !targetSystemBlockId)) {
+            showNotification('Для переноса компонента выберите пользователя и системный блок.', 'error');
             return;
         }
         
@@ -843,10 +904,12 @@ $this->registerJs("
         if (s) s.value = '';
         var mode = document.getElementById('reassignOperationMode');
         var targetSb = document.getElementById('targetSystemBlockId');
+        var targetSbUser = document.getElementById('targetSystemBlockUserId');
         var dUser = document.getElementById('dismissalTargetUserId');
         var dWarehouse = document.getElementById('dismissalToWarehouse');
         if (mode) mode.value = 'reassign';
-        if (targetSb) targetSb.value = '';
+        if (targetSbUser) targetSbUser.value = '';
+        if (targetSb) targetSb.innerHTML = '<option value=\"\">— сначала выберите пользователя —</option>';
         if (dUser) dUser.value = '';
         if (dWarehouse) dWarehouse.checked = false;
         
@@ -958,7 +1021,16 @@ $this->registerJs("
                     return;
                 }
                 
-                if (target.id === 'reassignUserId' || target.id === 'reassignLocationId' || target.id === 'reassignStatusId') {
+                if (
+                    target.id === 'reassignUserId' ||
+                    target.id === 'reassignLocationId' ||
+                    target.id === 'reassignStatusId' ||
+                    target.id === 'targetSystemBlockId' ||
+                    target.id === 'targetSystemBlockUserId' ||
+                    target.id === 'dismissalTargetUserId' ||
+                    target.id === 'dismissalToWarehouse' ||
+                    target.id === 'reassignOperationMode'
+                ) {
                     // Получаем equipmentData из замыкания (она объявлена в области видимости функции)
                     var currentEquipmentDataLength = 0;
                     try {
@@ -971,6 +1043,9 @@ $this->registerJs("
                         // Игнорируем ошибку
                     }
                     console.log('Field changed:', target.id, 'value:', target.value, 'equipmentData.length:', currentEquipmentDataLength);
+                    if (target.id === 'targetSystemBlockUserId') {
+                        fetchSystemBlocksForUser(target.value || '');
+                    }
                     // Используем небольшую задержку, чтобы значение успело обновиться
                     setTimeout(function() {
                         // Проверяем, что модальное окно все еще открыто перед обновлением предпросмотра

@@ -38,7 +38,7 @@ class UserEquipmentCardsController extends Controller
         ];
     }
 
-    public function actionIndex(string $tab = 'all')
+    public function actionIndex(string $tab = 'all', string $q = '', string $is_signed = '')
     {
         if (!UserEquipmentCardService::isCardsTableReady()) {
             Yii::$app->session->setFlash(
@@ -53,14 +53,36 @@ class UserEquipmentCardsController extends Controller
             UserEquipmentCardService::ensureCardForUser((int) $user->id);
         }
 
-        $query = UserEquipmentCard::find()->with(['user', 'signedByAdmin'])->orderBy(['updated_at' => SORT_DESC, 'id' => SORT_DESC]);
+        $query = UserEquipmentCard::find()
+            ->alias('c')
+            ->with(['user', 'signedByAdmin'])
+            ->joinWith(['user u'])
+            ->orderBy(['c.updated_at' => SORT_DESC, 'c.id' => SORT_DESC]);
         if ($tab === 'unsigned') {
-            $query->andWhere(['is_signed' => false]);
+            $query->andWhere(['c.is_signed' => false]);
+        }
+
+        $q = trim($q);
+        if ($q !== '') {
+            $query->andWhere([
+                'or',
+                ['ilike', 'u.full_name', $q],
+                ['ilike', 'u.username', $q],
+                ['ilike', 'u.email', $q],
+            ]);
+        }
+
+        if ($is_signed === '1') {
+            $query->andWhere(['c.is_signed' => true]);
+        } elseif ($is_signed === '0') {
+            $query->andWhere(['c.is_signed' => false]);
         }
 
         return $this->render('index', [
             'cards' => $query->all(),
             'tab' => $tab,
+            'q' => $q,
+            'isSigned' => $is_signed,
         ]);
     }
 

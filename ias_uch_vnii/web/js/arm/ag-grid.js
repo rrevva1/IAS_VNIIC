@@ -8,6 +8,15 @@
 
     let gridApi;
     let currentPageSize = Number(window.agGridArmDefaultLimit || 20) || 20;
+    const ARM_COLUMNS_STORAGE_PREFIX = 'arm-columns:';
+
+    const COLUMN_PRESETS = {
+        default: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'monitor', 'hostname', 'ip', 'os', 'other_tech'],
+        monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number'],
+        system: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'monitor_count', 'disk_count', 'ups_count', 'hostname', 'ip', 'os'],
+        ups: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'other_tech'],
+        print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'other_tech']
+    };
 
     function getViewUrl(id) {
         var base = window.agGridArmViewUrl || (window.location.pathname.indexOf('index.php') >= 0
@@ -105,13 +114,19 @@
         columns: 'Колонки', pivotMode: 'Режим сводной таблицы',
     };
 
-    function getDataUrl(limit, offset) {
+    function getDataUrl(limit, offset, filterModel, sortModel) {
         const base = window.agGridArmDataUrl || '/index.php?r=arm/get-grid-data';
         const sep = base.indexOf('?') >= 0 ? '&' : '?';
         const query = ['limit=' + encodeURIComponent(limit), 'offset=' + encodeURIComponent(offset)];
         const typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
         if (typeId) {
             query.push('equipment_type=' + encodeURIComponent(typeId));
+        }
+        if (filterModel && Object.keys(filterModel).length > 0) {
+            query.push('filterModel=' + encodeURIComponent(JSON.stringify(filterModel)));
+        }
+        if (sortModel && Array.isArray(sortModel) && sortModel.length > 0) {
+            query.push('sortModel=' + encodeURIComponent(JSON.stringify(sortModel)));
         }
         return base + sep + query.join('&');
     }
@@ -124,7 +139,7 @@
                 var limit = Math.max(1, endRow - startRow);
                 var offset = Math.max(0, startRow);
 
-                fetch(getDataUrl(limit, offset))
+                fetch(getDataUrl(limit, offset, params.filterModel || {}, params.sortModel || []))
                     .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
                     .then(function(result) {
                         if (!result || !result.success || !Array.isArray(result.data)) {
@@ -182,9 +197,71 @@
                 document.querySelectorAll('.arm-type-tab').forEach(function(t) { t.classList.remove('active'); });
                 this.classList.add('active');
                 window.agGridArmCurrentTypeId = this.getAttribute('data-type-id') || '';
+                applyColumnsForCurrentType();
                 loadGridData(true);
             });
         });
+    }
+
+    function getColumnsStorageKey(typeId) {
+        var normalized = (typeId || 'all').toString().trim();
+        if (!normalized) normalized = 'all';
+        return ARM_COLUMNS_STORAGE_PREFIX + normalized;
+    }
+
+    function getPresetColumns(typeId) {
+        var raw = (typeId || '').toString().toLowerCase();
+        if (!raw) return COLUMN_PRESETS.default;
+        if (raw.indexOf('монитор') >= 0) return COLUMN_PRESETS.monitor;
+        if (raw.indexOf('систем') >= 0 || raw.indexOf('моноблок') >= 0 || raw.indexOf('ноут') >= 0) return COLUMN_PRESETS.system;
+        if (raw.indexOf('ибп') >= 0 || raw.indexOf('ups') >= 0) return COLUMN_PRESETS.ups;
+        if (raw.indexOf('мфу') >= 0 || raw.indexOf('принтер') >= 0) return COLUMN_PRESETS.print;
+        return COLUMN_PRESETS.default;
+    }
+
+    function saveCurrentColumnsStateForType(typeId) {
+        if (!gridApi || typeof window.localStorage === 'undefined') return;
+        var columns = gridApi.getColumns ? gridApi.getColumns() : [];
+        var state = [];
+        columns.forEach(function(col) {
+            if (!col || !col.getColId || !col.getColDef) return;
+            var def = col.getColDef() || {};
+            var colId = col.getColId();
+            if (!colId || !def.field) return;
+            state.push({ colId: colId, hide: !(col.isVisible ? col.isVisible() : true) });
+        });
+        window.localStorage.setItem(getColumnsStorageKey(typeId), JSON.stringify(state));
+    }
+
+    function applyColumnsForCurrentType(forcePreset) {
+        if (!gridApi || !gridApi.applyColumnState) return;
+        var typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
+        var savedState = null;
+        if (!forcePreset && typeof window.localStorage !== 'undefined') {
+            try {
+                var raw = window.localStorage.getItem(getColumnsStorageKey(typeId));
+                if (raw) {
+                    savedState = JSON.parse(raw);
+                }
+            } catch (e) {
+                savedState = null;
+            }
+        }
+        if (savedState && Array.isArray(savedState) && savedState.length > 0) {
+            gridApi.applyColumnState({ state: savedState, applyOrder: false });
+            return;
+        }
+        var allowed = getPresetColumns(typeId);
+        var columns = gridApi.getColumns ? gridApi.getColumns() : [];
+        var state = [];
+        columns.forEach(function(col) {
+            if (!col || !col.getColId || !col.getColDef) return;
+            var def = col.getColDef() || {};
+            var colId = col.getColId();
+            if (!colId || !def.field) return;
+            state.push({ colId: colId, hide: allowed.indexOf(colId) === -1 });
+        });
+        gridApi.applyColumnState({ state: state, applyOrder: false });
     }
 
     function initReassign() {
@@ -343,13 +420,15 @@
             if (gridApi.applyColumnState) {
                 gridApi.applyColumnState({ state: state, applyOrder: false });
             }
+            saveCurrentColumnsStateForType(window.agGridArmCurrentTypeId);
             modal.hide();
         });
 
         resetBtn.addEventListener('click', function() {
-            if (gridApi && gridApi.resetColumnState) {
-                gridApi.resetColumnState();
+            if (typeof window.localStorage !== 'undefined') {
+                window.localStorage.removeItem(getColumnsStorageKey(window.agGridArmCurrentTypeId));
             }
+            applyColumnsForCurrentType(true);
             renderColumnsList();
         });
     }
@@ -383,6 +462,7 @@
             sideBar: false,
             onGridReady: function(params) {
                 gridApi = params.api;
+                applyColumnsForCurrentType();
                 loadGridData(true);
                 initTabs();
                 initReassign();

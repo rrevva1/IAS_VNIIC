@@ -122,6 +122,16 @@ class ArmController extends Controller
                 $params['ArmSearch'] = $params['ArmSearch'] ?? [];
                 $params['ArmSearch']['equipment_type'] = $eqType;
             }
+            $filterModelRaw = isset($params['filterModel']) ? trim((string) $params['filterModel']) : '';
+            $sortModelRaw = isset($params['sortModel']) ? trim((string) $params['sortModel']) : '';
+            if ($filterModelRaw !== '') {
+                $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+                $params['ArmSearch']['ag_filter_model'] = $filterModelRaw;
+            }
+            if ($sortModelRaw !== '') {
+                $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+                $params['ArmSearch']['ag_sort_model'] = $sortModelRaw;
+            }
 
             $limit = max(1, min(500, (int)($params['limit'] ?? 20)));
             $offset = max(0, (int)($params['offset'] ?? 0));
@@ -715,6 +725,10 @@ class ArmController extends Controller
             }
 
             if ($operationMode === 'move_component' && $targetSystemBlockId && $linkType !== '') {
+                $targetSystemBlock = Equipment::findOne((int) $targetSystemBlockId);
+                if (!$targetSystemBlock || $targetSystemBlock->is_deleted || $targetSystemBlock->is_archived || !$this->isSystemBlockEquipment($targetSystemBlock)) {
+                    throw new \RuntimeException('Целевой системный блок не найден или недоступен для привязки.');
+                }
                 foreach ($ids as $childId) {
                     EquipmentLink::deleteAll([
                         'child_equipment_id' => (int) $childId,
@@ -751,18 +765,58 @@ class ArmController extends Controller
     public function actionSystemBlocks()
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $rows = Equipment::find()
-            ->select(['id', 'name', 'inventory_number'])
-            ->where(['is_deleted' => false, 'is_archived' => false])
-            ->andWhere(['or',
-                ['ilike', 'name', 'систем'],
-                ['ilike', 'name', 'system'],
-                ['ilike', 'equipment_type', 'системный блок'],
-            ])
-            ->orderBy(['name' => SORT_ASC])
-            ->asArray()
-            ->all();
-        return ['success' => true, 'data' => $rows];
+        try {
+            $userId = (int) Yii::$app->request->get('user_id', 0);
+            $q = trim((string) Yii::$app->request->get('q', ''));
+
+            $query = Equipment::find()
+                ->alias('e')
+                ->select(['e.id', 'e.name', 'e.inventory_number'])
+                ->where(['e.is_deleted' => false, 'e.is_archived' => false]);
+
+            if (EquipmentTypes::usesDictionary()) {
+                $query->leftJoin(['et' => 'equipment_types'], 'et.id = e.equipment_type_id')
+                    ->andWhere(['or',
+                        ['ilike', 'e.name', 'систем'],
+                        ['ilike', 'e.name', 'system'],
+                        ['ilike', 'et.name', 'систем'],
+                        ['ilike', 'et.name', 'system'],
+                    ]);
+            } else {
+                $query->andWhere(['or',
+                    ['ilike', 'e.name', 'систем'],
+                    ['ilike', 'e.name', 'system'],
+                    ['ilike', 'e.equipment_type', 'систем'],
+                    ['ilike', 'e.equipment_type', 'system'],
+                ]);
+            }
+
+            if ($userId > 0) {
+                $query->andWhere(['e.responsible_user_id' => $userId]);
+            }
+            if ($q !== '') {
+                $query->andWhere(['or',
+                    ['ilike', 'e.name', $q],
+                    ['ilike', 'e.inventory_number', $q],
+                ]);
+            }
+
+            $rows = $query->orderBy(['e.name' => SORT_ASC])->limit(200)->asArray()->all();
+            return ['success' => true, 'data' => $rows];
+        } catch (\Throwable $e) {
+            Yii::error('actionSystemBlocks failed: ' . $e->getMessage(), __METHOD__);
+            return ['success' => false, 'message' => 'Не удалось загрузить список системных блоков', 'data' => []];
+        }
+    }
+
+    private function isSystemBlockEquipment(Equipment $equipment): bool
+    {
+        $name = mb_strtolower(trim((string) $equipment->name), 'UTF-8');
+        $type = mb_strtolower(trim((string) $equipment->equipment_type), 'UTF-8');
+        return strpos($name, 'систем') !== false
+            || strpos($name, 'system') !== false
+            || strpos($type, 'систем') !== false
+            || strpos($type, 'system') !== false;
     }
 
     public function actionLinkComponents()

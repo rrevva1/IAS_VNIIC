@@ -11,12 +11,41 @@ $this->params['breadcrumbs'][] = $this->title;
         <h1 class="mb-0"><?= Html::encode($this->title) ?></h1>
     </div>
 
+    <form method="get" action="<?= Url::to(['user-equipment-cards/index']) ?>" class="card card-body mb-3">
+        <input type="hidden" name="r" value="user-equipment-cards/index">
+        <input type="hidden" name="tab" value="<?= Html::encode($tab) ?>">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-6">
+                <label class="form-label">Поиск пользователя</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    name="q"
+                    value="<?= Html::encode($q ?? '') ?>"
+                    placeholder="ФИО, логин или email"
+                >
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Статус подписи</label>
+                <select name="is_signed" class="form-select">
+                    <option value="" <?= ($isSigned ?? '') === '' ? 'selected' : '' ?>>Все</option>
+                    <option value="1" <?= ($isSigned ?? '') === '1' ? 'selected' : '' ?>>Подписана</option>
+                    <option value="0" <?= ($isSigned ?? '') === '0' ? 'selected' : '' ?>>Не подписана</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Найти</button>
+                <a href="<?= Url::to(['user-equipment-cards/index', 'tab' => $tab]) ?>" class="btn btn-outline-secondary">Сброс</a>
+            </div>
+        </div>
+    </form>
+
     <ul class="nav nav-tabs mb-3">
         <li class="nav-item">
-            <a class="nav-link <?= $tab === 'all' ? 'active' : '' ?>" href="<?= Url::to(['user-equipment-cards/index', 'tab' => 'all']) ?>">Все карточки</a>
+            <a class="nav-link <?= $tab === 'all' ? 'active' : '' ?>" href="<?= Url::to(['user-equipment-cards/index', 'tab' => 'all', 'q' => ($q ?? ''), 'is_signed' => ($isSigned ?? '')]) ?>">Все карточки</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link <?= $tab === 'unsigned' ? 'active' : '' ?>" href="<?= Url::to(['user-equipment-cards/index', 'tab' => 'unsigned']) ?>">Неподписанные</a>
+            <a class="nav-link <?= $tab === 'unsigned' ? 'active' : '' ?>" href="<?= Url::to(['user-equipment-cards/index', 'tab' => 'unsigned', 'q' => ($q ?? ''), 'is_signed' => ($isSigned ?? '')]) ?>">Неподписанные</a>
         </li>
     </ul>
 
