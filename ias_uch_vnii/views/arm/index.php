@@ -29,6 +29,26 @@ $equipmentTypes = $equipmentTypes ?? [];
                 'id' => 'btnReassignArm',
                 'title' => 'Выберите одну или несколько строк в таблице, затем нажмите',
             ]) ?>
+            <?= Html::button('<i class="glyphicon glyphicon-th-list"></i> Колонки', [
+                'class' => 'btn btn-outline-dark',
+                'id' => 'btnArmColumns',
+                'title' => 'Настройка отображаемых столбцов',
+            ]) ?>
+            <?= Html::button('<i class="glyphicon glyphicon-download-alt"></i> Экспорт XLSX', [
+                'class' => 'btn btn-outline-primary',
+                'id' => 'btnArmExportXlsx',
+            ]) ?>
+            <?= Html::button('<i class="glyphicon glyphicon-save-file"></i> Шаблон импорта', [
+                'class' => 'btn btn-outline-secondary',
+                'id' => 'btnArmTemplateXlsx',
+            ]) ?>
+            <?= Html::button('<i class="glyphicon glyphicon-open-file"></i> Импорт XLSX', [
+                'class' => 'btn btn-outline-success',
+                'id' => 'btnArmImportXlsx',
+            ]) ?>
+            <?= Html::a('<i class="glyphicon glyphicon-list-alt"></i> Карточки пользователей', ['user-equipment-cards/index'], [
+                'class' => 'btn btn-outline-dark',
+            ]) ?>
         </div>
     </div>
 
@@ -48,6 +68,26 @@ $equipmentTypes = $equipmentTypes ?? [];
         <div class="text-center p-4 text-muted">
             <span class="glyphicon glyphicon-refresh glyphicon-spin"></span>
             <p>Загрузка таблицы...</p>
+        </div>
+    </div>
+</div>
+<input type="file" id="armImportFileInput" accept=".xlsx,.xls" style="display:none;">
+
+<div class="modal fade" id="armColumnsModal" tabindex="-1" aria-labelledby="armColumnsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="armColumnsModalLabel">Настройка столбцов</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-2">Отметьте столбцы, которые должны отображаться в таблице.</p>
+                <div id="armColumnsList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="armColumnsReset">Сбросить</button>
+                <button type="button" class="btn btn-primary" id="armColumnsApply">Применить</button>
+            </div>
         </div>
     </div>
 </div>
@@ -79,6 +119,43 @@ $equipmentTypes = $equipmentTypes ?? [];
                 <!-- Блок изменения параметров -->
                 <div class="mb-3">
                     <label class="form-label fw-bold">Изменить для всех выбранных единиц:</label>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Режим операции</label>
+                    <select id="reassignOperationMode" class="form-select">
+                        <option value="reassign">Обычное переназначение</option>
+                        <option value="move_component">Переместить компонент на другой системный блок</option>
+                        <option value="dismissal">Увольнение пользователя</option>
+                    </select>
+                </div>
+
+                <div class="mb-3" id="dismissalUserWrap" style="display:none;">
+                    <label class="form-label">Передать технику пользователю</label>
+                    <select id="dismissalTargetUserId" class="form-select">
+                        <option value="">— не выбрано —</option>
+                        <?php foreach ($users ?? [] as $uid => $uname): ?>
+                        <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="mb-3" id="moveComponentWrap" style="display:none;">
+                    <label class="form-label">Тип компонента</label>
+                    <select id="componentLinkType" class="form-select">
+                        <option value="monitor">Монитор</option>
+                        <option value="disk">Диск</option>
+                        <option value="ups">ИБП</option>
+                    </select>
+                    <label class="form-label mt-2">Целевой системный блок (ID)</label>
+                    <input id="targetSystemBlockId" class="form-control" placeholder="Введите ID системного блока">
+                </div>
+
+                <div class="mb-3 form-check" id="dismissalWarehouseWrap" style="display:none;">
+                    <input class="form-check-input" type="checkbox" id="dismissalToWarehouse">
+                    <label class="form-check-label" for="dismissalToWarehouse">
+                        При увольнении отправить технику на склад (и снять ответственного)
+                    </label>
                 </div>
 
                 <div class="mb-3">
@@ -169,6 +246,10 @@ $equipmentTypes = $equipmentTypes ?? [];
     border-radius: 4px;
     padding: 12px;
 }
+.status-dot { font-weight: 700; margin-right: 4px; }
+.status-green { color: #1f9d3a; }
+.status-yellow { color: #d8a800; }
+.status-red { color: #d12b2b; }
 </style>
 <?php
 $this->registerJs(
@@ -177,7 +258,11 @@ $this->registerJs(
 );
 $this->registerJs(
     "window.agGridArmCurrentTypeId = '';" .
+    "window.agGridArmDefaultLimit = 20;" .
     "window.agGridArmReassignUrl = " . json_encode(Url::to(['arm/reassign'])) . ";" .
+    "window.agGridArmSystemBlocksUrl = " . json_encode(Url::to(['arm/system-blocks'])) . ";" .
+    "window.agGridArmImportPreviewUrl = " . json_encode(Url::to(['arm/import-preview'])) . ";" .
+    "window.agGridArmImportApplyUrl = " . json_encode(Url::to(['arm/import-apply'])) . ";" .
     "window.agGridArmGetSelectedInfoUrl = " . json_encode(Url::to(['arm/get-selected-info'])) . ";" .
     "window.armReassignCsrf = {param: " . json_encode(Yii::$app->request->csrfParam) . ", token: " . json_encode(Yii::$app->request->csrfToken) . "};" .
     "window.armUsers = " . json_encode($users ?? []) . ";" .
@@ -478,8 +563,16 @@ $this->registerJs("
             }
         }
         
-        // Check if any field has been changed (not empty)
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
+        var dismissalTargetUserId = (document.getElementById('dismissalTargetUserId') || {}).value || '';
+        var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
         var hasAnyChange = (userId !== '' || locationId !== '' || statusId !== '');
+        if (mode === 'move_component') {
+            hasAnyChange = targetSystemBlockId !== '';
+        } else if (mode === 'dismissal') {
+            hasAnyChange = dismissalToWarehouse || dismissalTargetUserId !== '';
+        }
         
         console.log('updatePreview: hasAnyChange=', hasAnyChange, 'hasChanges=', hasChanges, 'changes.length=', changes.length, 'equipmentData.length=', equipmentData.length);
         
@@ -533,10 +626,32 @@ $this->registerJs("
     
     // Валидация формы
     function validateForm() {
+        var modeEl = document.getElementById('reassignOperationMode');
         var userId = document.getElementById('reassignUserId').value;
         var locationId = document.getElementById('reassignLocationId').value;
         var statusId = document.getElementById('reassignStatusId').value;
+        var mode = modeEl ? modeEl.value : 'reassign';
+        var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
+        var dismissalTargetUserId = (document.getElementById('dismissalTargetUserId') || {}).value || '';
+        var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
+        if (mode === 'move_component') {
+            return targetSystemBlockId !== '';
+        }
+        if (mode === 'dismissal') {
+            return dismissalToWarehouse || dismissalTargetUserId !== '';
+        }
         return userId !== '' || locationId !== '' || statusId !== '';
+    }
+
+    function onModeChanged() {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        var moveWrap = document.getElementById('moveComponentWrap');
+        var dismissalUserWrap = document.getElementById('dismissalUserWrap');
+        var dismissalWarehouseWrap = document.getElementById('dismissalWarehouseWrap');
+        if (moveWrap) moveWrap.style.display = mode === 'move_component' ? 'block' : 'none';
+        if (dismissalUserWrap) dismissalUserWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
+        if (dismissalWarehouseWrap) dismissalWarehouseWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
+        updatePreview();
     }
     
     // Показ уведомления
@@ -585,6 +700,11 @@ $this->registerJs("
         var userId = document.getElementById('reassignUserId').value;
         var locationId = document.getElementById('reassignLocationId').value;
         var statusId = document.getElementById('reassignStatusId').value;
+        var operationMode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
+        var componentLinkType = (document.getElementById('componentLinkType') || {}).value || '';
+        var dismissalTargetUserId = (document.getElementById('dismissalTargetUserId') || {}).value || '';
+        var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
         
         console.log('submitReassign: userId=', userId, 'locationId=', locationId, 'statusId=', statusId, 'pendingIds.length=', pendingIds.length);
         
@@ -615,6 +735,7 @@ $this->registerJs("
         var fd = new FormData();
         fd.append(window.armReassignCsrf.param, window.armReassignCsrf.token);
         pendingIds.forEach(function(id) { fd.append('ids[]', id); });
+        fd.append('operation_mode', operationMode);
         
         if (userId !== '') {
             fd.append('responsible_user_id', userId === '0' ? '' : userId);
@@ -624,6 +745,18 @@ $this->registerJs("
         }
         if (statusId !== '') {
             fd.append('status_id', statusId);
+        }
+        if (operationMode === 'move_component') {
+            fd.append('target_system_block_id', targetSystemBlockId);
+            fd.append('link_type', componentLinkType);
+        }
+        if (operationMode === 'dismissal') {
+            if (dismissalTargetUserId !== '') {
+                fd.append('dismissal_target_user_id', dismissalTargetUserId);
+            }
+            if (dismissalToWarehouse) {
+                fd.append('dismissal_to_warehouse', '1');
+            }
         }
         
         console.log('Отправка запроса на перезакрепление...');
@@ -708,6 +841,14 @@ $this->registerJs("
         if (u) u.value = '';
         if (l) l.value = '';
         if (s) s.value = '';
+        var mode = document.getElementById('reassignOperationMode');
+        var targetSb = document.getElementById('targetSystemBlockId');
+        var dUser = document.getElementById('dismissalTargetUserId');
+        var dWarehouse = document.getElementById('dismissalToWarehouse');
+        if (mode) mode.value = 'reassign';
+        if (targetSb) targetSb.value = '';
+        if (dUser) dUser.value = '';
+        if (dWarehouse) dWarehouse.checked = false;
         
         // Скрыть предпросмотр и очистить его содержимое
         var preview = document.getElementById('reassignPreview');
@@ -787,6 +928,12 @@ $this->registerJs("
             });
             submitBtn.setAttribute('data-handler-attached', 'true');
             console.log('Submit button handler attached');
+        }
+
+        var modeEl = document.getElementById('reassignOperationMode');
+        if (modeEl && !modeEl.hasAttribute('data-handler-attached')) {
+            modeEl.addEventListener('change', onModeChanged);
+            modeEl.setAttribute('data-handler-attached', 'true');
         }
         
         // Обработчики изменения полей - используем делегирование на уровне документа

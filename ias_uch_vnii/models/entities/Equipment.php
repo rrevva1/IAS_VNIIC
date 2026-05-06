@@ -33,6 +33,8 @@ use yii\db\ActiveRecord;
  * @property PartCharValues[] $partCharValues
  * @property Location $location
  * @property DicEquipmentStatus $equipmentStatus
+ * @property EquipmentLink[] $parentLinks
+ * @property EquipmentLink[] $childLinks
  */
 class Equipment extends ActiveRecord
 {
@@ -133,6 +135,31 @@ class Equipment extends ActiveRecord
     public function getTaskEquipments()
     {
         return $this->hasMany(TaskEquipment::class, ['equipment_id' => 'id']);
+    }
+
+    public function getParentLinks()
+    {
+        return $this->hasMany(EquipmentLink::class, ['parent_equipment_id' => 'id']);
+    }
+
+    public function getChildLinks()
+    {
+        return $this->hasMany(EquipmentLink::class, ['child_equipment_id' => 'id']);
+    }
+
+    public function getMonitorLinks()
+    {
+        return $this->getParentLinks()->andWhere(['link_type' => EquipmentLink::TYPE_MONITOR]);
+    }
+
+    public function getDiskLinks()
+    {
+        return $this->getParentLinks()->andWhere(['link_type' => EquipmentLink::TYPE_DISK]);
+    }
+
+    public function getUpsLinks()
+    {
+        return $this->getParentLinks()->andWhere(['link_type' => EquipmentLink::TYPE_UPS]);
     }
 
     /** Заявки, в которых указан этот актив */

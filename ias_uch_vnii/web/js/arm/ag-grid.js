@@ -7,6 +7,7 @@
     'use strict';
 
     let gridApi;
+    let currentPageSize = Number(window.agGridArmDefaultLimit || 20) || 20;
 
     function getViewUrl(id) {
         var base = window.agGridArmViewUrl || (window.location.pathname.indexOf('index.php') >= 0
@@ -23,8 +24,6 @@
                 width: 48,
                 minWidth: 48,
                 maxWidth: 48,
-                checkboxSelection: true,
-                headerCheckboxSelection: true,
                 sortable: false,
                 filter: false,
                 resizable: false,
@@ -32,7 +31,17 @@
             },
             { headerName: 'Пользователь', field: 'user_name', flex: 1, minWidth: 140, filter: 'agTextColumnFilter' },
             { headerName: 'Помещение', field: 'location_name', width: 110, filter: 'agTextColumnFilter' },
-            { headerName: 'Статус', field: 'status_name', width: 130, filter: 'agTextColumnFilter' },
+            {
+                headerName: 'Статус',
+                field: 'status_name',
+                width: 150,
+                filter: 'agTextColumnFilter',
+                cellRenderer: function(params) {
+                    var color = params.data && params.data.status_color ? params.data.status_color : 'gray';
+                    var icon = color === 'green' ? '●' : (color === 'yellow' ? '▲' : (color === 'red' ? '▲' : '○'));
+                    return '<span class="status-dot status-' + color + '">' + icon + '</span> ' + escapeHtml(params.value || '');
+                }
+            },
             { headerName: 'ЦП', field: 'cpu', width: 140, filter: 'agTextColumnFilter' },
             { headerName: 'ОЗУ', field: 'ram', width: 80, filter: 'agTextColumnFilter' },
             { headerName: 'Диск', field: 'disk', width: 120, filter: 'agTextColumnFilter' },
@@ -63,6 +72,9 @@
                 },
             },
             { headerName: 'Монитор', field: 'monitor', width: 140, filter: 'agTextColumnFilter' },
+            { headerName: 'Мониторы (шт)', field: 'monitor_count', width: 120, filter: 'agNumberColumnFilter' },
+            { headerName: 'Диски (шт)', field: 'disk_count', width: 100, filter: 'agNumberColumnFilter' },
+            { headerName: 'ИБП (шт)', field: 'ups_count', width: 90, filter: 'agNumberColumnFilter' },
             { headerName: 'Имя ПК', field: 'hostname', width: 120, filter: 'agTextColumnFilter' },
             { headerName: 'IP адрес', field: 'ip', width: 110, filter: 'agTextColumnFilter' },
             { headerName: 'ОС', field: 'os', width: 120, filter: 'agTextColumnFilter' },
@@ -93,56 +105,64 @@
         columns: 'Колонки', pivotMode: 'Режим сводной таблицы',
     };
 
-    function getDataUrl() {
+    function getDataUrl(limit, offset) {
         const base = window.agGridArmDataUrl || '/index.php?r=arm/get-grid-data';
+        const sep = base.indexOf('?') >= 0 ? '&' : '?';
+        const query = ['limit=' + encodeURIComponent(limit), 'offset=' + encodeURIComponent(offset)];
         const typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
         if (typeId) {
-            return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'equipment_type=' + encodeURIComponent(typeId);
+            query.push('equipment_type=' + encodeURIComponent(typeId));
         }
-        return base;
+        return base + sep + query.join('&');
     }
 
-    function loadGridData() {
+    function createDataSource() {
+        return {
+            getRows: function(params) {
+                var startRow = params.startRow || 0;
+                var endRow = params.endRow || (startRow + currentPageSize);
+                var limit = Math.max(1, endRow - startRow);
+                var offset = Math.max(0, startRow);
+
+                fetch(getDataUrl(limit, offset))
+                    .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+                    .then(function(result) {
+                        if (!result || !result.success || !Array.isArray(result.data)) {
+                            return Promise.reject(new Error((result && result.message) || 'Invalid response'));
+                        }
+                        params.successCallback(result.data, Number(result.total || 0));
+                        setTimeout(updateReassignButton, 0);
+                    })
+                    .catch(function(err) {
+                        console.error('AG Grid (Учет ТС): ошибка загрузки', err);
+                        params.failCallback();
+                        setTimeout(updateReassignButton, 0);
+                    });
+            }
+        };
+    }
+
+    function loadGridData(resetToFirstPage) {
         if (!gridApi) {
             console.warn('loadGridData: gridApi не инициализирован');
             return;
         }
-        console.log('Загрузка данных в AG Grid...');
-        fetch(getDataUrl())
-            .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
-            .then(function(result) {
-                if (result.success && result.data) {
-                    console.log('Данные загружены, строк:', result.data.length);
-                    // Сохраняем текущий выбор строк перед обновлением данных
-                    var currentSelection = gridApi.getSelectedRows() || [];
-                    var currentSelectionIds = currentSelection.map(function(r) { return r ? r.id : null; }).filter(function(id) { return id !== null; });
-                    
-                    gridApi.setGridOption('rowData', result.data);
-                    
-                    // Восстанавливаем выбор строк после обновления данных (если строки еще существуют)
-                    if (currentSelectionIds.length > 0) {
-                        setTimeout(function() {
-                            try {
-                                gridApi.forEachNode(function(node) {
-                                    if (currentSelectionIds.indexOf(node.data.id) !== -1) {
-                                        node.setSelected(true);
-                                    }
-                                });
-                                console.log('Выбор строк восстановлен');
-                            } catch (err) {
-                                console.warn('Не удалось восстановить выбор строк:', err);
-                            }
-                            updateReassignButton();
-                        }, 150);
-                    } else {
-                        // Обновляем кнопку после загрузки данных
-                        setTimeout(function() {
-                            updateReassignButton();
-                        }, 100);
-                    }
-                }
-            })
-            .catch(function(err) { console.error('AG Grid (Учет ТС): ошибка загрузки', err); });
+        try {
+            gridApi.deselectAll();
+        } catch (e) {}
+        if (resetToFirstPage) {
+            try {
+                gridApi.paginationGoToFirstPage();
+            } catch (e) {}
+        }
+        if (typeof gridApi.setGridOption === 'function') {
+            gridApi.setGridOption('datasource', createDataSource());
+        } else if (typeof gridApi.setDatasource === 'function') {
+            gridApi.setDatasource(createDataSource());
+        } else {
+            console.error('AG Grid API: datasource method is unavailable');
+        }
+        updateReassignButton();
     }
 
     function updateReassignButton() {
@@ -162,7 +182,7 @@
                 document.querySelectorAll('.arm-type-tab').forEach(function(t) { t.classList.remove('active'); });
                 this.classList.add('active');
                 window.agGridArmCurrentTypeId = this.getAttribute('data-type-id') || '';
-                loadGridData();
+                loadGridData(true);
             });
         });
     }
@@ -190,6 +210,150 @@
         }
     }
 
+    function initActions() {
+        var exportBtn = document.getElementById('btnArmExportXlsx');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                var url = '/index.php?r=arm/export-xlsx';
+                var query = [];
+                query.push('export_scope=' + encodeURIComponent('visible'));
+                var selectedRows = gridApi ? gridApi.getSelectedRows() : [];
+                if (selectedRows.length > 0) {
+                    var ids = selectedRows
+                        .map(function(r) { return r && r.id != null ? String(r.id) : ''; })
+                        .filter(function(v) { return v !== ''; });
+                    if (ids.length > 0) {
+                        query.push('ids=' + encodeURIComponent(ids.join(',')));
+                    }
+                }
+                var typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
+                if (typeId) {
+                    query.push('equipment_type=' + encodeURIComponent(typeId));
+                }
+                if (gridApi && typeof gridApi.getAllDisplayedColumns === 'function') {
+                    var cols = gridApi.getAllDisplayedColumns()
+                        .map(function(col) { return col && typeof col.getColId === 'function' ? col.getColId() : ''; })
+                        .filter(function(v) { return v !== ''; });
+                    if (cols.length > 0) {
+                        query.push('cols=' + encodeURIComponent(cols.join(',')));
+                    }
+                }
+                if (query.length > 0) {
+                    url += '&' + query.join('&');
+                }
+                window.location.href = url;
+            });
+        }
+        var templateBtn = document.getElementById('btnArmTemplateXlsx');
+        if (templateBtn) {
+            templateBtn.addEventListener('click', function() {
+                window.location.href = '/index.php?r=arm/import-template-xlsx';
+            });
+        }
+        var importBtn = document.getElementById('btnArmImportXlsx');
+        var importInput = document.getElementById('armImportFileInput');
+        if (importBtn && importInput) {
+            importBtn.addEventListener('click', function() {
+                importInput.click();
+            });
+            importInput.addEventListener('change', function() {
+                if (!importInput.files || !importInput.files.length) return;
+                var fd = new FormData();
+                fd.append(window.armReassignCsrf.param, window.armReassignCsrf.token);
+                fd.append('import_file', importInput.files[0]);
+                fetch(window.agGridArmImportPreviewUrl, { method: 'POST', body: fd })
+                    .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+                    .then(function(res){
+                        if (!res.success) throw new Error(res.message || 'Preview failed');
+                        var valid = (res.rows || []).length;
+                        var errors = (res.errors || []).length;
+                        var ok = window.confirm('Предпросмотр импорта:\\nВалидных строк: ' + valid + '\\nОшибок: ' + errors + '\\nВыполнить импорт валидных строк?');
+                        if (!ok || !valid) return;
+                        var fdApply = new FormData();
+                        fdApply.append(window.armReassignCsrf.param, window.armReassignCsrf.token);
+                        fdApply.append('rows', JSON.stringify(res.rows));
+                        return fetch(window.agGridArmImportApplyUrl, { method: 'POST', body: fdApply });
+                    })
+                    .then(function(r){
+                        if (!r) return;
+                        return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status));
+                    })
+                    .then(function(res){
+                        if (!res) return;
+                        if (res.success) {
+                            alert('Импорт завершен. Загружено: ' + (res.imported || 0));
+                            if (typeof window.refreshArmGrid === 'function') window.refreshArmGrid();
+                        } else {
+                            alert('Ошибка импорта: ' + (res.message || 'unknown'));
+                        }
+                    })
+                    .catch(function(err){
+                        alert('Ошибка импорта: ' + err.message);
+                    })
+                    .finally(function(){
+                        importInput.value = '';
+                    });
+            });
+        }
+    }
+
+    function initColumnSettings() {
+        var btn = document.getElementById('btnArmColumns');
+        var modalEl = document.getElementById('armColumnsModal');
+        var listEl = document.getElementById('armColumnsList');
+        var applyBtn = document.getElementById('armColumnsApply');
+        var resetBtn = document.getElementById('armColumnsReset');
+        if (!btn || !modalEl || !listEl || !applyBtn || !resetBtn) return;
+
+        var modal = new bootstrap.Modal(modalEl);
+
+        function renderColumnsList() {
+            if (!gridApi) return;
+            var cols = gridApi.getColumns ? gridApi.getColumns() : [];
+            var html = '';
+            cols.forEach(function(col) {
+                var def = col.getColDef ? col.getColDef() : {};
+                var colId = col.getColId ? col.getColId() : def.field;
+                var label = (def && def.headerName != null ? String(def.headerName) : '').trim();
+                if (!colId || label === '') return; // skip checkbox tech column
+                var checked = col.isVisible ? col.isVisible() : true;
+                html += '<div class="form-check mb-1">';
+                html += '<input class="form-check-input arm-col-check" type="checkbox" id="arm-col-' + escapeHtml(colId) + '" data-col-id="' + escapeHtml(colId) + '"' + (checked ? ' checked' : '') + '>';
+                html += '<label class="form-check-label" for="arm-col-' + escapeHtml(colId) + '">' + escapeHtml(label) + '</label>';
+                html += '</div>';
+            });
+            listEl.innerHTML = html || '<div class="text-muted">Нет настраиваемых колонок</div>';
+        }
+
+        btn.addEventListener('click', function() {
+            renderColumnsList();
+            modal.show();
+        });
+
+        applyBtn.addEventListener('click', function() {
+            if (!gridApi) return;
+            var checks = listEl.querySelectorAll('.arm-col-check');
+            var state = [];
+            checks.forEach(function(ch) {
+                state.push({
+                    colId: ch.getAttribute('data-col-id'),
+                    hide: !ch.checked
+                });
+            });
+            if (gridApi.applyColumnState) {
+                gridApi.applyColumnState({ state: state, applyOrder: false });
+            }
+            modal.hide();
+        });
+
+        resetBtn.addEventListener('click', function() {
+            if (gridApi && gridApi.resetColumnState) {
+                gridApi.resetColumnState();
+            }
+            renderColumnsList();
+        });
+    }
+
     function init() {
         var container = document.getElementById('agGridArmContainer');
         if (!container || typeof agGrid === 'undefined') {
@@ -200,22 +364,40 @@
         var gridOpts = {
             columnDefs: getColumnDefs(),
             defaultColDef: { sortable: true, filter: true, resizable: true },
-            rowSelection: 'multiple',
-            suppressRowClickSelection: true,
+            rowModelType: 'infinite',
+            cacheBlockSize: currentPageSize,
+            maxBlocksInCache: 5,
+            rowSelection: {
+                mode: 'multiRow',
+                checkboxes: true,
+                headerCheckbox: false,
+                enableClickSelection: false
+            },
             suppressCellFocus: true,
             pagination: true,
-            paginationPageSize: 20,
-            paginationPageSizeSelector: [10, 20, 50, 100, 9999],
+            paginationPageSize: currentPageSize,
+            paginationPageSizeSelector: [10, 20, 50, 100, 200],
             domLayout: 'normal',
             getRowHeight: function() { return 36; },
             localeText: localeTextRu,
-            sideBar: 'columns',
+            sideBar: false,
             onGridReady: function(params) {
                 gridApi = params.api;
-                loadGridData();
+                loadGridData(true);
                 initTabs();
                 initReassign();
+                initActions();
+                initColumnSettings();
                 updateReassignButton();
+            },
+            onPaginationChanged: function() {
+                if (!gridApi) return;
+                var pageSize = gridApi.paginationGetPageSize ? gridApi.paginationGetPageSize() : currentPageSize;
+                if (pageSize !== currentPageSize) {
+                    currentPageSize = pageSize;
+                    gridApi.setGridOption('cacheBlockSize', currentPageSize);
+                    loadGridData(true);
+                }
             },
             onSelectionChanged: function() {
                 updateReassignButton();
@@ -226,20 +408,7 @@
 
     window.refreshArmGrid = function() {
         console.log('refreshArmGrid вызван');
-        // Сбрасываем выбор строк перед обновлением данных
-        if (gridApi) {
-            try {
-                gridApi.deselectAll();
-                console.log('Выбор строк сброшен перед обновлением данных');
-            } catch (err) {
-                console.warn('Не удалось сбросить выбор строк:', err);
-            }
-        }
-        loadGridData();
-        // Убеждаемся, что кнопка скрыта после обновления
-        setTimeout(function() {
-            updateReassignButton();
-        }, 200);
+        loadGridData(true);
     };
 
     if (document.readyState === 'loading') {

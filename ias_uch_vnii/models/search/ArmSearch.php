@@ -23,6 +23,8 @@ class ArmSearch extends Model
     public $status_id;
     /** @var int|bool Показать архивные (0 = нет по умолчанию) */
     public $is_archived = 0;
+    /** @var string|null Быстрый фильтр по группе статусов */
+    public $status_group;
     /** @var string|null Фильтр по типу техники */
     public $equipment_type;
 
@@ -31,7 +33,7 @@ class ArmSearch extends Model
         return [
             [['id', 'responsible_user_id', 'location_id', 'status_id'], 'integer'],
             [['is_archived'], 'boolean'],
-            [['name', 'description', 'inventory_number', 'equipment_type'], 'safe'],
+            [['name', 'description', 'inventory_number', 'equipment_type', 'status_group'], 'safe'],
         ];
     }
 
@@ -42,7 +44,8 @@ class ArmSearch extends Model
 
     public function search(array $params): ActiveDataProvider
     {
-        $query = Equipment::find()->with(['responsibleUser', 'location']);
+        // Eager-load relations to avoid N+1 queries when rendering the grid.
+        $query = Equipment::find()->with(['responsibleUser', 'location', 'equipmentStatus']);
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
@@ -85,6 +88,20 @@ class ArmSearch extends Model
         $query->andFilterWhere(['ilike', 'equipment.name', $this->name])
             ->andFilterWhere(['ilike', 'equipment.description', $this->description ?? ''])
             ->andFilterWhere(['ilike', 'equipment.inventory_number', $this->inventory_number]);
+
+        $statusGroup = trim((string) $this->status_group);
+        if ($statusGroup !== '') {
+            if ($statusGroup === 'in_repair') {
+                $query->innerJoin(['dstatus' => 'dic_equipment_status'], 'dstatus.id = equipment.status_id')
+                    ->andWhere(['ilike', 'dstatus.status_name', 'ремонт']);
+            } elseif ($statusGroup === 'writeoff') {
+                $query->innerJoin(['dstatus' => 'dic_equipment_status'], 'dstatus.id = equipment.status_id')
+                    ->andWhere(['or', ['ilike', 'dstatus.status_name', 'списан'], ['ilike', 'dstatus.status_name', 'списание']]);
+            } elseif ($statusGroup === 'in_use') {
+                $query->innerJoin(['dstatus' => 'dic_equipment_status'], 'dstatus.id = equipment.status_id')
+                    ->andWhere(['ilike', 'dstatus.status_name', 'эксплуатац']);
+            }
+        }
 
         return $dataProvider;
     }

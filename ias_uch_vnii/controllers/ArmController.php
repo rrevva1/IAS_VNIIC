@@ -4,6 +4,8 @@ namespace app\controllers;
 
 use app\models\entities\Equipment;
 use app\models\entities\EquipmentTypes;
+use app\models\entities\EquipmentLink;
+use app\models\entities\EquipmentImportLog;
 use app\models\entities\EquipHistory;
 use app\models\entities\PartCharValues;
 use app\models\entities\SprParts;
@@ -13,6 +15,10 @@ use app\models\entities\Location;
 use app\models\dictionaries\DicEquipmentStatus;
 use app\models\search\ArmSearch;
 use app\components\AuditLog;
+use app\components\UserEquipmentCardService;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Yii;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
@@ -20,6 +26,7 @@ use yii\helpers\ArrayHelper;
 use yii\web\Controller;
 use yii\web\Response;
 use yii\web\NotFoundHttpException;
+use yii\web\UploadedFile;
 
 /**
  * ArmController — учёт техники (оборудование, таблица equipment).
@@ -41,7 +48,7 @@ class ArmController extends Controller
                         'roles' => ['@'],
                     ],
                     [
-                        'actions' => ['index', 'create', 'get-grid-data', 'delete', 'archive', 'reassign', 'get-selected-info'],
+                        'actions' => ['index', 'create', 'get-grid-data', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function () {
@@ -61,6 +68,9 @@ class ArmController extends Controller
                     'archive' => ['POST'],
                     'reassign' => ['POST'],
                     'get-selected-info' => ['POST'],
+                    'link-components' => ['POST'],
+                    'import-preview' => ['POST'],
+                    'import-apply' => ['POST'],
                 ],
             ],
         ];
@@ -112,33 +122,57 @@ class ArmController extends Controller
                 $params['ArmSearch'] = $params['ArmSearch'] ?? [];
                 $params['ArmSearch']['equipment_type'] = $eqType;
             }
+
+            $limit = max(1, min(500, (int)($params['limit'] ?? 20)));
+            $offset = max(0, (int)($params['offset'] ?? 0));
+            $page = (int) floor($offset / $limit);
+
             $searchModel = new ArmSearch();
             $dataProvider = $searchModel->search($params);
-            $dataProvider->pagination = false;
+            if ($dataProvider->pagination !== false) {
+                $dataProvider->pagination->pageSize = $limit;
+                $dataProvider->pagination->page = $page;
+            }
+
+            $total = (int) $dataProvider->getTotalCount();
+            $models = $dataProvider->getModels();
             $charsByEquipment = $this->loadPartCharValuesByEquipment(
-                array_map(function ($m) { return $m->id; }, $dataProvider->models)
+                array_map(function ($m) { return $m->id; }, $models)
+            );
+            $linksByParent = $this->loadLinkedComponents(
+                array_map(function ($m) { return (int) $m->id; }, $models)
             );
             $data = [];
-            foreach ($dataProvider->models as $model) {
+            foreach ($models as $model) {
                 $chars = $charsByEquipment[$model->id] ?? [];
+                $linked = $linksByParent[(int) $model->id] ?? ['monitor' => [], 'disk' => [], 'ups' => []];
+                $statusName = $model->equipmentStatus ? (string) $model->equipmentStatus->status_name : '';
                 $data[] = [
                     'id' => $model->id,
                     'user_name' => $model->responsibleUser ? $model->responsibleUser->getDisplayName() : '',
                     'location_name' => $model->location ? $model->location->name : '',
-                    'status_name' => $model->equipmentStatus ? $model->equipmentStatus->status_name : '',
+                    'status_id' => (int) $model->status_id,
+                    'status_name' => $statusName,
+                    'status_color' => $this->resolveStatusColor($statusName),
                     'cpu' => $chars['cpu'] ?? '',
                     'ram' => $chars['ram'] ?? '',
                     'disk' => $chars['disk'] ?? '',
                     'system_block' => $model->name ?? '',
                     'inventory_number' => $model->inventory_number ?? '',
                     'monitor' => $chars['monitor'] ?? '',
+                    'monitor_count' => count($linked['monitor']),
+                    'disk_count' => count($linked['disk']),
+                    'ups_count' => count($linked['ups']),
+                    'monitor_list' => $linked['monitor'],
+                    'disk_list' => $linked['disk'],
+                    'ups_list' => $linked['ups'],
                     'hostname' => $chars['hostname'] ?? '',
                     'ip' => $chars['ip'] ?? '',
                     'os' => $chars['os'] ?? '',
                     'other_tech' => $model->description ?? '',
                 ];
             }
-            return ['success' => true, 'data' => $data, 'total' => count($data)];
+            return ['success' => true, 'data' => $data, 'total' => $total, 'offset' => $offset, 'limit' => $limit];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'data' => [], 'total' => 0];
         }
@@ -179,6 +213,29 @@ class ArmController extends Controller
                 ->innerJoin(['sp' => 'spr_parts'], 'sp.id = pcv.part_id')
                 ->innerJoin(['sc' => 'spr_chars'], 'sc.id = pcv.char_id')
                 ->where(['pcv.' . $idCol => $equipmentIds])
+                // Ограничиваем выборку только релевантными частями (CPU/RAM/Disk/Monitor/ПК).
+                // Это снижает количество строк, которые потом фильтруются в PHP.
+                ->andWhere(new \yii\db\Expression(
+                    "(" .
+                    "sp.name IN ('ЦП', 'ОЗУ', 'Накопитель', 'Монитор', 'ПК') " .
+                    "OR LOWER(sp.name) LIKE '%cpu%' " .
+                    "OR LOWER(sp.name) LIKE '%процессор%' " .
+                    "OR LOWER(sp.name) LIKE '%цпу%' " .
+                    "OR LOWER(sp.name) LIKE '%цп%' " .
+                    "OR LOWER(sp.name) LIKE '%оператив%' " .
+                    "OR LOWER(sp.name) LIKE '%память%' " .
+                    "OR LOWER(sp.name) LIKE '%озу%' " .
+                    "OR LOWER(sp.name) LIKE '%ram%' " .
+                    "OR LOWER(sp.name) LIKE '%диск%' " .
+                    "OR LOWER(sp.name) LIKE '%накопитель%' " .
+                    "OR LOWER(sp.name) LIKE '%жестк%' " .
+                    "OR LOWER(sp.name) LIKE '%hdd%' " .
+                    "OR LOWER(sp.name) LIKE '%ssd%' " .
+                    "OR LOWER(sp.name) LIKE '%монитор%' " .
+                    "OR LOWER(sp.name) LIKE '%пк%' " .
+                    "OR LOWER(sp.name) LIKE '%компьют%'" .
+                    ")"
+                ))
                 ->all($db);
         } catch (\Throwable $e) {
             return array_fill_keys($equipmentIds, []);
@@ -246,6 +303,70 @@ class ArmController extends Controller
         return $out;
     }
 
+    private function resolveStatusColor(string $statusName): string
+    {
+        $s = mb_strtolower(trim($statusName), 'UTF-8');
+        if (strpos($s, 'эксплуатац') !== false) {
+            return 'green';
+        }
+        if (strpos($s, 'ремонт') !== false) {
+            return 'yellow';
+        }
+        if (strpos($s, 'списан') !== false) {
+            return 'red';
+        }
+        return 'gray';
+    }
+
+    private function loadLinkedComponents(array $parentIds): array
+    {
+        if (empty($parentIds)) {
+            return [];
+        }
+        $result = [];
+        foreach ($parentIds as $pid) {
+            $result[(int) $pid] = ['monitor' => [], 'disk' => [], 'ups' => []];
+        }
+
+        $linksSchema = Yii::$app->db->getTableSchema('equipment_links', true);
+        if ($linksSchema === null) {
+            return $result;
+        }
+
+        try {
+            $rows = EquipmentLink::find()
+                ->alias('l')
+                ->select([
+                    'l.parent_equipment_id',
+                    'l.link_type',
+                    'e.id AS child_id',
+                    'e.name AS child_name',
+                    'e.inventory_number AS child_inventory_number',
+                ])
+                ->leftJoin(['e' => Equipment::tableName()], 'e.id = l.child_equipment_id')
+                ->where(['l.parent_equipment_id' => $parentIds])
+                ->asArray()
+                ->all();
+        } catch (\Throwable $e) {
+            Yii::warning('loadLinkedComponents skipped: ' . $e->getMessage(), __METHOD__);
+            return $result;
+        }
+
+        foreach ($rows as $row) {
+            $pid = (int) $row['parent_equipment_id'];
+            $type = (string) $row['link_type'];
+            if (!isset($result[$pid][$type])) {
+                continue;
+            }
+            $result[$pid][$type][] = [
+                'id' => (int) $row['child_id'],
+                'name' => (string) ($row['child_name'] ?? ''),
+                'inventory_number' => (string) ($row['child_inventory_number'] ?? ''),
+            ];
+        }
+        return $result;
+    }
+
     public function actionCreate()
     {
         $model = new Equipment();
@@ -272,6 +393,7 @@ class ArmController extends Controller
             $this->savePartCharValuesFromPost($model->id, Yii::$app->request->post('PartChar', []));
             EquipHistory::log($model->id, 'create', null, ['inventory_number' => $model->inventory_number, 'name' => $model->name]);
             AuditLog::log('equipment.create', 'equipment', $model->id, 'success');
+            UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
             Yii::$app->session->setFlash('success', 'Техника успешно добавлена.');
             return $this->redirect(['index']);
         }
@@ -331,9 +453,14 @@ class ArmController extends Controller
                 $eventType = 'update';
                 if ($oldLocation !== $model->location_id) {
                     EquipHistory::log($model->id, 'move', ['location_id' => $oldLocation], ['location_id' => $model->location_id]);
+                    UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
                 }
                 if ($oldResponsible !== $model->responsible_user_id) {
                     EquipHistory::log($model->id, $model->responsible_user_id ? 'assign' : 'unassign', ['responsible_user_id' => $oldResponsible], ['responsible_user_id' => $model->responsible_user_id]);
+                    UserEquipmentCardService::invalidateByUserId((int) $oldResponsible);
+                    UserEquipmentCardService::ensureCardForUser((int) $oldResponsible);
+                    UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
+                    UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
                 }
                 if ($oldStatus !== $model->status_id) {
                     EquipHistory::log($model->id, 'status_change', ['status_id' => $oldStatus], ['status_id' => $model->status_id]);
@@ -484,9 +611,14 @@ class ArmController extends Controller
             return ['success' => false, 'message' => 'Не выбрано ни одной единицы техники.'];
         }
 
+        $operationMode = (string) Yii::$app->request->post('operation_mode', 'reassign');
         $responsibleUserId = Yii::$app->request->post('responsible_user_id');
         $locationId = Yii::$app->request->post('location_id');
         $statusId = Yii::$app->request->post('status_id');
+        $dismissalTargetUserId = Yii::$app->request->post('dismissal_target_user_id');
+        $sendToWarehouse = (bool) Yii::$app->request->post('dismissal_to_warehouse', false);
+        $targetSystemBlockId = Yii::$app->request->post('target_system_block_id');
+        $linkType = (string) Yii::$app->request->post('link_type', '');
 
         $updated = 0;
         $responsibleUserChanged = 0;
@@ -494,52 +626,113 @@ class ArmController extends Controller
         $statusChanged = 0;
         $errors = [];
 
-        foreach ($ids as $id) {
-            $model = Equipment::findOne($id);
-            if (!$model) {
-                $errors[] = ['equipment_id' => $id, 'message' => 'Оборудование не найдено'];
-                continue;
-            }
-            $changed = false;
-            if ($responsibleUserId !== null && $responsibleUserId !== '') {
-                // Если передан пустая строка (снятие назначения), устанавливаем null
-                $newUser = ($responsibleUserId === '' || $responsibleUserId === '0') ? null : (int) $responsibleUserId;
-                if ($model->responsible_user_id !== $newUser) {
-                    $oldUser = $model->responsible_user_id;
-                    $model->responsible_user_id = $newUser;
-                    EquipHistory::log($model->id, $model->responsible_user_id ? 'assign' : 'unassign', ['responsible_user_id' => $oldUser], ['responsible_user_id' => $model->responsible_user_id]);
-                    $changed = true;
-                    $responsibleUserChanged++;
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            foreach ($ids as $id) {
+                $model = Equipment::findOne($id);
+                if (!$model) {
+                    $errors[] = ['equipment_id' => $id, 'message' => 'Оборудование не найдено'];
+                    continue;
                 }
-            }
-            if ($locationId !== null && $locationId !== '') {
-                $newLoc = (int) $locationId;
-                if ($model->location_id != $newLoc) {
-                    $oldLoc = $model->location_id;
-                    $model->location_id = $newLoc;
-                    EquipHistory::log($model->id, 'move', ['location_id' => $oldLoc], ['location_id' => $model->location_id]);
-                    $changed = true;
-                    $locationChanged++;
-                }
-            }
-            if ($statusId !== null && $statusId !== '') {
-                $newStatus = (int) $statusId;
-                if ($model->status_id != $newStatus) {
-                    $oldStatus = $model->status_id;
-                    $model->status_id = $newStatus;
-                    EquipHistory::log($model->id, 'status_change', ['status_id' => $oldStatus], ['status_id' => $model->status_id]);
-                    $changed = true;
-                    $statusChanged++;
-                }
-            }
-            if ($changed) {
-                if ($model->save(false)) {
-                    $updated++;
-                    AuditLog::log('equipment.reassign', 'equipment', $model->id, 'success');
+                $changed = false;
+                $oldResponsible = (int) $model->responsible_user_id;
+
+                if ($operationMode === 'dismissal') {
+                    if ($sendToWarehouse) {
+                        if ($locationId !== null && $locationId !== '' && (int) $model->location_id !== (int) $locationId) {
+                            $oldLoc = $model->location_id;
+                            $model->location_id = (int) $locationId;
+                            EquipHistory::log($model->id, 'move', ['location_id' => $oldLoc], ['location_id' => $model->location_id], 'dismissal_to_warehouse');
+                            $locationChanged++;
+                            $changed = true;
+                        }
+                        if ($model->responsible_user_id !== null) {
+                            $model->responsible_user_id = null;
+                            EquipHistory::log($model->id, 'unassign', ['responsible_user_id' => $oldResponsible], ['responsible_user_id' => null], 'dismissal_to_warehouse');
+                            $responsibleUserChanged++;
+                            $changed = true;
+                        }
+                    } elseif ($dismissalTargetUserId !== null && $dismissalTargetUserId !== '') {
+                        $newUser = (int) $dismissalTargetUserId;
+                        if ((int) $model->responsible_user_id !== $newUser) {
+                            $model->responsible_user_id = $newUser;
+                            EquipHistory::log($model->id, 'assign', ['responsible_user_id' => $oldResponsible], ['responsible_user_id' => $newUser], 'dismissal_transfer');
+                            $responsibleUserChanged++;
+                            $changed = true;
+                        }
+                        if ($locationId !== null && $locationId !== '' && (int) $model->location_id !== (int) $locationId) {
+                            $oldLoc = $model->location_id;
+                            $model->location_id = (int) $locationId;
+                            EquipHistory::log($model->id, 'move', ['location_id' => $oldLoc], ['location_id' => $model->location_id], 'dismissal_transfer');
+                            $locationChanged++;
+                            $changed = true;
+                        }
+                    }
                 } else {
-                    $errors[] = ['equipment_id' => $id, 'message' => 'Ошибка при сохранении'];
+                    if ($responsibleUserId !== null && $responsibleUserId !== '') {
+                        $newUser = ($responsibleUserId === '' || $responsibleUserId === '0') ? null : (int) $responsibleUserId;
+                        if ($model->responsible_user_id !== $newUser) {
+                            $model->responsible_user_id = $newUser;
+                            EquipHistory::log($model->id, $model->responsible_user_id ? 'assign' : 'unassign', ['responsible_user_id' => $oldResponsible], ['responsible_user_id' => $model->responsible_user_id]);
+                            $changed = true;
+                            $responsibleUserChanged++;
+                        }
+                    }
+                    if ($locationId !== null && $locationId !== '') {
+                        $newLoc = (int) $locationId;
+                        if ($model->location_id != $newLoc) {
+                            $oldLoc = $model->location_id;
+                            $model->location_id = $newLoc;
+                            EquipHistory::log($model->id, 'move', ['location_id' => $oldLoc], ['location_id' => $model->location_id]);
+                            $changed = true;
+                            $locationChanged++;
+                        }
+                    }
+                    if ($statusId !== null && $statusId !== '') {
+                        $newStatus = (int) $statusId;
+                        if ($model->status_id != $newStatus) {
+                            $oldStatus = $model->status_id;
+                            $model->status_id = $newStatus;
+                            EquipHistory::log($model->id, 'status_change', ['status_id' => $oldStatus], ['status_id' => $model->status_id]);
+                            $changed = true;
+                            $statusChanged++;
+                        }
+                    }
+                }
+
+                if ($changed) {
+                    if ($model->save(false)) {
+                        $updated++;
+                        AuditLog::log('equipment.reassign', 'equipment', $model->id, 'success', ['mode' => $operationMode]);
+                        UserEquipmentCardService::invalidateByUserId($oldResponsible);
+                        UserEquipmentCardService::ensureCardForUser($oldResponsible);
+                        UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
+                        UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
+                    } else {
+                        $errors[] = ['equipment_id' => $id, 'message' => 'Ошибка при сохранении'];
+                    }
                 }
             }
+
+            if ($operationMode === 'move_component' && $targetSystemBlockId && $linkType !== '') {
+                foreach ($ids as $childId) {
+                    EquipmentLink::deleteAll([
+                        'child_equipment_id' => (int) $childId,
+                        'link_type' => $linkType,
+                    ]);
+                    $link = new EquipmentLink();
+                    $link->parent_equipment_id = (int) $targetSystemBlockId;
+                    $link->child_equipment_id = (int) $childId;
+                    $link->link_type = $linkType;
+                    $link->created_by = Yii::$app->user->id;
+                    $link->save(false);
+                }
+            }
+
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            return ['success' => false, 'message' => 'Ошибка операции переназначения: ' . $e->getMessage()];
         }
 
         return [
@@ -553,6 +746,255 @@ class ArmController extends Controller
                 'errors' => $errors,
             ],
         ];
+    }
+
+    public function actionSystemBlocks()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $rows = Equipment::find()
+            ->select(['id', 'name', 'inventory_number'])
+            ->where(['is_deleted' => false, 'is_archived' => false])
+            ->andWhere(['or',
+                ['ilike', 'name', 'систем'],
+                ['ilike', 'name', 'system'],
+                ['ilike', 'equipment_type', 'системный блок'],
+            ])
+            ->orderBy(['name' => SORT_ASC])
+            ->asArray()
+            ->all();
+        return ['success' => true, 'data' => $rows];
+    }
+
+    public function actionLinkComponents()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $parentId = (int) Yii::$app->request->post('parent_equipment_id');
+        $childIds = Yii::$app->request->post('child_ids', []);
+        $linkType = (string) Yii::$app->request->post('link_type', '');
+
+        if (!in_array($linkType, [EquipmentLink::TYPE_MONITOR, EquipmentLink::TYPE_DISK, EquipmentLink::TYPE_UPS], true)) {
+            return ['success' => false, 'message' => 'Неверный тип связи.'];
+        }
+        if ($parentId <= 0 || empty($childIds)) {
+            return ['success' => false, 'message' => 'Укажите системный блок и список компонентов.'];
+        }
+
+        $childIds = array_map('intval', (array) $childIds);
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            foreach ($childIds as $childId) {
+                EquipmentLink::deleteAll(['child_equipment_id' => $childId, 'link_type' => $linkType]);
+                $link = new EquipmentLink();
+                $link->parent_equipment_id = $parentId;
+                $link->child_equipment_id = $childId;
+                $link->link_type = $linkType;
+                $link->created_by = Yii::$app->user->id;
+                $link->save(false);
+            }
+            $transaction->commit();
+            return ['success' => true, 'message' => 'Компоненты успешно привязаны к системному блоку.'];
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    public function actionExportXlsx()
+    {
+        $params = Yii::$app->request->queryParams;
+        $idsRaw = trim((string)($params['ids'] ?? ''));
+        $ids = [];
+        if ($idsRaw !== '') {
+            $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', $idsRaw)))));
+        }
+
+        if (!empty($ids)) {
+            $models = Equipment::find()
+                ->with(['responsibleUser', 'location', 'equipmentStatus'])
+                ->where(['id' => $ids, 'is_deleted' => false])
+                ->orderBy(['id' => SORT_ASC])
+                ->all();
+        } else {
+            $searchModel = new ArmSearch();
+            if (!empty($params['equipment_type'])) {
+                $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+                $params['ArmSearch']['equipment_type'] = (string) $params['equipment_type'];
+            }
+            $provider = $searchModel->search($params);
+            $provider->pagination = false;
+            $models = $provider->getModels();
+        }
+
+        $charsByEquipment = $this->loadPartCharValuesByEquipment(array_map(static fn($m) => (int)$m->id, $models));
+        $linksByParent = $this->loadLinkedComponents(array_map(static fn($m) => (int)$m->id, $models));
+
+        $columnMap = [
+            'user_name' => ['Пользователь', static fn($m, $chars, $links) => $m->responsibleUser ? $m->responsibleUser->getDisplayName() : ''],
+            'location_name' => ['Помещение', static fn($m, $chars, $links) => $m->location ? $m->location->name : ''],
+            'status_name' => ['Статус', static fn($m, $chars, $links) => $m->equipmentStatus ? $m->equipmentStatus->status_name : ''],
+            'cpu' => ['ЦП', static fn($m, $chars, $links) => $chars['cpu'] ?? ''],
+            'ram' => ['ОЗУ', static fn($m, $chars, $links) => $chars['ram'] ?? ''],
+            'disk' => ['Диск', static fn($m, $chars, $links) => $chars['disk'] ?? ''],
+            'system_block' => ['Системный блок', static fn($m, $chars, $links) => $m->name ?? ''],
+            'inventory_number' => ['Инв. №', static fn($m, $chars, $links) => $m->inventory_number ?? ''],
+            'monitor' => ['Монитор', static fn($m, $chars, $links) => $chars['monitor'] ?? ''],
+            'monitor_count' => ['Мониторы (шт)', static fn($m, $chars, $links) => count($links['monitor'] ?? [])],
+            'disk_count' => ['Диски (шт)', static fn($m, $chars, $links) => count($links['disk'] ?? [])],
+            'ups_count' => ['ИБП (шт)', static fn($m, $chars, $links) => count($links['ups'] ?? [])],
+            'hostname' => ['Имя ПК', static fn($m, $chars, $links) => $chars['hostname'] ?? ''],
+            'ip' => ['IP адрес', static fn($m, $chars, $links) => $chars['ip'] ?? ''],
+            'os' => ['ОС', static fn($m, $chars, $links) => $chars['os'] ?? ''],
+            'other_tech' => ['ДР техника', static fn($m, $chars, $links) => $m->description ?? ''],
+        ];
+
+        $defaultCols = ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'monitor', 'hostname', 'ip', 'os', 'other_tech'];
+        $scope = trim((string)($params['export_scope'] ?? 'all'));
+        $colsParam = trim((string)($params['cols'] ?? ''));
+        $selectedCols = $defaultCols;
+        if ($scope === 'visible' && $colsParam !== '') {
+            $requested = array_values(array_unique(array_filter(array_map('trim', explode(',', $colsParam)))));
+            $filtered = array_values(array_filter($requested, static fn($c) => isset($columnMap[$c])));
+            if (!empty($filtered)) {
+                $selectedCols = $filtered;
+            }
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        foreach ($selectedCols as $idx => $colId) {
+            $sheet->setCellValue([$idx + 1, 1], $columnMap[$colId][0]);
+        }
+
+        $row = 2;
+        foreach ($models as $model) {
+            $chars = $charsByEquipment[$model->id] ?? [];
+            $links = $linksByParent[(int)$model->id] ?? ['monitor' => [], 'disk' => [], 'ups' => []];
+            foreach ($selectedCols as $idx => $colId) {
+                $valueFactory = $columnMap[$colId][1];
+                $sheet->setCellValue([$idx + 1, $row], $valueFactory($model, $chars, $links));
+            }
+            $row++;
+        }
+
+        $file = Yii::getAlias('@runtime') . '/equipment_export_' . date('Ymd_His') . '.xlsx';
+        (new Xlsx($spreadsheet))->save($file);
+        return Yii::$app->response->sendFile($file, 'equipment_export.xlsx');
+    }
+
+    public function actionImportTemplateXlsx()
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $headers = ['inventory_number', 'name', 'responsible_user_id', 'location_id', 'status_id', 'description'];
+        foreach ($headers as $idx => $header) {
+            $sheet->setCellValue([$idx + 1, 1], $header);
+        }
+        $sheet->setCellValue([1, 2], 'INV-00001');
+        $sheet->setCellValue([2, 2], 'Системный блок 01');
+        $sheet->setCellValue([3, 2], '');
+        $sheet->setCellValue([4, 2], '1');
+        $sheet->setCellValue([5, 2], '1');
+        $sheet->setCellValue([6, 2], 'пример');
+
+        $file = Yii::getAlias('@runtime') . '/equipment_import_template.xlsx';
+        (new Xlsx($spreadsheet))->save($file);
+        return Yii::$app->response->sendFile($file, 'equipment_import_template.xlsx');
+    }
+
+    public function actionImportPreview()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $upload = \yii\web\UploadedFile::getInstanceByName('import_file');
+        if (!$upload) {
+            return ['success' => false, 'message' => 'Файл импорта не передан.'];
+        }
+        $spreadsheet = IOFactory::load($upload->tempName);
+        $sheet = $spreadsheet->getActiveSheet();
+        $highestRow = $sheet->getHighestRow();
+        $rows = [];
+        $errors = [];
+        for ($r = 2; $r <= $highestRow; $r++) {
+            $inventory = trim((string) $sheet->getCell([1, $r])->getValue());
+            $name = trim((string) $sheet->getCell([2, $r])->getValue());
+            $locationId = (int) $sheet->getCell([4, $r])->getValue();
+            $statusId = (int) $sheet->getCell([5, $r])->getValue();
+            if ($inventory === '' || $name === '') {
+                $errors[] = ['row' => $r, 'message' => 'Пустой inventory_number или name'];
+                continue;
+            }
+            if (!Location::find()->where(['id' => $locationId])->exists()) {
+                $errors[] = ['row' => $r, 'message' => 'Не найдено помещение'];
+                continue;
+            }
+            if (!DicEquipmentStatus::find()->where(['id' => $statusId])->exists()) {
+                $errors[] = ['row' => $r, 'message' => 'Не найден статус'];
+                continue;
+            }
+            $rows[] = [
+                'inventory_number' => $inventory,
+                'name' => $name,
+                'responsible_user_id' => (int) $sheet->getCell([3, $r])->getValue() ?: null,
+                'location_id' => $locationId,
+                'status_id' => $statusId,
+                'description' => trim((string) $sheet->getCell([6, $r])->getValue()),
+            ];
+        }
+        return ['success' => true, 'rows' => $rows, 'errors' => $errors];
+    }
+
+    public function actionImportApply()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $rows = Yii::$app->request->post('rows', []);
+        if (is_string($rows)) {
+            $decoded = json_decode($rows, true);
+            if (is_array($decoded)) {
+                $rows = $decoded;
+            }
+        }
+        if (!is_array($rows) || empty($rows)) {
+            return ['success' => false, 'message' => 'Нет данных для импорта.'];
+        }
+
+        $ok = 0;
+        $errors = [];
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            foreach ($rows as $row) {
+                $model = Equipment::findOne(['inventory_number' => (string) ($row['inventory_number'] ?? '')]);
+                if (!$model) {
+                    $model = new Equipment();
+                    $model->inventory_number = (string) $row['inventory_number'];
+                }
+                $model->name = (string) $row['name'];
+                $model->responsible_user_id = $row['responsible_user_id'] !== null ? (int) $row['responsible_user_id'] : null;
+                $model->location_id = (int) $row['location_id'];
+                $model->status_id = (int) $row['status_id'];
+                $model->description = (string) ($row['description'] ?? '');
+                if (!$model->save(false)) {
+                    $errors[] = ['inventory_number' => $row['inventory_number'] ?? '', 'message' => 'Ошибка сохранения'];
+                    continue;
+                }
+                $ok++;
+                UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
+            }
+
+            $log = new EquipmentImportLog();
+            $log->uploaded_by = Yii::$app->user->id;
+            $log->file_name = 'manual_apply_' . date('Ymd_His') . '.xlsx';
+            $log->total_rows = count($rows);
+            $log->valid_rows = $ok;
+            $log->error_rows = count($errors);
+            $log->status = empty($errors) ? 'applied' : 'applied_with_errors';
+            $log->payload_json = json_encode(['errors' => $errors], JSON_UNESCAPED_UNICODE);
+            $log->save(false);
+
+            $transaction->commit();
+            return ['success' => true, 'imported' => $ok, 'errors' => $errors];
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
     }
 
     /**

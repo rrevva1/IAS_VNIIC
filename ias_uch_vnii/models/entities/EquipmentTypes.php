@@ -14,10 +14,17 @@ use yii\db\Query;
  */
 class EquipmentTypes
 {
+    /**
+     * Кеш для ускорения resolveNameById() при afterFind().
+     * Формат: [equipment_type_id => name]
+     *
+     * @var array<int, string|null>
+     */
+    private static array $nameCacheById = [];
+
     public static function usesDictionary(): bool
     {
         $schema = Yii::$app->db->getTableSchema('equipment', true);
-
         return $schema !== null && isset($schema->columns['equipment_type_id']);
     }
 
@@ -28,7 +35,6 @@ class EquipmentTypes
     public static function getList(): array
     {
         $types = self::getNames();
-
         return ArrayHelper::map($types, function ($v) { return $v; }, function ($v) { return $v; });
     }
 
@@ -49,27 +55,31 @@ class EquipmentTypes
     public static function resolveIdByName(?string $name): ?int
     {
         $name = trim((string) $name);
-        if ($name === '') {
+        if ($name === '' || !self::usesDictionary()) {
             return null;
         }
-
-        if (!self::usesDictionary()) {
-            return null;
-        }
-
         $id = (new Query())
             ->from('equipment_types')
             ->select('id')
             ->where(['name' => $name])
             ->scalar();
-
         return $id !== false ? (int) $id : null;
     }
 
+    /**
+     * Наименование типа оборудования по id справочника.
+     * Используется в Equipment::afterFind().
+     */
     public static function resolveNameById(?int $id): ?string
     {
-        if (!$id || !self::usesDictionary()) {
+        if ($id === null) {
             return null;
+        }
+        if (!self::usesDictionary()) {
+            return null;
+        }
+        if (array_key_exists($id, self::$nameCacheById)) {
+            return self::$nameCacheById[$id];
         }
 
         $name = (new Query())
@@ -78,7 +88,10 @@ class EquipmentTypes
             ->where(['id' => $id])
             ->scalar();
 
-        return $name !== false ? (string) $name : null;
+        $result = $name !== false ? (string) $name : null;
+        self::$nameCacheById[$id] = $result;
+
+        return $result;
     }
 
     private static function getNames(): array
