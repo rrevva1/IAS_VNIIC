@@ -1,7 +1,7 @@
 <?php
 
-// По умолчанию работаем в production; параметры можно переопределить через env.
-$yiiEnv = getenv('YII_ENV') ?: 'prod';
+// По умолчанию работаем в режиме разработки; параметры можно переопределить через env.
+$yiiEnv = getenv('YII_ENV') ?: 'dev';
 $yiiDebugRaw = getenv('YII_DEBUG');
 $yiiDebug = $yiiDebugRaw !== false
     ? in_array(strtolower((string) $yiiDebugRaw), ['1', 'true', 'yes', 'on'], true)
