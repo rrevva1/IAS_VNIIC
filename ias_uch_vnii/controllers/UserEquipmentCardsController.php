@@ -5,7 +5,6 @@ namespace app\controllers;
 use app\components\UserEquipmentCardService;
 use app\models\entities\UserEquipmentCard;
 use Yii;
-use yii\data\ActiveDataProvider;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
 use yii\web\Controller;
@@ -38,7 +37,7 @@ class UserEquipmentCardsController extends Controller
         ];
     }
 
-    public function actionIndex(string $tab = 'all', string $q = '', string $is_signed = '', int $per_page = 20)
+    public function actionIndex(string $tab = 'all', string $q = '', string $is_signed = '')
     {
         if (!UserEquipmentCardService::isCardsTableReady()) {
             Yii::$app->session->setFlash(
@@ -48,41 +47,56 @@ class UserEquipmentCardsController extends Controller
             return $this->redirect(['arm/index']);
         }
 
-        $q = trim($q);
-        $allowedPageSizes = [10, 20, 50, 100, 200];
-        $pageSize = in_array($per_page, $allowedPageSizes, true) ? $per_page : 20;
-        $currentPage = max(1, (int) Yii::$app->request->get('page', 1));
-        $offset = ($currentPage - 1) * $pageSize;
+        return $this->render('index', [
+            'tab' => $tab,
+            'q' => trim($q),
+            'isSigned' => $is_signed,
+        ]);
+    }
 
-        $query = $this->buildCardsQuery($tab, $q, $is_signed);
-        $pageUserIds = (clone $query)
-            ->select('c.user_id')
-            ->limit($pageSize)
-            ->offset($offset)
-            ->column();
-        foreach (array_unique(array_map('intval', $pageUserIds)) as $userId) {
-            UserEquipmentCardService::ensureCardForUser($userId);
+    public function actionGetGridData(string $tab = 'all', string $q = '', string $is_signed = '', int $limit = 20, int $offset = 0)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        if (!UserEquipmentCardService::isCardsTableReady()) {
+            return ['success' => false, 'message' => 'Таблицы карточек не созданы.', 'data' => [], 'total' => 0];
         }
 
-        $query = $this->buildCardsQuery($tab, $q, $is_signed);
-        $dataProvider = new ActiveDataProvider([
-            'query' => $query,
-            'pagination' => [
-                'pageSize' => $pageSize,
-                'page' => $currentPage - 1,
-                'pageParam' => 'page',
-            ],
-            'sort' => false,
-        ]);
+        try {
+            $q = trim($q);
+            $limit = max(1, min(200, $limit));
+            $offset = max(0, $offset);
 
-        return $this->render('index', [
-            'dataProvider' => $dataProvider,
-            'tab' => $tab,
-            'q' => $q,
-            'isSigned' => $is_signed,
-            'perPage' => $pageSize,
-            'allowedPageSizes' => $allowedPageSizes,
-        ]);
+            $query = $this->buildCardsQuery($tab, $q, $is_signed);
+            $pageUserIds = (clone $query)
+                ->select('c.user_id')
+                ->limit($limit)
+                ->offset($offset)
+                ->column();
+            foreach (array_unique(array_map('intval', $pageUserIds)) as $userId) {
+                UserEquipmentCardService::ensureCardForUser($userId);
+            }
+
+            $query = $this->buildCardsQuery($tab, $q, $is_signed);
+            $total = (int) (clone $query)->count('c.id');
+            $models = $query->limit($limit)->offset($offset)->all();
+            $rows = [];
+            foreach ($models as $card) {
+                $rows[] = [
+                    'id' => (int) $card->id,
+                    'user_id' => (int) $card->user_id,
+                    'user_name' => $card->user ? (string) $card->user->getDisplayName() : '—',
+                    'version_no' => (int) $card->version_no,
+                    'is_signed' => (bool) $card->is_signed,
+                    'signed_by_admin' => $card->signedByAdmin ? (string) $card->signedByAdmin->getDisplayName() : '—',
+                    'updated_at' => (string) ($card->updated_at ?: $card->created_at),
+                ];
+            }
+
+            return ['success' => true, 'data' => $rows, 'total' => $total];
+        } catch (\Throwable $e) {
+            Yii::error('Cards grid error: ' . $e->getMessage(), __METHOD__);
+            return ['success' => false, 'message' => 'Ошибка загрузки данных карточек.', 'data' => [], 'total' => 0];
+        }
     }
 
     private function buildCardsQuery(string $tab, string $q, string $is_signed)
@@ -143,13 +157,24 @@ class UserEquipmentCardsController extends Controller
 
     public function actionMarkSigned(int $id)
     {
+        $isAjax = Yii::$app->request->isAjax;
+        if ($isAjax) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+        }
+
         if (!UserEquipmentCardService::isCardsTableReady()) {
+            if ($isAjax) {
+                return ['success' => false, 'message' => 'Таблицы карточек не созданы. Выполните миграции.'];
+            }
             Yii::$app->session->setFlash('warning', 'Таблицы карточек не созданы. Выполните миграции.');
             return $this->redirect(['arm/index']);
         }
 
         $card = UserEquipmentCard::findOne($id);
         if (!$card) {
+            if ($isAjax) {
+                return ['success' => false, 'message' => 'Карточка не найдена.'];
+            }
             throw new NotFoundHttpException('Карточка не найдена.');
         }
         $card->is_signed = true;
@@ -157,6 +182,9 @@ class UserEquipmentCardsController extends Controller
         $card->signed_by_admin_id = Yii::$app->user->id;
         $card->save(false);
 
+        if ($isAjax) {
+            return ['success' => true];
+        }
         Yii::$app->session->setFlash('success', 'Подписание карточки подтверждено администратором.');
         return $this->redirect(['index']);
     }
