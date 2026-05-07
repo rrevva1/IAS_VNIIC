@@ -5,6 +5,20 @@ use yii\helpers\Url;
 
 $this->title = 'Карточки пользователей';
 $this->params['breadcrumbs'][] = $this->title;
+$cards = $dataProvider->getModels();
+$pagination = $dataProvider->getPagination();
+$totalCount = (int) $dataProvider->getTotalCount();
+$currentPage = $pagination->getPage() + 1;
+$pageCount = max(1, (int) $pagination->getPageCount());
+$pageSize = (int) ($perPage ?? $pagination->getPageSize());
+$startItem = $totalCount > 0 ? (($currentPage - 1) * $pageSize) + 1 : 0;
+$endItem = min($currentPage * $pageSize, $totalCount);
+$baseParams = [
+    'tab' => $tab,
+    'q' => $q ?? '',
+    'is_signed' => $isSigned ?? '',
+    'per_page' => $pageSize,
+];
 ?>
 <div class="user-equipment-cards-index">
     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -96,5 +110,48 @@ $this->params['breadcrumbs'][] = $this->title;
             </tbody>
         </table>
     </div>
+    <?php if ($totalCount > 0): ?>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3 border rounded p-2 bg-light">
+            <form method="get" action="<?= Url::to(['user-equipment-cards/index']) ?>" class="d-flex align-items-center gap-2 mb-0">
+                <input type="hidden" name="tab" value="<?= Html::encode($tab) ?>">
+                <input type="hidden" name="q" value="<?= Html::encode($q ?? '') ?>">
+                <input type="hidden" name="is_signed" value="<?= Html::encode($isSigned ?? '') ?>">
+                <label class="mb-0">Строк:</label>
+                <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()" style="width: 90px;">
+                    <?php foreach (($allowedPageSizes ?? [10, 20, 50, 100, 200]) as $size): ?>
+                        <option value="<?= (int) $size ?>" <?= (int) $size === $pageSize ? 'selected' : '' ?>><?= (int) $size ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+
+            <div class="text-muted small">
+                <?= Html::encode($startItem) ?> до <?= Html::encode($endItem) ?> из <?= Html::encode($totalCount) ?>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+                <span class="small">Страница <?= Html::encode($currentPage) ?> из <?= Html::encode($pageCount) ?></span>
+                <?= Html::a('⟪', ['user-equipment-cards/index'] + $baseParams + ['page' => 1], [
+                    'class' => 'btn btn-sm btn-outline-secondary' . ($currentPage <= 1 ? ' disabled' : ''),
+                    'aria-disabled' => $currentPage <= 1 ? 'true' : 'false',
+                    'tabindex' => $currentPage <= 1 ? '-1' : null,
+                ]) ?>
+                <?= Html::a('‹', ['user-equipment-cards/index'] + $baseParams + ['page' => max(1, $currentPage - 1)], [
+                    'class' => 'btn btn-sm btn-outline-secondary' . ($currentPage <= 1 ? ' disabled' : ''),
+                    'aria-disabled' => $currentPage <= 1 ? 'true' : 'false',
+                    'tabindex' => $currentPage <= 1 ? '-1' : null,
+                ]) ?>
+                <?= Html::a('›', ['user-equipment-cards/index'] + $baseParams + ['page' => min($pageCount, $currentPage + 1)], [
+                    'class' => 'btn btn-sm btn-outline-secondary' . ($currentPage >= $pageCount ? ' disabled' : ''),
+                    'aria-disabled' => $currentPage >= $pageCount ? 'true' : 'false',
+                    'tabindex' => $currentPage >= $pageCount ? '-1' : null,
+                ]) ?>
+                <?= Html::a('⟫', ['user-equipment-cards/index'] + $baseParams + ['page' => $pageCount], [
+                    'class' => 'btn btn-sm btn-outline-secondary' . ($currentPage >= $pageCount ? ' disabled' : ''),
+                    'aria-disabled' => $currentPage >= $pageCount ? 'true' : 'false',
+                    'tabindex' => $currentPage >= $pageCount ? '-1' : null,
+                ]) ?>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 

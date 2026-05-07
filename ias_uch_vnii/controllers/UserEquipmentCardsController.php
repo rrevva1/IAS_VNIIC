@@ -4,8 +4,8 @@ namespace app\controllers;
 
 use app\components\UserEquipmentCardService;
 use app\models\entities\UserEquipmentCard;
-use app\models\entities\Users;
 use Yii;
+use yii\data\ActiveDataProvider;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
 use yii\web\Controller;
@@ -38,7 +38,7 @@ class UserEquipmentCardsController extends Controller
         ];
     }
 
-    public function actionIndex(string $tab = 'all', string $q = '', string $is_signed = '')
+    public function actionIndex(string $tab = 'all', string $q = '', string $is_signed = '', int $per_page = 20)
     {
         if (!UserEquipmentCardService::isCardsTableReady()) {
             Yii::$app->session->setFlash(
@@ -48,21 +48,55 @@ class UserEquipmentCardsController extends Controller
             return $this->redirect(['arm/index']);
         }
 
-        $users = Users::find()->orderBy(['full_name' => SORT_ASC])->all();
-        foreach ($users as $user) {
-            UserEquipmentCardService::ensureCardForUser((int) $user->id);
+        $q = trim($q);
+        $allowedPageSizes = [10, 20, 50, 100, 200];
+        $pageSize = in_array($per_page, $allowedPageSizes, true) ? $per_page : 20;
+        $currentPage = max(1, (int) Yii::$app->request->get('page', 1));
+        $offset = ($currentPage - 1) * $pageSize;
+
+        $query = $this->buildCardsQuery($tab, $q, $is_signed);
+        $pageUserIds = (clone $query)
+            ->select('c.user_id')
+            ->limit($pageSize)
+            ->offset($offset)
+            ->column();
+        foreach (array_unique(array_map('intval', $pageUserIds)) as $userId) {
+            UserEquipmentCardService::ensureCardForUser($userId);
         }
 
+        $query = $this->buildCardsQuery($tab, $q, $is_signed);
+        $dataProvider = new ActiveDataProvider([
+            'query' => $query,
+            'pagination' => [
+                'pageSize' => $pageSize,
+                'page' => $currentPage - 1,
+                'pageParam' => 'page',
+            ],
+            'sort' => false,
+        ]);
+
+        return $this->render('index', [
+            'dataProvider' => $dataProvider,
+            'tab' => $tab,
+            'q' => $q,
+            'isSigned' => $is_signed,
+            'perPage' => $pageSize,
+            'allowedPageSizes' => $allowedPageSizes,
+        ]);
+    }
+
+    private function buildCardsQuery(string $tab, string $q, string $is_signed)
+    {
         $query = UserEquipmentCard::find()
             ->alias('c')
             ->with(['user', 'signedByAdmin'])
             ->joinWith(['user u'])
             ->orderBy(['c.updated_at' => SORT_DESC, 'c.id' => SORT_DESC]);
+
         if ($tab === 'unsigned') {
             $query->andWhere(['c.is_signed' => false]);
         }
 
-        $q = trim($q);
         if ($q !== '') {
             $query->andWhere([
                 'or',
@@ -78,12 +112,7 @@ class UserEquipmentCardsController extends Controller
             $query->andWhere(['c.is_signed' => false]);
         }
 
-        return $this->render('index', [
-            'cards' => $query->all(),
-            'tab' => $tab,
-            'q' => $q,
-            'isSigned' => $is_signed,
-        ]);
+        return $query;
     }
 
     public function actionDownload(int $userId)
