@@ -270,6 +270,7 @@ $this->registerJs(
     "window.agGridArmDefaultLimit = 20;" .
     "window.agGridArmReassignUrl = " . json_encode(Url::to(['arm/reassign'])) . ";" .
     "window.agGridArmSystemBlocksUrl = " . json_encode(Url::to(['arm/system-blocks'])) . ";" .
+    "window.agGridArmUserPrimaryLocationUrl = " . json_encode(Url::to(['arm/user-primary-location'])) . ";" .
     "window.agGridArmImportPreviewUrl = " . json_encode(Url::to(['arm/import-preview'])) . ";" .
     "window.agGridArmImportApplyUrl = " . json_encode(Url::to(['arm/import-apply'])) . ";" .
     "window.agGridArmGetSelectedInfoUrl = " . json_encode(Url::to(['arm/get-selected-info'])) . ";" .
@@ -289,9 +290,54 @@ $this->registerJs("
         var html = '<option value=\"\">— выберите системный блок —</option>';
         rows.forEach(function(row) {
             var label = (row.name || '—') + (row.inventory_number ? ' [' + row.inventory_number + ']' : '');
-            html += '<option value=\"' + escapeHtml(String(row.id)) + '\">' + escapeHtml(label) + '</option>';
+            var locId = row.location_id != null && row.location_id !== '' ? String(row.location_id) : '';
+            html += '<option value=\"' + escapeHtml(String(row.id)) + '\"' + (locId ? ' data-location-id=\"' + escapeHtml(locId) + '\"' : '') + '>' + escapeHtml(label) + '</option>';
         });
         sbSelect.innerHTML = html;
+    }
+
+    /** В режиме move_component: ответственный = владелец целевого ПК. */
+    function applyDefaultResponsibleForMoveComponent(targetUserId) {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        if (mode !== 'move_component') return;
+        var ru = document.getElementById('reassignUserId');
+        if (!ru || !targetUserId) return;
+        ru.value = String(targetUserId);
+    }
+
+    /** Помещение = location_id выбранного целевого системного блока. */
+    function applyDefaultLocationFromTargetSystemBlock() {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        if (mode !== 'move_component') return;
+        var sb = document.getElementById('targetSystemBlockId');
+        var loc = document.getElementById('reassignLocationId');
+        if (!sb || !loc || !sb.value) return;
+        var opt = sb.options[sb.selectedIndex];
+        var lid = opt && opt.getAttribute('data-location-id');
+        if (lid) loc.value = lid;
+    }
+
+    /** Обычное переназначение: помещение по «основному» для выбранного ответственного (по учёту ТС). */
+    function applyDefaultLocationForReassign(userId) {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        if (mode !== 'reassign') return;
+        if (!userId || userId === '0') return;
+        var loc = document.getElementById('reassignLocationId');
+        if (!loc || !window.agGridArmUserPrimaryLocationUrl) return;
+        var base = window.agGridArmUserPrimaryLocationUrl;
+        var sep = base.indexOf('?') >= 0 ? '&' : '?';
+        fetch(base + sep + 'user_id=' + encodeURIComponent(userId))
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+            .then(function(res) {
+                if (res && res.success && res.location_id != null && String(res.location_id) !== '') {
+                    loc.value = String(res.location_id);
+                }
+                setTimeout(function() {
+                    var m = document.getElementById('reassignArmModal');
+                    if (m && m.classList.contains('show')) updatePreview();
+                }, 0);
+            })
+            .catch(function() {});
     }
 
     function fetchSystemBlocksForUser(userId) {
@@ -303,6 +349,7 @@ $this->registerJs("
         }
         if (armSystemBlocksCache[userId]) {
             renderSystemBlocks(armSystemBlocksCache[userId]);
+            applyDefaultResponsibleForMoveComponent(userId);
             return;
         }
         sbSelect.innerHTML = '<option value=\"\">Загрузка...</option>';
@@ -316,6 +363,7 @@ $this->registerJs("
                 var rows = Array.isArray(result.data) ? result.data : [];
                 armSystemBlocksCache[userId] = rows;
                 renderSystemBlocks(rows);
+                applyDefaultResponsibleForMoveComponent(userId);
             })
             .catch(function(err) {
                 console.error('Ошибка загрузки системных блоков:', err);
@@ -704,7 +752,17 @@ $this->registerJs("
         if (dismissalUserWrap) dismissalUserWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
         if (dismissalWarehouseWrap) dismissalWarehouseWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
         if (mode === 'move_component' && targetSystemBlockUserId !== '') {
+            applyDefaultResponsibleForMoveComponent(targetSystemBlockUserId);
             fetchSystemBlocksForUser(targetSystemBlockUserId);
+        }
+        if (mode === 'move_component') {
+            applyDefaultLocationFromTargetSystemBlock();
+        }
+        if (mode === 'reassign') {
+            var ru = (document.getElementById('reassignUserId') || {}).value || '';
+            if (ru && ru !== '0') {
+                applyDefaultLocationForReassign(ru);
+            }
         }
         updatePreview();
     }
@@ -1044,7 +1102,17 @@ $this->registerJs("
                     }
                     console.log('Field changed:', target.id, 'value:', target.value, 'equipmentData.length:', currentEquipmentDataLength);
                     if (target.id === 'targetSystemBlockUserId') {
+                        applyDefaultResponsibleForMoveComponent(target.value || '');
                         fetchSystemBlocksForUser(target.value || '');
+                    }
+                    if (target.id === 'targetSystemBlockId') {
+                        applyDefaultLocationFromTargetSystemBlock();
+                    }
+                    if (target.id === 'reassignUserId') {
+                        var opMode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+                        if (opMode === 'reassign' && target.value && target.value !== '0') {
+                            applyDefaultLocationForReassign(target.value);
+                        }
                     }
                     // Используем небольшую задержку, чтобы значение успело обновиться
                     setTimeout(function() {

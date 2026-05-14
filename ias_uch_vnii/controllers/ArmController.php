@@ -48,7 +48,7 @@ class ArmController extends Controller
                         'roles' => ['@'],
                     ],
                     [
-                        'actions' => ['index', 'create', 'get-grid-data', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
+                        'actions' => ['index', 'create', 'get-grid-data', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'user-primary-location', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function () {
@@ -771,7 +771,7 @@ class ArmController extends Controller
 
             $query = Equipment::find()
                 ->alias('e')
-                ->select(['e.id', 'e.name', 'e.inventory_number'])
+                ->select(['e.id', 'e.name', 'e.inventory_number', 'e.location_id'])
                 ->where(['e.is_deleted' => false, 'e.is_archived' => false]);
 
             if (EquipmentTypes::usesDictionary()) {
@@ -806,6 +806,37 @@ class ArmController extends Controller
         } catch (\Throwable $e) {
             Yii::error('actionSystemBlocks failed: ' . $e->getMessage(), __METHOD__);
             return ['success' => false, 'message' => 'Не удалось загрузить список системных блоков', 'data' => []];
+        }
+    }
+
+    /**
+     * Подсказка помещения для обычного переназначения: наиболее частое location_id среди техники пользователя.
+     */
+    public function actionUserPrimaryLocation()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $userId = (int) Yii::$app->request->get('user_id', 0);
+        if ($userId <= 0) {
+            return ['success' => true, 'location_id' => null];
+        }
+        try {
+            $row = (new \yii\db\Query())
+                ->from(['e' => Equipment::tableName()])
+                ->select(['e.location_id', 'cnt' => 'COUNT(*)'])
+                ->where([
+                    'e.responsible_user_id' => $userId,
+                    'e.is_deleted' => false,
+                ])
+                ->andWhere(['not', ['e.location_id' => null]])
+                ->groupBy(['e.location_id'])
+                ->orderBy(['cnt' => SORT_DESC, 'e.location_id' => SORT_ASC])
+                ->limit(1)
+                ->one();
+            $locId = $row && isset($row['location_id']) ? (int) $row['location_id'] : null;
+            return ['success' => true, 'location_id' => $locId ?: null];
+        } catch (\Throwable $e) {
+            Yii::error('actionUserPrimaryLocation failed: ' . $e->getMessage(), __METHOD__);
+            return ['success' => false, 'location_id' => null, 'message' => 'Не удалось определить помещение'];
         }
     }
 
@@ -873,6 +904,17 @@ class ArmController extends Controller
             if (!empty($params['equipment_type'])) {
                 $params['ArmSearch'] = $params['ArmSearch'] ?? [];
                 $params['ArmSearch']['equipment_type'] = (string) $params['equipment_type'];
+            }
+            $filterModelRaw = isset($params['filterModel']) ? trim((string) $params['filterModel']) : '';
+            $sortModelRaw = isset($params['sortModel']) ? trim((string) $params['sortModel']) : '';
+            if ($filterModelRaw !== '' || $sortModelRaw !== '') {
+                $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+                if ($filterModelRaw !== '') {
+                    $params['ArmSearch']['ag_filter_model'] = $filterModelRaw;
+                }
+                if ($sortModelRaw !== '') {
+                    $params['ArmSearch']['ag_sort_model'] = $sortModelRaw;
+                }
             }
             $provider = $searchModel->search($params);
             $provider->pagination = false;

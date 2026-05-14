@@ -51,9 +51,9 @@
                     return '<span class="status-dot status-' + color + '">' + icon + '</span> ' + escapeHtml(params.value || '');
                 }
             },
-            { headerName: 'ЦП', field: 'cpu', width: 140, filter: 'agTextColumnFilter' },
-            { headerName: 'ОЗУ', field: 'ram', width: 80, filter: 'agTextColumnFilter' },
-            { headerName: 'Диск', field: 'disk', width: 120, filter: 'agTextColumnFilter' },
+            { headerName: 'ЦП', field: 'cpu', width: 140, filter: 'agTextColumnFilter', sortable: false },
+            { headerName: 'ОЗУ', field: 'ram', width: 80, filter: 'agTextColumnFilter', sortable: false },
+            { headerName: 'Диск', field: 'disk', width: 120, filter: 'agTextColumnFilter', sortable: false },
             {
                 headerName: 'Тип/Название техники',
                 field: 'system_block',
@@ -80,13 +80,13 @@
                     return '<a href="' + url + '" class="arm-link-to-card" title="Открыть карточку актива">' + escapeHtml(String(text)) + '</a>';
                 },
             },
-            { headerName: 'Монитор', field: 'monitor', width: 140, filter: 'agTextColumnFilter' },
+            { headerName: 'Монитор', field: 'monitor', width: 140, filter: 'agTextColumnFilter', sortable: false },
             { headerName: 'Мониторы (шт)', field: 'monitor_count', width: 120, filter: 'agNumberColumnFilter' },
             { headerName: 'Диски (шт)', field: 'disk_count', width: 100, filter: 'agNumberColumnFilter' },
             { headerName: 'ИБП (шт)', field: 'ups_count', width: 90, filter: 'agNumberColumnFilter' },
-            { headerName: 'Имя ПК', field: 'hostname', width: 120, filter: 'agTextColumnFilter' },
-            { headerName: 'IP адрес', field: 'ip', width: 110, filter: 'agTextColumnFilter' },
-            { headerName: 'ОС', field: 'os', width: 120, filter: 'agTextColumnFilter' },
+            { headerName: 'Имя ПК', field: 'hostname', width: 120, filter: 'agTextColumnFilter', sortable: false },
+            { headerName: 'IP адрес', field: 'ip', width: 110, filter: 'agTextColumnFilter', sortable: false },
+            { headerName: 'ОС', field: 'os', width: 120, filter: 'agTextColumnFilter', sortable: false },
             { headerName: 'ДР техника', field: 'other_tech', flex: 1, minWidth: 160, filter: 'agTextColumnFilter', tooltipField: 'other_tech' },
         ];
     }
@@ -113,6 +113,21 @@
         paste: 'Вставить', export: 'Экспорт',
         columns: 'Колонки', pivotMode: 'Режим сводной таблицы',
     };
+
+    function buildSortModelFromColumnState(api) {
+        if (!api || typeof api.getColumnState !== 'function') {
+            return [];
+        }
+        var state = (api.getColumnState() || []).filter(function(c) { return c && c.sort; });
+        state.sort(function(a, b) {
+            var ai = a.sortIndex != null ? a.sortIndex : 0;
+            var bi = b.sortIndex != null ? b.sortIndex : 0;
+            return ai - bi;
+        });
+        return state.map(function(c) {
+            return { colId: c.colId, sort: c.sort };
+        });
+    }
 
     function getDataUrl(limit, offset, filterModel, sortModel) {
         const base = window.agGridArmDataUrl || '/index.php?r=arm/get-grid-data';
@@ -314,6 +329,16 @@
                     if (cols.length > 0) {
                         query.push('cols=' + encodeURIComponent(cols.join(',')));
                     }
+                }
+                if (gridApi && typeof gridApi.getFilterModel === 'function') {
+                    var fm = gridApi.getFilterModel();
+                    if (fm && Object.keys(fm).length > 0) {
+                        query.push('filterModel=' + encodeURIComponent(JSON.stringify(fm)));
+                    }
+                }
+                var sm = buildSortModelFromColumnState(gridApi);
+                if (sm.length > 0) {
+                    query.push('sortModel=' + encodeURIComponent(JSON.stringify(sm)));
                 }
                 if (query.length > 0) {
                     url += '&' + query.join('&');
