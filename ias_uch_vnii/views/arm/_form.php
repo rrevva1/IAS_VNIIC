@@ -11,8 +11,11 @@
  * @var array $chars [key => value] — текущие значения характеристик для редактирования
  */
 
+use app\assets\UserSelectAsset;
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
+
+UserSelectAsset::register($this);
 
 $chars = $chars ?? [];
 $equipmentTypes = $equipmentTypes ?? [];
@@ -41,6 +44,8 @@ $equipmentTypes = $equipmentTypes ?? [];
 
     <?= $form->field($model, 'responsible_user_id')->dropDownList($users, [
         'prompt' => 'Не закреплять',
+        'class' => 'form-select js-user-select-search',
+        'data-placeholder' => 'Не закреплять',
     ]) ?>
 
     <?= $form->field($model, 'location_id')->dropDownList($locations, [

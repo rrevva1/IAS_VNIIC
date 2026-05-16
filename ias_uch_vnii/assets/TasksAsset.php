@@ -29,5 +29,6 @@ class TasksAsset extends AssetBundle
         'yii\web\YiiAsset',
         'yii\bootstrap5\BootstrapAsset',
         'yii\web\JqueryAsset',
+        UserSelectAsset::class,
     ];
 }

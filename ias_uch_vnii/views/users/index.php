@@ -24,6 +24,13 @@ $this->params['breadcrumbs'][] = $this->title;
         </div>
     <?php endif; ?>
 
+    <div class="users-grid-search">
+        <label class="form-label" for="usersGridQuickFilter">Поиск</label>
+        <input type="search" id="usersGridQuickFilter" class="form-control users-grid-search-input"
+               placeholder="ФИО, email, роль, ID…" autocomplete="off">
+    </div>
+    <p class="users-grid-search-hint">Поиск по отображаемым столбцам таблицы (ФИО, email, роль).</p>
+
     <div class="ag-grid-toolbar">
         <div class="btn-group">
             <?= Html::a('<i class="glyphicon glyphicon-plus"></i> Добавить пользователя', ['create'], ['class' => 'btn btn-success']) ?>

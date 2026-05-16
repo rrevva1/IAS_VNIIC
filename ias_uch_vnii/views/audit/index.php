@@ -43,7 +43,10 @@ $this->params['breadcrumbs'][] = $this->title;
         </div>
         <div class="col-md-2">
             <label class="form-label">Пользователь</label>
-            <?= Html::dropDownList('actor_id', Yii::$app->request->get('actor_id'), ['' => '—'] + ($users ?? []), ['class' => 'form-select']) ?>
+            <?= Html::dropDownList('actor_id', Yii::$app->request->get('actor_id'), ['' => '—'] + ($users ?? []), [
+                'class' => 'form-select js-user-select-search',
+                'data-placeholder' => '—',
+            ]) ?>
         </div>
         <div class="col-md-2">
             <label class="form-label">Тип операции</label>

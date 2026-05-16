@@ -6,6 +6,7 @@
     'use strict';
 
     var gridApi;
+    var quickFilterTimer = null;
 
     function buildUrl(baseUrl, id) {
         if (!baseUrl) {
@@ -147,6 +148,24 @@
         return cols;
     }
 
+    function bindUsersQuickFilter() {
+        var input = document.getElementById('usersGridQuickFilter');
+        if (!input || input.hasAttribute('data-bound')) {
+            return;
+        }
+        input.setAttribute('data-bound', '1');
+        input.addEventListener('input', function() {
+            if (!gridApi) {
+                return;
+            }
+            var value = input.value || '';
+            clearTimeout(quickFilterTimer);
+            quickFilterTimer = setTimeout(function() {
+                gridApi.setGridOption('quickFilterText', value);
+            }, 200);
+        });
+    }
+
     function loadGridData(url) {
         if (!gridApi || !url) {
             return;
@@ -271,6 +290,15 @@
         var gridOptions = {
             columnDefs: getColumnDefs(),
             defaultColDef: { sortable: true, filter: true, resizable: true },
+            getQuickFilterText: function(params) {
+                if (!params.data || params.data.isDetailRow) {
+                    return '';
+                }
+                var d = params.data;
+                return [d.id, d.full_name, d.email, d.role_name].filter(function(v) {
+                    return v != null && v !== '';
+                }).join(' ');
+            },
             pagination: true,
             paginationPageSize: 20,
             paginationPageSizeSelector: [10, 20, 50, 100],
@@ -307,6 +335,7 @@
                 gridApi = params.api;
                 loadGridData(dataUrl);
                 bindEquipmentToggleClick(container);
+                bindUsersQuickFilter();
             },
         };
 

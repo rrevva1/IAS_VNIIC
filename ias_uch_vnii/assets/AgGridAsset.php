@@ -30,6 +30,7 @@ class AgGridAsset extends AssetBundle
         'yii\bootstrap5\BootstrapAsset',
         'yii\bootstrap5\BootstrapPluginAsset',  // JavaScript для Bootstrap 5
         'yii\web\JqueryAsset',
+        UserSelectAsset::class,
     ];
     
     public $jsOptions = [

@@ -1,0 +1,73 @@
+/* Select2: выбор пользователя с поиском */
+.select2-container--default .select2-selection--single {
+    min-height: 38px;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 12px;
+    color: #212529;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    padding: 6px 10px;
+}
+
+.select2-container--open .select2-dropdown {
+    z-index: 2000;
+}
+
+.select2-container {
+    z-index: auto;
+}
+
+.js-user-select-field {
+    position: relative;
+}
+
+#reassignArmModal .select2-container--disabled .select2-selection--single {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+#reassignArmModal .reassign-user-sync-hint {
+    font-size: 0.8125rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+/* Быстрый поиск на странице «Пользователи» */
+.users-grid-search {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    max-width: 520px;
+}
+
+.users-grid-search .form-label {
+    margin-bottom: 0;
+    white-space: nowrap;
+    font-weight: 500;
+    color: #495057;
+}
+
+.users-grid-search .users-grid-search-input {
+    flex: 1 1 220px;
+    min-width: 200px;
+}
+
+.users-grid-search-hint {
+    font-size: 0.8125rem;
+    color: #6c757d;
+    margin: -8px 0 12px 0;
+}

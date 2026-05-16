@@ -145,9 +145,10 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
             <h4>Назначить исполнителя</h4>
             <?= Html::dropDownList('executor_change', $model->executor_id, 
                 \app\models\entities\Users::find()->select(['full_name', 'id'])->indexBy('id')->column(), [
-                'class' => 'form-control',
+                'class' => 'form-control js-user-select-search',
                 'id' => 'executor-change',
-                'prompt' => 'Выберите исполнителя...'
+                'prompt' => 'Выберите исполнителя...',
+                'data-placeholder' => 'Выберите исполнителя...',
             ]) ?>
         </div>
     </div>

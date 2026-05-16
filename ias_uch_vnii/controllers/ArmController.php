@@ -569,6 +569,7 @@ class ArmController extends Controller
                 'id' => $eq->id,
                 'inventory_number' => $eq->inventory_number,
                 'name' => $eq->name,
+                'equipment_type' => $eq->equipment_type,
                 'responsible_user_id' => $eq->responsible_user_id,
                 'responsible_user_name' => $eq->responsibleUser ? $eq->responsibleUser->getDisplayName() : null,
                 'location_id' => $eq->location_id,

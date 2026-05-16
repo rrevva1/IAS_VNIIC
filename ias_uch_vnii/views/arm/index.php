@@ -130,9 +130,9 @@ $equipmentTypes = $equipmentTypes ?? [];
                     </select>
                 </div>
 
-                <div class="mb-3" id="dismissalUserWrap" style="display:none;">
+                <div class="mb-3 js-user-select-field" id="dismissalUserWrap" style="display:none;">
                     <label class="form-label">Передать технику пользователю</label>
-                    <select id="dismissalTargetUserId" class="form-select">
+                    <select id="dismissalTargetUserId" class="form-select js-user-select-search" data-placeholder="— не выбрано —">
                         <option value="">— не выбрано —</option>
                         <?php foreach ($users ?? [] as $uid => $uname): ?>
                         <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
@@ -140,7 +140,7 @@ $equipmentTypes = $equipmentTypes ?? [];
                     </select>
                 </div>
 
-                <div class="mb-3" id="moveComponentWrap" style="display:none;">
+                <div class="mb-3 js-user-select-field" id="moveComponentWrap" style="display:none;">
                     <label class="form-label">Тип компонента</label>
                     <select id="componentLinkType" class="form-select">
                         <option value="monitor">Монитор</option>
@@ -148,7 +148,7 @@ $equipmentTypes = $equipmentTypes ?? [];
                         <option value="ups">ИБП</option>
                     </select>
                     <label class="form-label mt-2">Выберите пользователя (владелец целевого ПК)</label>
-                    <select id="targetSystemBlockUserId" class="form-select">
+                    <select id="targetSystemBlockUserId" class="form-select js-user-select-search" data-placeholder="— выберите пользователя —">
                         <option value="">— выберите пользователя —</option>
                         <?php foreach ($users ?? [] as $uid => $uname): ?>
                         <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
@@ -167,9 +167,9 @@ $equipmentTypes = $equipmentTypes ?? [];
                     </label>
                 </div>
 
-                <div class="mb-3">
+                <div class="mb-3 js-user-select-field">
                     <label class="form-label">Ответственный</label>
-                    <select id="reassignUserId" class="form-select">
+                    <select id="reassignUserId" class="form-select js-user-select-search" data-placeholder="— не менять —">
                         <option value="">— не менять —</option>
                         <option value="0">— снять назначение —</option>
                         <?php foreach ($users ?? [] as $uid => $uname): ?>
@@ -177,6 +177,9 @@ $equipmentTypes = $equipmentTypes ?? [];
                         <?php endforeach; ?>
                     </select>
                     <small class="form-text text-muted">Оставьте "— не менять —", чтобы сохранить текущее значение</small>
+                    <small id="reassignUserIdSyncHint" class="reassign-user-sync-hint" style="display:none;">
+                        В режиме перемещения компонента ответственный совпадает с владельцем целевого ПК.
+                    </small>
                 </div>
 
                 <div class="mb-3">
@@ -294,18 +297,81 @@ $this->registerJs("
             html += '<option value=\"' + escapeHtml(String(row.id)) + '\"' + (locId ? ' data-location-id=\"' + escapeHtml(locId) + '\"' : '') + '>' + escapeHtml(label) + '</option>';
         });
         sbSelect.innerHTML = html;
+        if (rows.length === 1) {
+            sbSelect.value = String(rows[0].id);
+            applyDefaultLocationFromTargetSystemBlock();
+            scheduleUpdatePreview();
+        }
     }
 
     /** В режиме move_component: ответственный = владелец целевого ПК. */
+    function setUserSelectValue(selectEl, value, silent) {
+        if (!selectEl) return;
+        if (window.IasUserSelect && window.IasUserSelect.setValue) {
+            window.IasUserSelect.setValue(selectEl, value, !!silent);
+        } else {
+            selectEl.value = value == null ? '' : String(value);
+            if (!silent) {
+                selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    }
+
+    function updateReassignModalSelectState() {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        var ru = document.getElementById('reassignUserId');
+        var hint = document.getElementById('reassignUserIdSyncHint');
+        var lockResponsible = mode === 'move_component';
+        if (ru) {
+            if (window.IasUserSelect && window.IasUserSelect.setDisabled) {
+                window.IasUserSelect.setDisabled(ru, lockResponsible);
+            } else {
+                ru.disabled = lockResponsible;
+            }
+        }
+        if (hint) {
+            hint.style.display = lockResponsible ? 'block' : 'none';
+        }
+    }
+
     function applyDefaultResponsibleForMoveComponent(targetUserId) {
         var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         if (mode !== 'move_component') return;
         var ru = document.getElementById('reassignUserId');
         if (!ru || !targetUserId) return;
-        ru.value = String(targetUserId);
+        var unlock = ru.disabled;
+        if (unlock && window.IasUserSelect && window.IasUserSelect.setDisabled) {
+            window.IasUserSelect.setDisabled(ru, false);
+        } else if (unlock) {
+            ru.disabled = false;
+        }
+        setUserSelectValue(ru, targetUserId, true);
+        if (unlock && window.IasUserSelect && window.IasUserSelect.setDisabled) {
+            window.IasUserSelect.setDisabled(ru, true);
+        } else if (unlock) {
+            ru.disabled = true;
+        }
     }
 
-    /** Помещение = location_id выбранного целевого системного блока. */
+    /** Помещение по наиболее частому location_id техники пользователя. */
+    function applyPrimaryLocationForUser(userId) {
+        if (!userId || userId === '0') return;
+        var loc = document.getElementById('reassignLocationId');
+        if (!loc || !window.agGridArmUserPrimaryLocationUrl) return;
+        var base = window.agGridArmUserPrimaryLocationUrl;
+        var sep = base.indexOf('?') >= 0 ? '&' : '?';
+        return fetch(base + sep + 'user_id=' + encodeURIComponent(userId))
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+            .then(function(res) {
+                if (res && res.success && res.location_id != null && String(res.location_id) !== '') {
+                    loc.value = String(res.location_id);
+                }
+                scheduleUpdatePreview();
+            })
+            .catch(function() {});
+    }
+
+    /** Помещение = location_id целевого ПК; если у ПК нет помещения — по пользователю-владельцу. */
     function applyDefaultLocationFromTargetSystemBlock() {
         var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         if (mode !== 'move_component') return;
@@ -314,30 +380,65 @@ $this->registerJs("
         if (!sb || !loc || !sb.value) return;
         var opt = sb.options[sb.selectedIndex];
         var lid = opt && opt.getAttribute('data-location-id');
-        if (lid) loc.value = lid;
+        if (lid) {
+            loc.value = lid;
+            scheduleUpdatePreview();
+            return;
+        }
+        var userEl = document.getElementById('targetSystemBlockUserId');
+        var userId = userEl ? (window.IasUserSelect ? window.IasUserSelect.getValue(userEl) : userEl.value) : '';
+        if (userId) {
+            applyPrimaryLocationForUser(userId);
+        }
+    }
+
+    function applyMoveComponentUserDefaults(userId) {
+        if (!userId) return;
+        applyDefaultResponsibleForMoveComponent(userId);
+        applyPrimaryLocationForUser(userId);
     }
 
     /** Обычное переназначение: помещение по «основному» для выбранного ответственного (по учёту ТС). */
     function applyDefaultLocationForReassign(userId) {
         var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         if (mode !== 'reassign') return;
-        if (!userId || userId === '0') return;
-        var loc = document.getElementById('reassignLocationId');
-        if (!loc || !window.agGridArmUserPrimaryLocationUrl) return;
-        var base = window.agGridArmUserPrimaryLocationUrl;
-        var sep = base.indexOf('?') >= 0 ? '&' : '?';
-        fetch(base + sep + 'user_id=' + encodeURIComponent(userId))
-            .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
-            .then(function(res) {
-                if (res && res.success && res.location_id != null && String(res.location_id) !== '') {
-                    loc.value = String(res.location_id);
-                }
-                setTimeout(function() {
-                    var m = document.getElementById('reassignArmModal');
-                    if (m && m.classList.contains('show')) updatePreview();
-                }, 0);
-            })
-            .catch(function() {});
+        applyPrimaryLocationForUser(userId);
+    }
+
+    function normalizeEquipmentTypeLabel(item) {
+        return String((item && (item.equipment_type || item.name)) || '').toLowerCase();
+    }
+
+    function isMoveComponentEquipment(item) {
+        var t = normalizeEquipmentTypeLabel(item);
+        return t.indexOf('монитор') !== -1 || t.indexOf('monitor') !== -1
+            || t.indexOf('диск') !== -1 || t.indexOf('disk') !== -1
+            || t.indexOf('ибп') !== -1 || t.indexOf('ups') !== -1;
+    }
+
+    function detectComponentLinkType(item) {
+        var t = normalizeEquipmentTypeLabel(item);
+        if (t.indexOf('диск') !== -1 || t.indexOf('disk') !== -1) return 'disk';
+        if (t.indexOf('ибп') !== -1 || t.indexOf('ups') !== -1) return 'ups';
+        return 'monitor';
+    }
+
+    /** Режим и тип компонента по выбранной в гриде технике (монитор/диск/ИБП → перемещение компонента). */
+    function configureModalFromSelectedEquipment() {
+        if (!equipmentData || !equipmentData.length) return;
+        var modeEl = document.getElementById('reassignOperationMode');
+        if (!modeEl) return;
+        var allComponents = equipmentData.every(isMoveComponentEquipment);
+        if (allComponents) {
+            modeEl.value = 'move_component';
+            var linkEl = document.getElementById('componentLinkType');
+            if (linkEl) {
+                linkEl.value = detectComponentLinkType(equipmentData[0]);
+            }
+        } else {
+            modeEl.value = 'reassign';
+        }
+        onModeChanged();
     }
 
     function fetchSystemBlocksForUser(userId) {
@@ -349,11 +450,13 @@ $this->registerJs("
         }
         if (armSystemBlocksCache[userId]) {
             renderSystemBlocks(armSystemBlocksCache[userId]);
-            applyDefaultResponsibleForMoveComponent(userId);
+            applyMoveComponentUserDefaults(userId);
             return;
         }
         sbSelect.innerHTML = '<option value=\"\">Загрузка...</option>';
-        var url = window.agGridArmSystemBlocksUrl + '&user_id=' + encodeURIComponent(userId);
+        var baseUrl = window.agGridArmSystemBlocksUrl || '';
+        var sep = baseUrl.indexOf('?') >= 0 ? '&' : '?';
+        var url = baseUrl + sep + 'user_id=' + encodeURIComponent(userId);
         fetch(url)
             .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
             .then(function(result) {
@@ -363,7 +466,7 @@ $this->registerJs("
                 var rows = Array.isArray(result.data) ? result.data : [];
                 armSystemBlocksCache[userId] = rows;
                 renderSystemBlocks(rows);
-                applyDefaultResponsibleForMoveComponent(userId);
+                applyMoveComponentUserDefaults(userId);
             })
             .catch(function(err) {
                 console.error('Ошибка загрузки системных блоков:', err);
@@ -393,6 +496,7 @@ $this->registerJs("
                     equipmentSummary = result.summary || {};
                     console.log('Данные о выбранных единицах загружены:', equipmentData.length, 'единиц');
                     renderEquipmentInfo();
+                    configureModalFromSelectedEquipment();
                     // Обновляем предпросмотр после загрузки данных - с небольшой задержкой для надежности
                     setTimeout(function() {
                         // Проверяем, что модальное окно все еще открыто
@@ -748,12 +852,25 @@ $this->registerJs("
         var dismissalUserWrap = document.getElementById('dismissalUserWrap');
         var dismissalWarehouseWrap = document.getElementById('dismissalWarehouseWrap');
         var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
+        if (window.IasUserSelect) {
+            if (mode !== 'move_component' && moveWrap) {
+                window.IasUserSelect.destroy(moveWrap);
+            }
+            if (mode !== 'dismissal' && dismissalUserWrap) {
+                window.IasUserSelect.destroy(dismissalUserWrap);
+            }
+        }
         if (moveWrap) moveWrap.style.display = mode === 'move_component' ? 'block' : 'none';
         if (dismissalUserWrap) dismissalUserWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
         if (dismissalWarehouseWrap) dismissalWarehouseWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
         if (mode === 'move_component' && targetSystemBlockUserId !== '') {
-            applyDefaultResponsibleForMoveComponent(targetSystemBlockUserId);
+            applyMoveComponentUserDefaults(targetSystemBlockUserId);
             fetchSystemBlocksForUser(targetSystemBlockUserId);
+        } else if (mode === 'move_component') {
+            var sb = document.getElementById('targetSystemBlockId');
+            if (sb) {
+                sb.innerHTML = '<option value=\"\">— сначала выберите пользователя —</option>';
+            }
         }
         if (mode === 'move_component') {
             applyDefaultLocationFromTargetSystemBlock();
@@ -762,6 +879,17 @@ $this->registerJs("
             var ru = (document.getElementById('reassignUserId') || {}).value || '';
             if (ru && ru !== '0') {
                 applyDefaultLocationForReassign(ru);
+            }
+        }
+        updateReassignModalSelectState();
+        if (window.IasUserSelect) {
+            var modalEl = document.getElementById('reassignArmModal');
+            if (modalEl && modalEl.classList.contains('show')) {
+                window.IasUserSelect.closeAll(modalEl);
+                window.IasUserSelect.init(modalEl, { force: true });
+                updateReassignModalSelectState();
+                bindReassignModalSelectHandlers();
+                syncMoveComponentBlocksIfNeeded();
             }
         }
         updatePreview();
@@ -957,7 +1085,7 @@ $this->registerJs("
         var u = document.getElementById('reassignUserId');
         var l = document.getElementById('reassignLocationId');
         var s = document.getElementById('reassignStatusId');
-        if (u) u.value = '';
+        if (u) setUserSelectValue(u, '');
         if (l) l.value = '';
         if (s) s.value = '';
         var mode = document.getElementById('reassignOperationMode');
@@ -966,9 +1094,9 @@ $this->registerJs("
         var dUser = document.getElementById('dismissalTargetUserId');
         var dWarehouse = document.getElementById('dismissalToWarehouse');
         if (mode) mode.value = 'reassign';
-        if (targetSbUser) targetSbUser.value = '';
+        if (targetSbUser) setUserSelectValue(targetSbUser, '');
         if (targetSb) targetSb.innerHTML = '<option value=\"\">— сначала выберите пользователя —</option>';
-        if (dUser) dUser.value = '';
+        if (dUser) setUserSelectValue(dUser, '');
         if (dWarehouse) dWarehouse.checked = false;
         
         // Скрыть предпросмотр и очистить его содержимое
@@ -995,6 +1123,16 @@ $this->registerJs("
         // Используем событие Bootstrap modal для инициализации после полного открытия
         var modalElement = document.getElementById('reassignArmModal');
         if (modalElement) {
+            if (!modalElement.hasAttribute('data-user-select-bound')) {
+                modalElement.setAttribute('data-user-select-bound', '1');
+                modalElement.addEventListener('hidden.bs.modal', function() {
+                    if (window.IasUserSelect) {
+                        window.IasUserSelect.closeAll(modalElement);
+                        window.IasUserSelect.destroy(modalElement);
+                    }
+                });
+            }
+
             // Удаляем предыдущие обработчики, если они есть
             if (window.reassignModalShownHandler) {
                 modalElement.removeEventListener('shown.bs.modal', window.reassignModalShownHandler);
@@ -1003,7 +1141,14 @@ $this->registerJs("
             // Создаем новый обработчик для события показа модального окна
             window.reassignModalShownHandler = function() {
                 console.log('Модальное окно полностью открыто, инициализируем обработчики');
+                if (window.IasUserSelect) {
+                    window.IasUserSelect.destroy(modalElement);
+                    window.IasUserSelect.init(modalElement, { force: true });
+                }
+                updateReassignModalSelectState();
                 initEventHandlers();
+                bindReassignModalSelectHandlers();
+                syncMoveComponentBlocksIfNeeded();
                 
                 // Ищем элементы предпросмотра внутри модального окна
                 var modal = document.getElementById('reassignArmModal');
@@ -1036,6 +1181,81 @@ $this->registerJs("
         }
     };
     
+    function scheduleUpdatePreview() {
+        setTimeout(function() {
+            var m = document.getElementById('reassignArmModal');
+            if (m && m.classList.contains('show')) {
+                updatePreview();
+            }
+        }, 10);
+    }
+
+    /** Select2 не всегда доставляет change до document.addEventListener — привязка через jQuery. */
+    function bindReassignModalSelectHandlers() {
+        if (typeof jQuery === 'undefined') {
+            return;
+        }
+        var modalRoot = jQuery('#reassignArmModal');
+        if (!modalRoot.length) {
+            return;
+        }
+
+        modalRoot.find('#targetSystemBlockUserId')
+            .off('.reassignArmField')
+            .on('change.reassignArmField select2:select.reassignArmField select2:clear.reassignArmField', function() {
+                var userId = jQuery(this).val() || '';
+                if (!userId) {
+                    fetchSystemBlocksForUser('');
+                    scheduleUpdatePreview();
+                    return;
+                }
+                applyMoveComponentUserDefaults(userId);
+                fetchSystemBlocksForUser(userId);
+            });
+
+        modalRoot.find('#reassignUserId')
+            .off('.reassignArmField')
+            .on('change.reassignArmField select2:select.reassignArmField select2:clear.reassignArmField', function() {
+                var opMode = (jQuery('#reassignOperationMode').val() || 'reassign');
+                if (opMode === 'reassign' && this.value && this.value !== '0') {
+                    applyDefaultLocationForReassign(this.value);
+                }
+                scheduleUpdatePreview();
+            });
+
+        modalRoot.find('#dismissalTargetUserId')
+            .off('.reassignArmField')
+            .on('change.reassignArmField select2:select.reassignArmField select2:clear.reassignArmField', function() {
+                var userId = jQuery(this).val() || '';
+                if (userId) {
+                    applyPrimaryLocationForUser(userId);
+                }
+                scheduleUpdatePreview();
+            });
+
+        modalRoot.find('#targetSystemBlockId, #reassignLocationId, #reassignStatusId, #reassignOperationMode, #dismissalToWarehouse')
+            .off('.reassignArmField')
+            .on('change.reassignArmField', function() {
+                if (this.id === 'targetSystemBlockId') {
+                    applyDefaultLocationFromTargetSystemBlock();
+                }
+                scheduleUpdatePreview();
+            });
+    }
+
+    function syncMoveComponentBlocksIfNeeded() {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        if (mode !== 'move_component') {
+            return;
+        }
+        var userEl = document.getElementById('targetSystemBlockUserId');
+        var userId = userEl ? (window.IasUserSelect ? window.IasUserSelect.getValue(userEl) : userEl.value) : '';
+        if (userId) {
+            applyMoveComponentUserDefaults(userId);
+            fetchSystemBlocksForUser(userId);
+        }
+    }
+
     // Инициализация обработчиков
     function initEventHandlers() {
         // Обработчик кнопки сохранения (привязываем один раз)

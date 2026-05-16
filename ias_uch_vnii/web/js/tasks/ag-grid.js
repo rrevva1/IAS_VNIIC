@@ -222,6 +222,7 @@ function initializeAgGrid() {
         
         // Обработчики событий
         onGridReady: onGridReady,
+        onModelUpdated: initExecutorUserSelectsInGrid,
         onCellValueChanged: onCellValueChanged,
         // Добавляем обработчик изменения размера страницы для автоматической подстройки высоты
         onPaginationChanged: onPaginationChanged,
@@ -663,8 +664,9 @@ function getColumnDefinitions() {
             filter: 'agTextColumnFilter',
             cellRenderer: function(params) {
                 const executorId = params.data.executor_id || '';
-                return `<select class="form-control executor-change-ag" 
+                return `<select class="form-control executor-change-ag js-user-select-search" 
                     data-task-id="${params.data.id}" 
+                    data-placeholder="Не назначен"
                     style="font-size: 13px; padding: 4px; width: 100%; border-radius: 4px;">
                     <option value="">Не назначен</option>
                     ${Object.entries(allUsers).map(([id, name]) => 
@@ -792,6 +794,16 @@ function getColumnDefinitions() {
     }
     
     return columns;
+}
+
+/**
+ * Select2 для выпадающего списка исполнителя в ячейках грида.
+ */
+function initExecutorUserSelectsInGrid() {
+    var container = document.getElementById('agGridTasksContainer');
+    if (container && window.IasUserSelect) {
+        window.IasUserSelect.init(container);
+    }
 }
 
 /**

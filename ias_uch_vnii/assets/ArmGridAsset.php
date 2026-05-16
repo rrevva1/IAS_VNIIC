@@ -28,6 +28,7 @@ class ArmGridAsset extends AssetBundle
         'yii\bootstrap5\BootstrapAsset',
         'yii\bootstrap5\BootstrapPluginAsset',
         'yii\web\JqueryAsset',
+        UserSelectAsset::class,
     ];
 
     public $jsOptions = [
