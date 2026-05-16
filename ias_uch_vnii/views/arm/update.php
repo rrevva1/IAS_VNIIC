@@ -6,6 +6,9 @@
  * @var array $users
  * @var array $locations
  * @var array $statuses
+ * @var array $equipmentTypes
+ * @var array $chars
+ * @var string[] $cpuModels
  */
 
 use yii\helpers\Html;
@@ -23,5 +26,8 @@ $this->params['breadcrumbs'][] = 'Редактирование';
         'users' => $users,
         'locations' => $locations,
         'statuses' => $statuses,
+        'equipmentTypes' => $equipmentTypes ?? [],
+        'chars' => $chars ?? [],
+        'cpuModels' => $cpuModels ?? [],
     ]) ?>
 </div>

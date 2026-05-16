@@ -14,6 +14,7 @@ use yii\db\ActiveRecord;
  * @property string|null $serial_number
  * @property string $name
  * @property string|null $equipment_type
+ * @property int|null $equipment_type_id
  * @property int $status_id
  * @property int|null $responsible_user_id
  * @property int $location_id
@@ -47,9 +48,14 @@ class Equipment extends ActiveRecord
 
     public function rules()
     {
+        $integerAttrs = ['status_id', 'responsible_user_id', 'location_id'];
+        if (EquipmentTypes::usesDictionary()) {
+            $integerAttrs[] = 'equipment_type_id';
+        }
+
         return [
             [['inventory_number', 'name', 'status_id', 'location_id'], 'required'],
-            [['status_id', 'responsible_user_id', 'location_id', 'equipment_type_id'], 'integer'],
+            [$integerAttrs, 'integer'],
             [['name'], 'string', 'max' => 200],
             [['inventory_number'], 'string', 'max' => 100],
             [['serial_number'], 'string', 'max' => 150],
@@ -67,29 +73,33 @@ class Equipment extends ActiveRecord
     public function attributeLabels()
     {
         return [
-            'id' => 'ID',
-            'inventory_number' => 'Инв. номер',
+            'id' => 'Идентификатор',
+            'inventory_number' => 'Инвентарный номер',
             'serial_number' => 'Серийный номер',
             'name' => 'Наименование',
-            'equipment_type' => 'Тип',
-            'status_id' => 'Статус',
-            'responsible_user_id' => 'Ответственный',
+            'equipment_type' => 'Тип техники',
+            'equipment_type_id' => 'Тип техники',
+            'status_id' => 'Статус эксплуатации',
+            'responsible_user_id' => 'Ответственный пользователь',
             'location_id' => 'Местоположение',
-            'description' => 'Описание',
+            'description' => 'Примечание',
+            'supplier' => 'Поставщик',
+            'purchase_date' => 'Дата закупки',
+            'commissioning_date' => 'Дата ввода в эксплуатацию',
+            'warranty_until' => 'Гарантия до',
+            'archived_at' => 'Дата архивации',
+            'archive_reason' => 'Причина архивации',
+            'is_archived' => 'В архиве',
+            'is_deleted' => 'Удалено',
+            'created_at' => 'Дата создания',
+            'updated_at' => 'Дата изменения',
         ];
     }
 
     public function afterFind()
     {
         parent::afterFind();
-
-        $schema = static::getTableSchema();
-        if ($schema && isset($schema->columns['equipment_type'])) {
-            $this->equipment_type = $this->getAttribute('equipment_type');
-            return;
-        }
-
-        $this->equipment_type = EquipmentTypes::resolveNameById($this->equipment_type_id ? (int) $this->equipment_type_id : null);
+        $this->equipment_type = $this->resolveEquipmentTypeName();
     }
 
     public function beforeValidate()
@@ -104,12 +114,29 @@ class Equipment extends ActiveRecord
         if ($schema && isset($schema->columns['equipment_type'])) {
             $this->setAttribute('equipment_type', $typeName !== '' ? $typeName : null);
         } elseif (EquipmentTypes::usesDictionary()) {
-            $this->equipment_type_id = $typeName !== ''
-                ? EquipmentTypes::resolveIdByName($typeName)
-                : null;
+            $typeId = $typeName !== '' ? EquipmentTypes::resolveIdByName($typeName) : null;
+            $this->setAttribute('equipment_type_id', $typeId);
         }
 
         return true;
+    }
+
+    /**
+     * Наименование типа техники для форм и отображения (varchar или справочник).
+     */
+    public function resolveEquipmentTypeName(): ?string
+    {
+        $schema = static::getTableSchema();
+        if ($schema && isset($schema->columns['equipment_type'])) {
+            $value = $this->getAttribute('equipment_type');
+            return $value !== null && $value !== '' ? (string) $value : null;
+        }
+        if (EquipmentTypes::usesDictionary()) {
+            $typeId = $this->getAttribute('equipment_type_id');
+            return EquipmentTypes::resolveNameById($typeId !== null && $typeId !== '' ? (int) $typeId : null);
+        }
+
+        return null;
     }
 
     public function getResponsibleUser()

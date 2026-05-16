@@ -48,6 +48,7 @@ $this->params['breadcrumbs'][] = $this->title;
         id="agGridUsersContainer"
         class="ag-theme-quartz"
         data-url="<?= Url::to(['users/get-grid-data']) ?>"
+        data-equipment-url="<?= Url::to(['tasks/get-user-equipment']) ?>"
         data-view-url="<?= Url::to(['users/view']) ?>"
         data-update-url="<?= Url::to(['users/update']) ?>"
         data-delete-url="<?= Url::to(['users/delete']) ?>"

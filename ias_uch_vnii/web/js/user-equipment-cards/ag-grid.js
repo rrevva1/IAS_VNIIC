@@ -21,7 +21,6 @@
             'offset=' + encodeURIComponent(offset),
             'tab=' + encodeURIComponent(window.userEquipmentCardsTab || 'all'),
             'q=' + encodeURIComponent(window.userEquipmentCardsSearch || ''),
-            'is_signed=' + encodeURIComponent(window.userEquipmentCardsIsSigned || ''),
         ];
         return base + sep + query.join('&');
     }

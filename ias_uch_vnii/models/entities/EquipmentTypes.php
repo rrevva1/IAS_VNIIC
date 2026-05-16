@@ -35,7 +35,27 @@ class EquipmentTypes
     public static function getList(): array
     {
         $types = self::getNames();
-        return ArrayHelper::map($types, function ($v) { return $v; }, function ($v) { return $v; });
+        if ($types === []) {
+            $types = self::defaultTypeNames();
+        }
+        return ArrayHelper::map($types, static fn($v) => $v, static fn($v) => $v);
+    }
+
+    /**
+     * Базовый набор типов, если справочник/данные ещё пусты.
+     * @return string[]
+     */
+    public static function defaultTypeNames(): array
+    {
+        return [
+            'Системный блок',
+            'Моноблок',
+            'Монитор',
+            'Ноутбук',
+            'Принтер',
+            'МФУ',
+            'ИБП',
+        ];
     }
 
     /**

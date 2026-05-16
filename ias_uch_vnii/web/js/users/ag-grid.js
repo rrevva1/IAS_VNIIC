@@ -7,6 +7,53 @@
 
     var gridApi;
     var quickFilterTimer = null;
+    /** Оценка высоты detail-строки (px); точное значение — после отрисовки DOM. */
+    var EQUIPMENT_DETAIL_CONTAINER_PAD = 40;
+    var EQUIPMENT_DETAIL_TITLE_BLOCK = 38;
+    var EQUIPMENT_DETAIL_TABLE_HEADER = 42;
+    var EQUIPMENT_DETAIL_ROW_HEIGHT = 40;
+
+    /**
+     * @param {number} itemCount
+     * @returns {number}
+     */
+    function calcEquipmentDetailHeight(itemCount) {
+        var count = Math.max(0, parseInt(itemCount, 10) || 0);
+        if (count === 0) {
+            return 120;
+        }
+        return EQUIPMENT_DETAIL_CONTAINER_PAD
+            + EQUIPMENT_DETAIL_TITLE_BLOCK
+            + EQUIPMENT_DETAIL_TABLE_HEADER
+            + count * EQUIPMENT_DETAIL_ROW_HEIGHT
+            + 2;
+    }
+
+    /** Подгоняет высоту строки грида под фактический размер блока техники. */
+    function syncDetailRowHeight(params, container) {
+        if (!gridApi || !params || !params.node || !container) {
+            return;
+        }
+        var height = Math.ceil(container.getBoundingClientRect().height);
+        if (!height || height < 60) {
+            return;
+        }
+        if (params.data) {
+            params.data._detailRowHeight = height;
+            if (params.data.parentUserId) {
+                var parentNode = findUserRowNode(params.data.parentUserId);
+                if (parentNode && parentNode.data) {
+                    parentNode.data._detailRowHeight = height;
+                }
+            }
+        }
+        if (params.node.rowHeight !== height) {
+            params.node.setRowHeight(height);
+            if (gridApi.onRowHeightChanged) {
+                gridApi.onRowHeightChanged();
+            }
+        }
+    }
 
     function buildUrl(baseUrl, id) {
         if (!baseUrl) {
@@ -90,7 +137,8 @@
                 totalCount + (totalCount === 1 ? ' единица' : totalCount < 5 ? ' единицы' : ' единиц'),
                 '</span>',
                 '</div>',
-                '<table class="table table-bordered table-hover" style="margin: 0; background: white; border-radius: 6px; overflow: hidden;">',
+                '<div class="equipment-detail-table-wrap" style="overflow-x: auto;">',
+                '<table class="table table-bordered table-hover equipment-detail-table" style="margin: 0; background: white; border-radius: 6px;">',
                 '<thead style="background-color: #667eea; color: white;">',
                 '<tr><th style="padding: 12px;">ID</th><th style="padding: 12px;">Название техники</th><th style="padding: 12px;">Местоположение</th><th style="padding: 12px;">Описание</th><th style="padding: 12px;">Дата добавления</th></tr>',
                 '</thead><tbody>'
@@ -105,8 +153,11 @@
                     '<td style="padding: 10px; font-size: 13px;">' + (item.created_at || '') + '</td>' +
                     '</tr>';
             });
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
             container.innerHTML = html;
+            requestAnimationFrame(function() {
+                syncDetailRowHeight(params, container);
+            });
         }
         return container;
     }
@@ -119,7 +170,7 @@
             return '';
         }
         var userId = params.data.id;
-        var isExpanded = params.node.data._equipmentExpanded || false;
+        var isExpanded = params.data._equipmentExpanded || false;
         var title = isExpanded ? 'Скрыть технику' : 'Показать технику работника';
         var btnClass = isExpanded ? 'equipment-toggle-btn equipment-toggle-btn--expanded' : 'equipment-toggle-btn';
         var symbol = isExpanded ? '−' : '+';
@@ -182,18 +233,97 @@
             .catch(function(err) { console.error('AG Grid (Пользователи): ошибка загрузки', err); });
     }
 
+    function findUserRowNode(userId) {
+        var found = null;
+        if (!gridApi) {
+            return null;
+        }
+        gridApi.forEachNode(function(node) {
+            if (node.data && !node.data.isDetailRow && String(node.data.id) === String(userId)) {
+                found = node;
+            }
+        });
+        return found;
+    }
+
+    function getEquipmentFetchUrl(userId) {
+        var container = document.getElementById('agGridUsersContainer');
+        var base = (container && container.dataset.equipmentUrl)
+            ? container.dataset.equipmentUrl
+            : '/index.php?r=tasks/get-user-equipment';
+        var sep = base.indexOf('?') === -1 ? '?' : '&';
+        return base + sep + 'userId=' + encodeURIComponent(userId);
+    }
+
+    /**
+     * Пересборка rowData с сохранением всех раскрытых блоков техники и текущей страницы пагинации.
+     */
+    function rebuildRowDataWithDetails(anchorUserId) {
+        if (!gridApi) {
+            return;
+        }
+        var rowData = [];
+        var anchorRowIndex = null;
+        var rowIndex = 0;
+
+        gridApi.forEachNode(function(node) {
+            if (!node.data || node.data.isDetailRow) {
+                return;
+            }
+            rowData.push(node.data);
+            if (anchorUserId != null && String(node.data.id) === String(anchorUserId)) {
+                anchorRowIndex = rowIndex;
+            }
+            rowIndex++;
+
+            if (node.data._equipmentExpanded && node.data._equipmentData) {
+                rowData.push({
+                    isDetailRow: true,
+                    parentUserId: node.data.id,
+                    equipmentData: node.data._equipmentData,
+                    totalCount: node.data._equipmentTotalCount
+                        || (node.data._equipmentData && node.data._equipmentData.length)
+                        || 0,
+                    _detailRowHeight: node.data._detailRowHeight || null,
+                });
+                rowIndex++;
+                if (anchorUserId != null && String(node.data.id) === String(anchorUserId)) {
+                    anchorRowIndex = rowIndex - 1;
+                }
+            }
+        });
+
+        var currentPage = gridApi.paginationGetCurrentPage ? gridApi.paginationGetCurrentPage() : 0;
+        gridApi.setGridOption('rowData', rowData);
+
+        if (gridApi.paginationGoToPage) {
+            gridApi.paginationGoToPage(currentPage);
+        }
+
+        if (anchorRowIndex != null && gridApi.ensureIndexVisible) {
+            setTimeout(function() {
+                gridApi.ensureIndexVisible(anchorRowIndex, 'middle');
+            }, 0);
+        }
+
+        setTimeout(function() {
+            if (gridApi.onRowHeightChanged) {
+                gridApi.onRowHeightChanged();
+            }
+        }, 80);
+    }
+
     /**
      * Переключение отображения техники пользователя (раскрыть/свернуть).
      */
     function toggleEquipmentDetailUser(userId) {
-        if (!gridApi) { return; }
-        var userRowNode = null;
-        gridApi.forEachNode(function(node) {
-            if (node.data && node.data.id == userId && !node.data.isDetailRow) {
-                userRowNode = node;
-            }
-        });
-        if (!userRowNode) { return; }
+        if (!gridApi) {
+            return;
+        }
+        var userRowNode = findUserRowNode(userId);
+        if (!userRowNode) {
+            return;
+        }
         var isExpanded = userRowNode.data._equipmentExpanded || false;
         if (isExpanded) {
             hideEquipmentDetailUser(userId);
@@ -206,34 +336,21 @@
      * Показать технику пользователя (загрузка по API и вставка detail-строки).
      */
     function showEquipmentDetailForUser(userId, userRowNode) {
-        fetch('/index.php?r=tasks/get-user-equipment&userId=' + userId)
+        var rowNode = userRowNode || findUserRowNode(userId);
+        if (!rowNode) {
+            return;
+        }
+        fetch(getEquipmentFetchUrl(userId))
             .then(function(r) { return r.json(); })
             .then(function(result) {
                 if (result.success) {
-                    userRowNode.data._equipmentExpanded = true;
-                    userRowNode.data._equipmentData = result.data;
-                    gridApi.refreshCells({ rowNodes: [userRowNode], force: true });
-
-                    var rowData = [];
-                    gridApi.forEachNode(function(node) {
-                        if (node.data && !node.data.isDetailRow) {
-                            rowData.push(node.data);
-                            if (node.data.id == userId) {
-                                rowData.push({
-                                    isDetailRow: true,
-                                    parentUserId: userId,
-                                    equipmentData: result.data,
-                                    totalCount: result.total || (result.data && result.data.length) || 0,
-                                });
-                            }
-                        }
-                    });
-                    gridApi.setGridOption('rowData', rowData);
-                    setTimeout(function() {
-                        if (gridApi.onRowHeightChanged) {
-                            gridApi.onRowHeightChanged();
-                        }
-                    }, 100);
+                    rowNode.data._equipmentExpanded = true;
+                    delete rowNode.data._detailRowHeight;
+                    rowNode.data._equipmentData = result.data || [];
+                    rowNode.data._equipmentTotalCount = result.total
+                        || (result.data && result.data.length)
+                        || 0;
+                    rebuildRowDataWithDetails(userId);
                 } else {
                     alert('Ошибка: ' + (result.message || 'Не удалось загрузить данные'));
                 }
@@ -248,29 +365,14 @@
      * Скрыть технику пользователя (удалить detail-строку).
      */
     function hideEquipmentDetailUser(userId) {
-        var userRowNode = null;
-        gridApi.forEachNode(function(node) {
-            if (node.data && node.data.id == userId && !node.data.isDetailRow) {
-                userRowNode = node;
-            }
-        });
+        var userRowNode = findUserRowNode(userId);
         if (userRowNode) {
             userRowNode.data._equipmentExpanded = false;
             delete userRowNode.data._equipmentData;
+            delete userRowNode.data._equipmentTotalCount;
+            delete userRowNode.data._detailRowHeight;
         }
-        var rowData = [];
-        gridApi.forEachNode(function(node) {
-            if (node.data) {
-                if (node.data.isDetailRow && node.data.parentUserId == userId) { return; }
-                rowData.push(node.data);
-            }
-        });
-        gridApi.setGridOption('rowData', rowData);
-        setTimeout(function() {
-            if (gridApi.onRowHeightChanged) {
-                gridApi.onRowHeightChanged();
-            }
-        }, 100);
+        rebuildRowDataWithDetails();
     }
 
     function init() {
@@ -311,15 +413,12 @@
                 if (!params.node.data || !params.node.data.isDetailRow) {
                     return 36;
                 }
-                var equipmentData = params.node.data.equipmentData || [];
-                if (equipmentData.length === 0) {
-                    return 120;
+                var data = params.node.data;
+                if (data._detailRowHeight) {
+                    return data._detailRowHeight;
                 }
-                var headerHeight = 60;
-                var tableHeaderHeight = 45;
-                var rowHeight = 45;
-                var padding = 40;
-                return Math.min(headerHeight + tableHeaderHeight + equipmentData.length * rowHeight + padding, 600);
+                var equipmentData = data.equipmentData || [];
+                return calcEquipmentDetailHeight(equipmentData.length);
             },
             localeText: {
                 page: 'Страница', to: 'до', of: 'из', next: 'След.', last: 'Последняя',

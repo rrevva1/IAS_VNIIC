@@ -322,6 +322,11 @@ class ArmSearch extends Model
 
     private function applyPartCharGridFilter($query, string $gridField, array $cfg): void
     {
+        if ($gridField === 'monitor') {
+            $this->applyMonitorGridFilter($query, $cfg);
+            return;
+        }
+
         $idCol = $this->getPartCharEquipmentFkColumn();
         if ($idCol === null) {
             $this->applyTextFilterOnColumn($query, 'equipment.description', $cfg);
@@ -373,6 +378,133 @@ class ArmSearch extends Model
             $sub->andWhere(['ilike', $valExpr, $value]);
         }
         $query->andWhere(['exists', $sub]);
+    }
+
+    /**
+     * Фильтр колонки «Монитор»: характеристика part_char_values и привязанные мониторы (equipment_links).
+     */
+    private function applyMonitorGridFilter($query, array $cfg): void
+    {
+        $type = (string) ($cfg['type'] ?? '');
+        $value = isset($cfg['filter']) ? trim((string) $cfg['filter']) : '';
+        if ($value === '' && $type !== 'blank' && $type !== 'notBlank') {
+            return;
+        }
+
+        $eqTable = Equipment::tableName();
+        $hasLinksTable = Yii::$app->db->getTableSchema('equipment_links', true) !== null;
+
+        $linkedMatch = function () use ($eqTable, $value, $type, $hasLinksTable) {
+            if (!$hasLinksTable) {
+                return null;
+            }
+            $q = (new Query())
+                ->from(['el' => 'equipment_links'])
+                ->innerJoin(['child' => $eqTable], 'child.id = el.child_equipment_id')
+                ->where([
+                    'el.parent_equipment_id' => new Expression($eqTable . '.id'),
+                    'el.link_type' => EquipmentLink::TYPE_MONITOR,
+                ]);
+            if ($type === 'blank' || $type === 'notBlank') {
+                return $q;
+            }
+            if ($value === '') {
+                return null;
+            }
+            if ($type === 'equals' || $type === 'startsWith' || $type === 'endsWith') {
+                $pattern = $type === 'startsWith' ? $value . '%' : ($type === 'endsWith' ? '%' . $value : $value);
+                $q->andWhere(['or',
+                    ['ilike', 'child.name', $pattern, $type !== 'equals'],
+                    ['ilike', 'child.inventory_number', $pattern, $type !== 'equals'],
+                ]);
+            } else {
+                $q->andWhere(['or',
+                    ['ilike', 'child.name', $value],
+                    ['ilike', 'child.inventory_number', $value],
+                ]);
+            }
+
+            return $q;
+        };
+
+        $charMatch = function () use ($eqTable) {
+            $idCol = $this->getPartCharEquipmentFkColumn();
+            if ($idCol === null) {
+                return null;
+            }
+            $valExpr = $this->getPartCharCoalescedValueExpression();
+            $q = (new Query())
+                ->from(['pcv' => 'part_char_values'])
+                ->innerJoin(['sp' => 'spr_parts'], 'sp.id = pcv.part_id')
+                ->innerJoin(['sc' => 'spr_chars'], 'sc.id = pcv.char_id')
+                ->where(['=', 'pcv.' . $idCol, new Expression($eqTable . '.id')]);
+            $this->addPartCharScopeForGridField($q, 'monitor');
+            return ['q' => $q, 'valExpr' => $valExpr];
+        };
+
+        if ($type === 'blank') {
+            $conditions = ['and'];
+            $char = $charMatch();
+            if ($char !== null) {
+                $sub = $char['q'];
+                $sub->andWhere(new Expression(
+                    "(TRIM(COALESCE(pcv.value_text, '')) <> '' OR pcv.value_num IS NOT NULL)"
+                ));
+                $conditions[] = ['not exists', $sub];
+            }
+            $linked = $linkedMatch();
+            if ($linked !== null) {
+                $conditions[] = ['not exists', $linked];
+            }
+            if (count($conditions) > 1) {
+                $query->andWhere($conditions);
+            }
+            return;
+        }
+
+        if ($type === 'notBlank') {
+            $or = ['or'];
+            $char = $charMatch();
+            if ($char !== null) {
+                $sub = $char['q'];
+                $sub->andWhere(new Expression(
+                    "(TRIM(COALESCE(pcv.value_text, '')) <> '' OR pcv.value_num IS NOT NULL)"
+                ));
+                $or[] = ['exists', $sub];
+            }
+            $linked = $linkedMatch();
+            if ($linked !== null) {
+                $or[] = ['exists', $linked];
+            }
+            if (count($or) > 1) {
+                $query->andWhere($or);
+            }
+            return;
+        }
+
+        $or = ['or'];
+        $char = $charMatch();
+        if ($char !== null && $value !== '') {
+            $sub = $char['q'];
+            $valExpr = $char['valExpr'];
+            if ($type === 'equals') {
+                $sub->andWhere(['ilike', $valExpr, $value]);
+            } elseif ($type === 'startsWith') {
+                $sub->andWhere(['ilike', $valExpr, $value . '%', false]);
+            } elseif ($type === 'endsWith') {
+                $sub->andWhere(['ilike', $valExpr, '%' . $value, false]);
+            } else {
+                $sub->andWhere(['ilike', $valExpr, $value]);
+            }
+            $or[] = ['exists', $sub];
+        }
+        $linked = $linkedMatch();
+        if ($linked !== null) {
+            $or[] = ['exists', $linked];
+        }
+        if (count($or) > 1) {
+            $query->andWhere($or);
+        }
     }
 
     private function addPartCharScopeForGridField(Query $q, string $gridField): void

@@ -15,6 +15,7 @@ use app\models\entities\Location;
 use app\models\dictionaries\DicEquipmentStatus;
 use app\models\search\ArmSearch;
 use app\components\AuditLog;
+use app\components\EquipmentCharCatalog;
 use app\components\UserEquipmentCardService;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -169,7 +170,11 @@ class ArmController extends Controller
                     'disk' => $chars['disk'] ?? '',
                     'system_block' => $model->name ?? '',
                     'inventory_number' => $model->inventory_number ?? '',
-                    'monitor' => $chars['monitor'] ?? '',
+                    'monitor' => EquipmentCharCatalog::formatMonitorColumnValue(
+                        (string) ($chars['monitor'] ?? ''),
+                        $linked['monitor']
+                    ),
+                    'monitor_char' => (string) ($chars['monitor'] ?? ''),
                     'monitor_count' => count($linked['monitor']),
                     'disk_count' => count($linked['disk']),
                     'ups_count' => count($linked['ups']),
@@ -415,6 +420,7 @@ class ArmController extends Controller
             'statuses' => $statuses,
             'equipmentTypes' => $equipmentTypes,
             'chars' => [],
+            'cpuModels' => EquipmentCharCatalog::getDistinctCpuModels(),
         ]);
     }
 
@@ -490,6 +496,7 @@ class ArmController extends Controller
             'statuses' => $statuses,
             'equipmentTypes' => $equipmentTypes,
             'chars' => $chars[$model->id] ?? [],
+            'cpuModels' => EquipmentCharCatalog::getDistinctCpuModels(),
         ]);
     }
 
@@ -727,8 +734,8 @@ class ArmController extends Controller
 
             if ($operationMode === 'move_component' && $targetSystemBlockId && $linkType !== '') {
                 $targetSystemBlock = Equipment::findOne((int) $targetSystemBlockId);
-                if (!$targetSystemBlock || $targetSystemBlock->is_deleted || $targetSystemBlock->is_archived || !$this->isSystemBlockEquipment($targetSystemBlock)) {
-                    throw new \RuntimeException('Целевой системный блок не найден или недоступен для привязки.');
+                if (!$targetSystemBlock || $targetSystemBlock->is_deleted || $targetSystemBlock->is_archived || !$this->isHostEquipment($targetSystemBlock)) {
+                    throw new \RuntimeException('Целевой ПК не найден или недоступен для привязки компонента.');
                 }
                 foreach ($ids as $childId) {
                     EquipmentLink::deleteAll([
@@ -741,6 +748,15 @@ class ArmController extends Controller
                     $link->link_type = $linkType;
                     $link->created_by = Yii::$app->user->id;
                     $link->save(false);
+
+                    $child = Equipment::findOne((int) $childId);
+                    if ($child && $this->syncComponentToHost($child, $targetSystemBlock)) {
+                        $updated++;
+                        AuditLog::log('equipment.reassign', 'equipment', $child->id, 'success', [
+                            'mode' => 'move_component_sync',
+                            'parent_id' => (int) $targetSystemBlockId,
+                        ]);
+                    }
                 }
             }
 
@@ -775,22 +791,11 @@ class ArmController extends Controller
                 ->select(['e.id', 'e.name', 'e.inventory_number', 'e.location_id'])
                 ->where(['e.is_deleted' => false, 'e.is_archived' => false]);
 
+            $hostCondition = $this->buildHostEquipmentSqlCondition('e', EquipmentTypes::usesDictionary() ? 'et' : null);
             if (EquipmentTypes::usesDictionary()) {
-                $query->leftJoin(['et' => 'equipment_types'], 'et.id = e.equipment_type_id')
-                    ->andWhere(['or',
-                        ['ilike', 'e.name', 'систем'],
-                        ['ilike', 'e.name', 'system'],
-                        ['ilike', 'et.name', 'систем'],
-                        ['ilike', 'et.name', 'system'],
-                    ]);
-            } else {
-                $query->andWhere(['or',
-                    ['ilike', 'e.name', 'систем'],
-                    ['ilike', 'e.name', 'system'],
-                    ['ilike', 'e.equipment_type', 'систем'],
-                    ['ilike', 'e.equipment_type', 'system'],
-                ]);
+                $query->leftJoin(['et' => 'equipment_types'], 'et.id = e.equipment_type_id');
             }
+            $query->andWhere($hostCondition);
 
             if ($userId > 0) {
                 $query->andWhere(['e.responsible_user_id' => $userId]);
@@ -841,14 +846,104 @@ class ArmController extends Controller
         }
     }
 
-    private function isSystemBlockEquipment(Equipment $equipment): bool
+    /**
+     * ПК/хост, к которому можно привязать монитор, диск, ИБП.
+     */
+    private function isHostEquipment(Equipment $equipment): bool
     {
         $name = mb_strtolower(trim((string) $equipment->name), 'UTF-8');
         $type = mb_strtolower(trim((string) $equipment->equipment_type), 'UTF-8');
-        return strpos($name, 'систем') !== false
-            || strpos($name, 'system') !== false
-            || strpos($type, 'систем') !== false
-            || strpos($type, 'system') !== false;
+        foreach ($this->getHostEquipmentLabelPatterns() as $pattern) {
+            if ($type !== '' && mb_strpos($type, $pattern, 0, 'UTF-8') !== false) {
+                return true;
+            }
+            if ($name !== '' && mb_strpos($name, $pattern, 0, 'UTF-8') !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return string[] */
+    private function getHostEquipmentLabelPatterns(): array
+    {
+        return ['систем', 'system', 'моноблок', 'monoblock', 'ноутбук', 'ноут', 'laptop', 'пк', 'computer'];
+    }
+
+    /**
+     * Условие SQL для выборки хостов (системный блок, ноутбук, моноблок).
+     *
+     * @param string|null $typeTableAlias алиас equipment_types при справочнике типов
+     */
+    private function buildHostEquipmentSqlCondition(string $equipmentAlias, ?string $typeTableAlias = null): array
+    {
+        $or = ['or'];
+        foreach ($this->getHostEquipmentLabelPatterns() as $pattern) {
+            $or[] = ['ilike', $equipmentAlias . '.name', $pattern];
+            $or[] = ['ilike', $equipmentAlias . '.equipment_type', $pattern];
+            if ($typeTableAlias !== null) {
+                $or[] = ['ilike', $typeTableAlias . '.name', $pattern];
+            }
+        }
+
+        return $or;
+    }
+
+    /**
+     * Переносит компонент на учёт пользователя и помещения целевого ПК.
+     */
+    private function syncComponentToHost(Equipment $component, Equipment $host): bool
+    {
+        $changed = false;
+        $oldResponsible = $component->responsible_user_id;
+        $hostUserId = $host->responsible_user_id !== null ? (int) $host->responsible_user_id : null;
+
+        if ($component->responsible_user_id !== $hostUserId) {
+            $component->responsible_user_id = $hostUserId;
+            EquipHistory::log(
+                $component->id,
+                $hostUserId ? 'assign' : 'unassign',
+                ['responsible_user_id' => $oldResponsible],
+                ['responsible_user_id' => $hostUserId],
+                'move_component_to_host'
+            );
+            $changed = true;
+        }
+
+        if ($host->location_id && (int) $component->location_id !== (int) $host->location_id) {
+            $oldLoc = $component->location_id;
+            $component->location_id = (int) $host->location_id;
+            EquipHistory::log(
+                $component->id,
+                'move',
+                ['location_id' => $oldLoc],
+                ['location_id' => $component->location_id],
+                'move_component_to_host'
+            );
+            $changed = true;
+        }
+
+        if (!$changed) {
+            return false;
+        }
+
+        if (!$component->save(false)) {
+            return false;
+        }
+
+        UserEquipmentCardService::invalidateByUserId((int) $oldResponsible);
+        UserEquipmentCardService::ensureCardForUser((int) $oldResponsible);
+        UserEquipmentCardService::invalidateByUserId((int) $hostUserId);
+        UserEquipmentCardService::ensureCardForUser((int) $hostUserId);
+
+        return true;
+    }
+
+    /** @deprecated use isHostEquipment() */
+    private function isSystemBlockEquipment(Equipment $equipment): bool
+    {
+        return $this->isHostEquipment($equipment);
     }
 
     public function actionLinkComponents()
@@ -866,6 +961,11 @@ class ArmController extends Controller
         }
 
         $childIds = array_map('intval', (array) $childIds);
+        $host = Equipment::findOne($parentId);
+        if (!$host || $host->is_deleted || $host->is_archived || !$this->isHostEquipment($host)) {
+            return ['success' => false, 'message' => 'Целевой ПК не найден или недоступен для привязки.'];
+        }
+
         $transaction = Yii::$app->db->beginTransaction();
         try {
             foreach ($childIds as $childId) {
@@ -876,9 +976,14 @@ class ArmController extends Controller
                 $link->link_type = $linkType;
                 $link->created_by = Yii::$app->user->id;
                 $link->save(false);
+
+                $child = Equipment::findOne((int) $childId);
+                if ($child) {
+                    $this->syncComponentToHost($child, $host);
+                }
             }
             $transaction->commit();
-            return ['success' => true, 'message' => 'Компоненты успешно привязаны к системному блоку.'];
+            return ['success' => true, 'message' => 'Компоненты успешно привязаны к ПК.'];
         } catch (\Throwable $e) {
             $transaction->rollBack();
             return ['success' => false, 'message' => $e->getMessage()];
@@ -934,7 +1039,10 @@ class ArmController extends Controller
             'disk' => ['Диск', static fn($m, $chars, $links) => $chars['disk'] ?? ''],
             'system_block' => ['Системный блок', static fn($m, $chars, $links) => $m->name ?? ''],
             'inventory_number' => ['Инв. №', static fn($m, $chars, $links) => $m->inventory_number ?? ''],
-            'monitor' => ['Монитор', static fn($m, $chars, $links) => $chars['monitor'] ?? ''],
+            'monitor' => ['Монитор', static fn($m, $chars, $links) => EquipmentCharCatalog::formatMonitorColumnValue(
+                (string) ($chars['monitor'] ?? ''),
+                $links['monitor'] ?? []
+            )],
             'monitor_count' => ['Мониторы (шт)', static fn($m, $chars, $links) => count($links['monitor'] ?? [])],
             'disk_count' => ['Диски (шт)', static fn($m, $chars, $links) => count($links['disk'] ?? [])],
             'ups_count' => ['ИБП (шт)', static fn($m, $chars, $links) => count($links['ups'] ?? [])],

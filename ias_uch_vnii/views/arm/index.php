@@ -265,7 +265,8 @@ $equipmentTypes = $equipmentTypes ?? [];
 </style>
 <?php
 $this->registerJs(
-    "window.agGridArmDataUrl = " . json_encode(Url::to(['arm/get-grid-data'])) . ";",
+    "window.agGridArmDataUrl = " . json_encode(Url::to(['arm/get-grid-data'])) . ";" .
+    "window.agGridArmViewUrl = " . json_encode(Url::to(['arm/view'])) . ";",
     \yii\web\View::POS_HEAD
 );
 $this->registerJs(
@@ -938,7 +939,12 @@ $this->registerJs("
         var submitSpinner = submitBtn.querySelector('.reassign-submit-spinner');
         
         // Проверяем наличие изменений
-        var userId = document.getElementById('reassignUserId').value;
+        var reassignUserEl = document.getElementById('reassignUserId');
+        var userId = reassignUserEl
+            ? (window.IasUserSelect && window.IasUserSelect.getValue
+                ? window.IasUserSelect.getValue(reassignUserEl)
+                : reassignUserEl.value)
+            : '';
         var locationId = document.getElementById('reassignLocationId').value;
         var statusId = document.getElementById('reassignStatusId').value;
         var operationMode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
@@ -984,7 +990,14 @@ $this->registerJs("
         pendingIds.forEach(function(id) { fd.append('ids[]', id); });
         fd.append('operation_mode', operationMode);
         
-        if (userId !== '') {
+        if (operationMode === 'move_component') {
+            var responsibleForMove = targetSystemBlockUserId || userId;
+            if (responsibleForMove !== '') {
+                fd.append('responsible_user_id', responsibleForMove === '0' ? '' : responsibleForMove);
+            }
+            fd.append('target_system_block_id', targetSystemBlockId);
+            fd.append('link_type', componentLinkType);
+        } else if (userId !== '') {
             fd.append('responsible_user_id', userId === '0' ? '' : userId);
         }
         if (locationId !== '') {
@@ -992,10 +1005,6 @@ $this->registerJs("
         }
         if (statusId !== '') {
             fd.append('status_id', statusId);
-        }
-        if (operationMode === 'move_component') {
-            fd.append('target_system_block_id', targetSystemBlockId);
-            fd.append('link_type', componentLinkType);
         }
         if (operationMode === 'dismissal') {
             if (dismissalTargetUserId !== '') {

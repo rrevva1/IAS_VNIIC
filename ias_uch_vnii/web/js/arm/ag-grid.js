@@ -22,22 +22,99 @@
         var base = window.agGridArmViewUrl || (window.location.pathname.indexOf('index.php') >= 0
             ? window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) + 'index.php'
             : '/index.php');
+        if (base.indexOf('id=') === -1 && base.indexOf('arm/view') !== -1) {
+            var sep = base.indexOf('?') >= 0 ? '&' : '?';
+            return base + sep + 'id=' + encodeURIComponent(id);
+        }
         var sep = base.indexOf('?') >= 0 ? '&' : '?';
         return base + sep + 'r=arm/view&id=' + encodeURIComponent(id);
     }
 
+    function formatMonitorItemLabel(item) {
+        if (!item) {
+            return '';
+        }
+        var name = String(item.name || '').trim();
+        var inv = String(item.inventory_number || '').trim();
+        if (name && inv) {
+            return name + ' (' + inv + ')';
+        }
+        return name || inv;
+    }
+
+    function monitorCharShownInList(list, charText) {
+        if (!charText) {
+            return true;
+        }
+        var needle = String(charText).trim().toLowerCase();
+        if (!needle || !Array.isArray(list)) {
+            return false;
+        }
+        return list.some(function(m) {
+            var label = formatMonitorItemLabel(m).toLowerCase();
+            return label === needle || label.indexOf(needle) !== -1 || needle.indexOf(label) !== -1;
+        });
+    }
+
+    function renderMonitorCell(params) {
+        var data = params.data;
+        if (!data) {
+            return '';
+        }
+        var lines = [];
+        var list = data.monitor_list;
+        if (Array.isArray(list)) {
+            list.forEach(function(m) {
+                var label = formatMonitorItemLabel(m);
+                if (!label) {
+                    return;
+                }
+                if (m && m.id) {
+                    lines.push(
+                        '<a href="' + getViewUrl(m.id) + '" class="arm-link-to-card arm-monitor-link" title="Открыть карточку монитора">' +
+                        escapeHtml(label) + '</a>'
+                    );
+                } else {
+                    lines.push(escapeHtml(label));
+                }
+            });
+        }
+        var charText = String(data.monitor_char || '').trim();
+        if (charText && !monitorCharShownInList(list, charText)) {
+            lines.push(
+                '<span class="arm-monitor-char-hint" title="Значение из характеристик ПК">' +
+                escapeHtml(charText) + '</span>'
+            );
+        }
+        if (!lines.length) {
+            var fallback = String(params.value || '').trim();
+            return fallback ? '<span class="arm-monitor-fallback">' + escapeHtml(fallback) + '</span>' : '';
+        }
+        return '<div class="arm-monitor-cell">' + lines.join('<br>') + '</div>';
+    }
+
+    function countMonitorDisplayLines(data) {
+        if (!data) {
+            return 1;
+        }
+        var list = data.monitor_list;
+        var lines = Array.isArray(list) ? list.length : 0;
+        var charText = String(data.monitor_char || '').trim();
+        if (charText && !monitorCharShownInList(list, charText)) {
+            lines += 1;
+        }
+        if (lines === 0) {
+            var fallback = String(data.monitor || '').trim();
+            if (!fallback) {
+                return 1;
+            }
+            return Math.max(1, fallback.split(/,\s*/).length);
+        }
+        return Math.max(1, lines);
+    }
+
     function getColumnDefs() {
         return [
-            {
-                headerName: '',
-                width: 48,
-                minWidth: 48,
-                maxWidth: 48,
-                sortable: false,
-                filter: false,
-                resizable: false,
-                pinned: 'left',
-            },
             { headerName: 'Пользователь', field: 'user_name', flex: 1, minWidth: 140, filter: 'agTextColumnFilter' },
             { headerName: 'Помещение', field: 'location_name', width: 110, filter: 'agTextColumnFilter' },
             {
@@ -80,7 +157,27 @@
                     return '<a href="' + url + '" class="arm-link-to-card" title="Открыть карточку актива">' + escapeHtml(String(text)) + '</a>';
                 },
             },
-            { headerName: 'Монитор', field: 'monitor', width: 140, filter: 'agTextColumnFilter', sortable: false },
+            {
+                headerName: 'Монитор',
+                field: 'monitor',
+                width: 220,
+                minWidth: 160,
+                filter: 'agTextColumnFilter',
+                sortable: false,
+                wrapText: true,
+                cellStyle: { whiteSpace: 'normal', lineHeight: '1.35' },
+                cellRenderer: renderMonitorCell,
+                tooltipValueGetter: function(params) {
+                    if (!params.data) {
+                        return '';
+                    }
+                    var list = params.data.monitor_list;
+                    if (Array.isArray(list) && list.length) {
+                        return list.map(formatMonitorItemLabel).filter(Boolean).join('\n');
+                    }
+                    return params.value || '';
+                },
+            },
             { headerName: 'Мониторы (шт)', field: 'monitor_count', width: 120, filter: 'agNumberColumnFilter' },
             { headerName: 'Диски (шт)', field: 'disk_count', width: 100, filter: 'agNumberColumnFilter' },
             { headerName: 'ИБП (шт)', field: 'ups_count', width: 90, filter: 'agNumberColumnFilter' },
@@ -417,7 +514,7 @@
                 var def = col.getColDef ? col.getColDef() : {};
                 var colId = col.getColId ? col.getColId() : def.field;
                 var label = (def && def.headerName != null ? String(def.headerName) : '').trim();
-                if (!colId || label === '') return; // skip checkbox tech column
+                if (!colId || !def.field) return; // без поля — служебная колонка выбора
                 var checked = col.isVisible ? col.isVisible() : true;
                 html += '<div class="form-check mb-1">';
                 html += '<input class="form-check-input arm-col-check" type="checkbox" id="arm-col-' + escapeHtml(colId) + '" data-col-id="' + escapeHtml(colId) + '"' + (checked ? ' checked' : '') + '>';
@@ -475,14 +572,28 @@
                 mode: 'multiRow',
                 checkboxes: true,
                 headerCheckbox: false,
-                enableClickSelection: false
+                enableClickSelection: false,
+            },
+            selectionColumnDef: {
+                pinned: 'left',
+                width: 48,
+                minWidth: 48,
+                maxWidth: 48,
+                resizable: false,
+                sortable: false,
+                filter: false,
+                suppressHeaderMenuButton: true,
+                headerTooltip: 'Выбор строк для перемещения и переназначения',
             },
             suppressCellFocus: true,
             pagination: true,
             paginationPageSize: currentPageSize,
             paginationPageSizeSelector: [10, 20, 50, 100, 200],
             domLayout: 'normal',
-            getRowHeight: function() { return 36; },
+            getRowHeight: function(params) {
+                var lines = countMonitorDisplayLines(params.data);
+                return Math.min(160, Math.max(36, lines * 22 + 14));
+            },
             localeText: localeTextRu,
             sideBar: false,
             onGridReady: function(params) {

@@ -37,7 +37,7 @@ class UserEquipmentCardsController extends Controller
         ];
     }
 
-    public function actionIndex(string $tab = 'all', string $q = '', string $is_signed = '')
+    public function actionIndex(string $tab = 'all', string $q = '')
     {
         if (!UserEquipmentCardService::isCardsTableReady()) {
             Yii::$app->session->setFlash(
@@ -50,11 +50,10 @@ class UserEquipmentCardsController extends Controller
         return $this->render('index', [
             'tab' => $tab,
             'q' => trim($q),
-            'isSigned' => $is_signed,
         ]);
     }
 
-    public function actionGetGridData(string $tab = 'all', string $q = '', string $is_signed = '', int $limit = 20, int $offset = 0)
+    public function actionGetGridData(string $tab = 'all', string $q = '', int $limit = 20, int $offset = 0)
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
         if (!UserEquipmentCardService::isCardsTableReady()) {
@@ -66,7 +65,7 @@ class UserEquipmentCardsController extends Controller
             $limit = max(1, min(200, $limit));
             $offset = max(0, $offset);
 
-            $query = $this->buildCardsQuery($tab, $q, $is_signed);
+            $query = $this->buildCardsQuery($tab, $q);
             $pageUserIds = (clone $query)
                 ->select('c.user_id')
                 ->limit($limit)
@@ -76,7 +75,7 @@ class UserEquipmentCardsController extends Controller
                 UserEquipmentCardService::ensureCardForUser($userId);
             }
 
-            $query = $this->buildCardsQuery($tab, $q, $is_signed);
+            $query = $this->buildCardsQuery($tab, $q);
             $total = (int) (clone $query)->count('c.id');
             $models = $query->limit($limit)->offset($offset)->all();
             $rows = [];
@@ -99,7 +98,7 @@ class UserEquipmentCardsController extends Controller
         }
     }
 
-    private function buildCardsQuery(string $tab, string $q, string $is_signed)
+    private function buildCardsQuery(string $tab, string $q)
     {
         $query = UserEquipmentCard::find()
             ->alias('c')
@@ -118,12 +117,6 @@ class UserEquipmentCardsController extends Controller
                 ['ilike', 'u.username', $q],
                 ['ilike', 'u.email', $q],
             ]);
-        }
-
-        if ($is_signed === '1') {
-            $query->andWhere(['c.is_signed' => true]);
-        } elseif ($is_signed === '0') {
-            $query->andWhere(['c.is_signed' => false]);
         }
 
         return $query;
