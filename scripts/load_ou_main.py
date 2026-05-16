@@ -4,7 +4,8 @@
 Парсинг строго по docs/import_ou/РЕГЛАМЕНТ_ПАРСИНГА.md.
 
 - Лист АРМ: одна строка → запись equipment (ПК/только монитор) + отдельные записи equipment на каждый
-  монитор из столбца «Монитор» (МЦ.04-mon-XXX) и на каждый ИБП из «Другая техника» (МЦ.04-ups-XXX).
+  монитор по monitor_kit_entries (столбец «Монитор», см. РЕГЛАМЕНТ_ЗАГРУЗКИ_В_БД.md §5.1.5) и на каждый ИБП
+  из «Другая техника» (МЦ.04-ups-XXX). Колонки ведомости бух. (19–21) не увеличивают число мониторов.
 - Лист Принтеры: одна строка → одна запись equipment (Принтер/МФУ).
 """
 import os
@@ -64,15 +65,99 @@ def disk_value(s):
 
 
 def monitor_parts(s):
-    """Монитор: разбить по \\n и '; ' для списка моделей (для part_char_values и для отдельных equipment)."""
+    """Монитор: список физических мониторов из ячейки (\\n, «;» / «; »). Запятая в «15,6"» не разделитель."""
     if not s:
         return []
     s = str(s).strip()
+    if not s:
+        return []
     if ";" in s:
-        parts = [p.strip() for p in s.split(";") if p.strip()]
+        raw = re.split(r"\s*;\s*", s)
     else:
-        parts = [p.strip() for p in s.split("\n") if p.strip()]
+        raw = s.split("\n")
+    parts = []
+    for p in raw:
+        p = p.strip()
+        if not p or p.lower() == "моноблок":
+            continue
+        parts.append(p)
     return parts
+
+
+def inv_parts(s):
+    """Несколько учётных номеров в ячейке (\\n или «;»)."""
+    if not s:
+        return []
+    s = str(s).strip()
+    if not s:
+        return []
+    if ";" in s:
+        raw = re.split(r"\s*;\s*", s)
+    else:
+        raw = s.split("\n")
+    return [p.strip() for p in raw if p.strip()]
+
+
+def is_placeholder_inv(s):
+    """Повторяющиеся учётные пометки (не отдельный физический актив с уникальным номером)."""
+    if s is None or not str(s).strip():
+        return True
+    t = str(s).strip().lower()
+    if t in ("ниису", "электроника", "99036", "?", "мол"):
+        return True
+    if re.fullmatch(r"мц\.04", t):
+        return True
+    return False
+
+
+def monitor_kit_entries(monitor_cell, inv_mon_cell=None, inv_statement_cell=None):
+    """
+    Физические мониторы комплекта строки-ПК — только из столбца «Монитор» (\\n, «;»)
+    и при нескольких реальных «№ монитора» в одной ячейке.
+    Колонка ведомости бух. инвентаризации — справочно (в part_char), не дублирует актив.
+    Возвращает [(модель, исходный_учётный_номер|None), ...].
+    """
+    del inv_statement_cell  # не используется для числа активов
+    models = monitor_parts(monitor_cell)
+    if not models:
+        return []
+    if len(models) >= 2:
+        invs = inv_parts(inv_mon_cell)
+        return [
+            (m, invs[i] if i < len(invs) and not is_placeholder_inv(invs[i]) else None)
+            for i, m in enumerate(models)
+        ]
+
+    model = models[0]
+    invs_real = [x for x in inv_parts(inv_mon_cell) if not is_placeholder_inv(x)]
+    if len(invs_real) >= 2:
+        return [(model, inv) for inv in invs_real]
+
+    inv_primary = inv_first_line(inv_mon_cell)
+    return [(model, inv_primary if not is_placeholder_inv(inv_primary) else None)]
+
+
+def count_arm_monitors_in_source(path):
+    """Число физических мониторов по листу АРМ (для контроля после загрузки)."""
+    headers, rows = load_sheet(path, "АРМ")
+    idx_monitor = get_col_index(headers, ["Монитор"])
+    idx_sb = get_col_index(headers, ["Системный блок"])
+    idx_inv_sb = get_col_index(headers, ["№ системн. блока"])
+    total = 0
+    for row in rows:
+        def cell(i):
+            return norm(row[i]) if i is not None and i < len(row) else None
+        inv_sb = inv_first_line(cell(idx_inv_sb))
+        has_sb = bool(inv_sb or cell(idx_sb))
+        if has_sb:
+            idx_inv_mon = get_col_index(headers, ["№ монитора"])
+            total += len(
+                monitor_kit_entries(
+                    cell(idx_monitor),
+                    cell(idx_inv_mon) if idx_inv_mon is not None else None,
+                )
+            )
+    return total
 
 
 def parse_date(val):
@@ -177,6 +262,7 @@ def load_arm_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_inv, 
     idx_date_sb = get_col_index(headers, ["Дата закупки системного блока"])
     idx_monitor = get_col_index(headers, ["Монитор"])
     idx_inv_mon = get_col_index(headers, ["№ монитора"])
+    idx_mon_inv_stmt = get_col_index(headers, ["Монитор в ведомости", "инвентаризации МЦ"])
     idx_date_mon = get_col_index(headers, ["Дата закупки монитора"])
     idx_hostname = get_col_index(headers, ["Имя"])
     idx_ip = get_col_index(headers, ["IP адрес"])
@@ -256,7 +342,29 @@ def load_arm_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_inv, 
         )
         return cur.fetchone()[0]
 
+    def equipment_id_by_inv(inv):
+        cur.execute("SELECT id FROM equipment WHERE inventory_number = %s", (inv,))
+        r = cur.fetchone()
+        return r[0] if r else None
+
+    def add_equipment_link(parent_id, child_id, link_type):
+        if not parent_id or not child_id or parent_id == child_id:
+            return
+        cur.execute(
+            """INSERT INTO equipment_links (parent_equipment_id, child_equipment_id, link_type)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (parent_equipment_id, child_equipment_id, link_type) DO NOTHING""",
+            (parent_id, child_id, link_type),
+        )
+
+    def is_host_equipment(eq_type):
+        if not eq_type:
+            return True
+        t = str(eq_type).lower()
+        return "систем" in t or "ноутбук" in t or "моноблок" in t
+
     loaded = 0
+    links_created = 0
     for row_num, row in enumerate(rows, start=2):
         def cell(i):
             return norm(row[i]) if i is not None and i < len(row) else None
@@ -345,10 +453,10 @@ def load_arm_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_inv, 
 
         loaded += 1
 
-        # Отдельные записи equipment на каждый монитор только для строки-ПК (есть СБ); «только монитор» — уже одна запись выше.
-        monitor_models = monitor_parts(cell(idx_monitor)) if has_sb else []
+        # Отдельные записи equipment на каждый монитор комплекта (есть СБ).
+        kit_monitors = monitor_kit_entries(cell(idx_monitor), cell(idx_inv_mon)) if has_sb else []
         is_monoblock = name_equip and "моноблок" in name_equip.lower()
-        for model in monitor_models:
+        for model, src_inv in kit_monitors:
             if not model or model.lower() == "моноблок":
                 continue
             mon_counter[0] += 1
@@ -356,8 +464,14 @@ def load_arm_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_inv, 
             if inv_mon_eq in seen_inv:
                 inv_mon_eq = f"{inv_mon_eq}-строка{row_num}"
             seen_inv.add(inv_mon_eq)
+            mon_desc = f"Исходный учётный номер: {src_inv}" if src_inv else None
             try:
-                insert_equipment(inv_mon_eq, model, "Монитор", status_id, user_id, location_id, None, None)
+                mon_id = insert_equipment(
+                    inv_mon_eq, model, "Монитор", status_id, user_id, location_id, None, mon_desc
+                )
+                if has_sb and is_host_equipment(equipment_type):
+                    add_equipment_link(equip_id, mon_id, "monitor")
+                    links_created += 1
             except psycopg2.IntegrityError as e:
                 errors.append(f"АРМ строка {row_num} монитор {model}: {e}")
                 raise
@@ -369,12 +483,178 @@ def load_arm_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_inv, 
                 inv_ups = f"{inv_ups}-строка{row_num}"
             seen_inv.add(inv_ups)
             try:
-                insert_equipment(inv_ups, ups_name, "ИБП", status_id, user_id, location_id, None, None)
+                ups_id = insert_equipment(inv_ups, ups_name, "ИБП", status_id, user_id, location_id, None, None)
+                if has_sb and is_host_equipment(equipment_type):
+                    add_equipment_link(equip_id, ups_id, "ups")
+                    links_created += 1
             except psycopg2.IntegrityError as e:
                 errors.append(f"АРМ строка {row_num} ИБП {ups_name}: {e}")
                 raise
 
-    return loaded
+    return loaded, links_created
+
+
+def link_arm_kits_existing(path, conn, cur, status_id, errors):
+    """Связать ПК с мониторами/ИБП по строкам АРМ; при отсутствии дочерней записи — создать equipment."""
+    headers, rows = load_sheet(path, "АРМ")
+    idx_user = get_col_index(headers, ["Пользователь"])
+    idx_room = get_col_index(headers, ["Помещение"])
+    idx_sb = get_col_index(headers, ["Системный блок"])
+    idx_inv_sb = get_col_index(headers, ["№ системн. блока"])
+    idx_monitor = get_col_index(headers, ["Монитор"])
+    idx_other = get_col_index(headers, ["Другая техника"])
+    idx_inv_mon = get_col_index(headers, ["№ монитора"])
+    idx_mon_inv_stmt = get_col_index(headers, ["Монитор в ведомости", "инвентаризации МЦ"])
+
+    seen_inv = set()
+    mon_counter = [0]
+    ups_counter = [0]
+    stats = {"links": 0, "equipment_created": 0}
+
+    def cell(row, i):
+        return norm(row[i]) if i is not None and i < len(row) else None
+
+    def equipment_id_by_inv(inv):
+        cur.execute("SELECT id FROM equipment WHERE inventory_number = %s", (inv,))
+        r = cur.fetchone()
+        return r[0] if r else None
+
+    def get_or_create_location(name):
+        name = location_name(name)
+        if not name:
+            return None
+        cur.execute("SELECT id FROM locations WHERE name = %s", (name,))
+        r = cur.fetchone()
+        if r:
+            return r[0]
+        cur.execute(
+            "INSERT INTO locations (name, location_type) VALUES (%s, 'кабинет') RETURNING id",
+            (name,),
+        )
+        return cur.fetchone()[0]
+
+    def get_or_create_user(full_name):
+        full_name = first_line_only(full_name)
+        if not full_name:
+            return None
+        cur.execute("SELECT id FROM users WHERE full_name = %s AND is_deleted = FALSE", (full_name,))
+        r = cur.fetchone()
+        if r:
+            return r[0]
+        cur.execute("INSERT INTO users (full_name) VALUES (%s) RETURNING id", (full_name,))
+        return cur.fetchone()[0]
+
+    def upsert_child_equipment(inv, name, eq_type, user_id, location_id, description=None):
+        existing_id = equipment_id_by_inv(inv)
+        if existing_id:
+            cur.execute(
+                """UPDATE equipment SET name = %s, equipment_type = %s,
+                   responsible_user_id = %s, location_id = %s, description = COALESCE(%s, description)
+                   WHERE id = %s""",
+                (
+                    (name or inv)[:200],
+                    (eq_type or "Монитор")[:100],
+                    user_id,
+                    location_id,
+                    description,
+                    existing_id,
+                ),
+            )
+            return existing_id
+        cur.execute(
+            """INSERT INTO equipment (inventory_number, name, equipment_type, status_id, responsible_user_id, location_id, description)
+               VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+            (
+                inv,
+                (name or inv)[:200],
+                (eq_type or "Монитор")[:100],
+                status_id,
+                user_id,
+                location_id,
+                description,
+            ),
+        )
+        stats["equipment_created"] += 1
+        return cur.fetchone()[0]
+
+    def add_link(parent_id, child_id, link_type):
+        if not parent_id or not child_id or parent_id == child_id:
+            return
+        cur.execute(
+            """INSERT INTO equipment_links (parent_equipment_id, child_equipment_id, link_type)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (parent_equipment_id, child_equipment_id, link_type) DO NOTHING""",
+            (parent_id, child_id, link_type),
+        )
+        if cur.rowcount:
+            stats["links"] += 1
+
+    def is_host_equipment(eq_type):
+        if not eq_type:
+            return True
+        t = str(eq_type).lower()
+        return "систем" in t or "ноутбук" in t or "моноблок" in t
+
+    for row_num, row in enumerate(rows, start=2):
+        inv_sb = inv_first_line(cell(row, idx_inv_sb))
+        inv_mon = cell(row, idx_inv_mon)
+        has_sb = bool(inv_sb or cell(row, idx_sb))
+        if has_sb and not inv_sb:
+            inv_sb = inv_mon or f"МЦ.04-ROW-{row_num}"
+        if not has_sb:
+            continue
+        if inv_sb in seen_inv:
+            inv_sb = f"{inv_sb}-строка{row_num}"
+        seen_inv.add(inv_sb)
+
+        parent_id = equipment_id_by_inv(inv_sb)
+        if not parent_id:
+            errors.append(f"Связи строка {row_num}: не найден ПК {inv_sb}")
+            continue
+
+        loc_name = location_name(cell(row, idx_room))
+        if not loc_name:
+            errors.append(f"Связи строка {row_num}: нет помещения")
+            continue
+        location_id = get_or_create_location(loc_name)
+        user_id = get_or_create_user(row[idx_user] if idx_user is not None else None)
+
+        name_equip = cell(row, idx_sb)
+        equipment_type = "Системный блок"
+        if name_equip:
+            if "моноблок" in name_equip.lower():
+                equipment_type = "Моноблок"
+            elif "ноутбук" in name_equip.lower():
+                equipment_type = "Ноутбук"
+        if not is_host_equipment(equipment_type):
+            continue
+
+        kit_monitors = monitor_kit_entries(cell(row, idx_monitor), cell(row, idx_inv_mon)) if has_sb else []
+        for model, src_inv in kit_monitors:
+            if not model or model.lower() == "моноблок":
+                continue
+            mon_counter[0] += 1
+            inv_mon_eq = f"МЦ.04-mon-{mon_counter[0]}"
+            if inv_mon_eq in seen_inv:
+                inv_mon_eq = f"{inv_mon_eq}-строка{row_num}"
+            seen_inv.add(inv_mon_eq)
+            mon_desc = f"Исходный учётный номер: {src_inv}" if src_inv else None
+            child_id = upsert_child_equipment(inv_mon_eq, model, "Монитор", user_id, location_id, mon_desc)
+            if child_id:
+                add_link(parent_id, child_id, "monitor")
+
+        ups_list = extract_ups_list(cell(row, idx_other))
+        for ups_name in ups_list:
+            ups_counter[0] += 1
+            inv_ups = f"МЦ.04-ups-{ups_counter[0]}"
+            if inv_ups in seen_inv:
+                inv_ups = f"{inv_ups}-строка{row_num}"
+            seen_inv.add(inv_ups)
+            child_id = upsert_child_equipment(inv_ups, ups_name, "ИБП", user_id, location_id)
+            if child_id:
+                add_link(parent_id, child_id, "ups")
+
+    return stats
 
 
 def load_printers_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_inv, errors):
@@ -553,21 +833,32 @@ def main():
     ups_counter = [0]
 
     try:
-        loaded_arm = load_arm_sheet(
+        loaded_arm, links_arm = load_arm_sheet(
             conn, cur, str(path), status_id, role_id, parts, chars, seen_inv, mon_counter, ups_counter, errors
         )
-        loaded_printers = load_printers_sheet(conn, cur, str(path), status_id, role_id, parts, chars, seen_inv, errors)
+        wb_check = openpyxl.load_workbook(str(path), read_only=True)
+        has_printers = "Принтеры" in wb_check.sheetnames
+        wb_check.close()
+        loaded_printers = (
+            load_printers_sheet(conn, cur, str(path), status_id, role_id, parts, chars, seen_inv, errors)
+            if has_printers
+            else 0
+        )
+        repair_stats = link_arm_kits_existing(str(path), conn, cur, status_id, errors)
+        conn.commit()
     except Exception:
         conn.rollback()
         cur.close()
         conn.close()
         raise
 
-    conn.commit()
     cur.close()
     conn.close()
 
+    expected_monitors = count_arm_monitors_in_source(str(path))
     print(f"Лист АРМ: загружено записей equipment (ПК/мониторы/ИБП): {loaded_arm}; дополнительно мониторов: {mon_counter[0]}, ИБП: {ups_counter[0]}")
+    print(f"Лист АРМ: связей при импорте: {links_arm}; досоздано связей: {repair_stats['links']}, equipment: {repair_stats['equipment_created']}")
+    print(f"Контроль: мониторов в источнике (строки-ПК): {expected_monitors}; создано записей мониторов при импорте: {mon_counter[0]}")
     print(f"Лист Принтеры: загружено записей equipment: {loaded_printers}")
     if errors:
         for e in errors:

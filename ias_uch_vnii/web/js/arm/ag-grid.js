@@ -30,30 +30,34 @@
         return base + sep + 'r=arm/view&id=' + encodeURIComponent(id);
     }
 
-    function formatMonitorItemLabel(item) {
+    function isAllEquipmentTab() {
+        return !(window.agGridArmCurrentTypeId || '').toString().trim();
+    }
+
+    function formatMonitorItemLabel(item, options) {
         if (!item) {
             return '';
         }
+        options = options || {};
         var name = String(item.name || '').trim();
         var inv = String(item.inventory_number || '').trim();
-        if (name && inv) {
+        var showInv = options.showInv !== false && !isAllEquipmentTab();
+        if (name && inv && showInv) {
             return name + ' (' + inv + ')';
         }
         return name || inv;
     }
 
-    function monitorCharShownInList(list, charText) {
-        if (!charText) {
-            return true;
+    function monitorLinkTitle(item) {
+        var name = String(item && item.name || '').trim();
+        var inv = String(item && item.inventory_number || '').trim();
+        if (name && inv) {
+            return 'Открыть карточку монитора: ' + name + ' (' + inv + ')';
         }
-        var needle = String(charText).trim().toLowerCase();
-        if (!needle || !Array.isArray(list)) {
-            return false;
+        if (name) {
+            return 'Открыть карточку монитора: ' + name;
         }
-        return list.some(function(m) {
-            var label = formatMonitorItemLabel(m).toLowerCase();
-            return label === needle || label.indexOf(needle) !== -1 || needle.indexOf(label) !== -1;
-        });
+        return 'Открыть карточку монитора';
     }
 
     function renderMonitorCell(params) {
@@ -71,7 +75,8 @@
                 }
                 if (m && m.id) {
                     lines.push(
-                        '<a href="' + getViewUrl(m.id) + '" class="arm-link-to-card arm-monitor-link" title="Открыть карточку монитора">' +
+                        '<a href="' + getViewUrl(m.id) + '" class="arm-link-to-card arm-monitor-link" title="' +
+                        escapeHtml(monitorLinkTitle(m)) + '">' +
                         escapeHtml(label) + '</a>'
                     );
                 } else {
@@ -79,15 +84,9 @@
                 }
             });
         }
-        var charText = String(data.monitor_char || '').trim();
-        if (charText && !monitorCharShownInList(list, charText)) {
-            lines.push(
-                '<span class="arm-monitor-char-hint" title="Значение из характеристик ПК">' +
-                escapeHtml(charText) + '</span>'
-            );
-        }
         if (!lines.length) {
-            var fallback = String(params.value || '').trim();
+            var charText = String(data.monitor_char || '').trim();
+            var fallback = charText || String(params.value || '').trim();
             return fallback ? '<span class="arm-monitor-fallback">' + escapeHtml(fallback) + '</span>' : '';
         }
         return '<div class="arm-monitor-cell">' + lines.join('<br>') + '</div>';
@@ -99,10 +98,6 @@
         }
         var list = data.monitor_list;
         var lines = Array.isArray(list) ? list.length : 0;
-        var charText = String(data.monitor_char || '').trim();
-        if (charText && !monitorCharShownInList(list, charText)) {
-            lines += 1;
-        }
         if (lines === 0) {
             var fallback = String(data.monitor || '').trim();
             if (!fallback) {
@@ -173,7 +168,7 @@
                     }
                     var list = params.data.monitor_list;
                     if (Array.isArray(list) && list.length) {
-                        return list.map(formatMonitorItemLabel).filter(Boolean).join('\n');
+                        return list.map(function(m) { return formatMonitorItemLabel(m); }).filter(Boolean).join('\n');
                     }
                     return params.value || '';
                 },

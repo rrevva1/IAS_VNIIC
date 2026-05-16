@@ -282,8 +282,12 @@ class ArmController extends Controller
                 $out[$id]['disk'] = isset($out[$id]['disk']) ? $out[$id]['disk'] . ', ' . $val : $val;
                 continue;
             }
-            if ($part === 'Монитор') {
+            if ($part === 'Монитор' && ($char === 'Модель' || strpos($c, 'модель') !== false)) {
                 $out[$id]['monitor'] = isset($out[$id]['monitor']) ? $out[$id]['monitor'] . ', ' . $val : $val;
+                continue;
+            }
+            if ($part === 'Монитор' && (strpos($c, '№ монитора') !== false || strpos($c, 'номер') !== false)) {
+                $out[$id]['monitor_inv'] = isset($out[$id]['monitor_inv']) ? $out[$id]['monitor_inv'] . ', ' . $val : $val;
                 continue;
             }
             if ($part === 'ПК' && $char === 'Имя ПК') {
@@ -305,8 +309,10 @@ class ArmController extends Controller
                 $out[$id]['ram'] = $val;
             } elseif (strpos($p, 'диск') !== false || strpos($p, 'накопитель') !== false || strpos($p, 'жесткий') !== false || $p === 'hdd' || $p === 'ssd') {
                 $out[$id]['disk'] = isset($out[$id]['disk']) ? $out[$id]['disk'] . ', ' . $val : $val;
-            } elseif (strpos($p, 'монитор') !== false) {
+            } elseif (strpos($p, 'монитор') !== false && (strpos($c, 'модель') !== false || $c === '')) {
                 $out[$id]['monitor'] = isset($out[$id]['monitor']) ? $out[$id]['monitor'] . ', ' . $val : $val;
+            } elseif (strpos($p, 'монитор') !== false && (strpos($c, '№') !== false || strpos($c, 'номер') !== false)) {
+                $out[$id]['monitor_inv'] = isset($out[$id]['monitor_inv']) ? $out[$id]['monitor_inv'] . ', ' . $val : $val;
             } elseif (strpos($c, 'имя пк') !== false || $c === 'hostname' || ($p === 'пк' && (strpos($c, 'имя') !== false || $c === 'hostname'))) {
                 $out[$id]['hostname'] = $val;
             } elseif (strpos($c, 'ip') !== false && strpos($c, 'адрес') !== false || $c === 'ip') {

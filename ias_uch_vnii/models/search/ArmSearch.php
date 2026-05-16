@@ -105,6 +105,9 @@ class ArmSearch extends Model
             } else {
                 $query->andFilterWhere(['equipment.equipment_type' => $eqType]);
             }
+        } else {
+            // Вкладка «Вся техника»: комплект показывается строкой ПК; дочерние монитор/ИБП — в колонках связей.
+            $this->excludeKitLinkedMonitorsAndUps($query);
         }
 
         $query->andFilterWhere(['ilike', 'equipment.name', $this->name])
@@ -129,6 +132,24 @@ class ArmSearch extends Model
         $this->applyAgGridSortModel($dataProvider);
 
         return $dataProvider;
+    }
+
+    /**
+     * Исключить из выборки мониторы и ИБП, уже входящие в комплект (дочерние связи equipment_links).
+     * Непривязанные мониторы/ИБП остаются в списке «Вся техника».
+     */
+    private function excludeKitLinkedMonitorsAndUps($query): void
+    {
+        if (Yii::$app->db->getTableSchema('equipment_links', true) === null) {
+            return;
+        }
+
+        $sub = (new Query())
+            ->from(['el' => 'equipment_links'])
+            ->where('el.child_equipment_id = equipment.id')
+            ->andWhere(['el.link_type' => [EquipmentLink::TYPE_MONITOR, EquipmentLink::TYPE_UPS]]);
+
+        $query->andWhere(['not exists', $sub]);
     }
 
     /**
