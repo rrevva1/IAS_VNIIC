@@ -1,0 +1,107 @@
+/* Форма создания/редактирования техники */
+.arm-form,
+.arm-create,
+.arm-update {
+    max-width: 720px;
+}
+
+.arm-form .card-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.arm-form-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.arm-form-section:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.arm-form-section__title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 1rem;
+    color: #212529;
+}
+
+.arm-form-section--chars.d-none {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.arm-form-dynamic-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.arm-form-dynamic-fields .arm-dynamic-field {
+    margin-bottom: 1rem;
+}
+
+.arm-form-dynamic-fields .arm-dynamic-field:last-child {
+    margin-bottom: 0;
+}
+
+.arm-form-dynamic-fields .form-label {
+    margin-bottom: 0.35rem;
+    font-weight: 500;
+}
+
+.arm-form-dynamic-fields .form-text {
+    margin-top: 0.35rem;
+    margin-bottom: 0;
+}
+
+.arm-disk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.arm-disk-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0 !important;
+}
+
+.arm-disk-row .form-control {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.arm-disk-remove {
+    flex: 0 0 2.25rem;
+    width: 2.25rem;
+    height: calc(1.5em + 0.75rem + 2px);
+    padding: 0;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.arm-disk-add {
+    margin-top: 0.5rem;
+}
+
+.arm-form-actions {
+    margin-top: 1.25rem;
+    padding-top: 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Select2 в поле пользователя — на всю ширину */
+.arm-form .select2-container {
+    width: 100% !important;
+}

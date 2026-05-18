@@ -1,70 +1,75 @@
-// JavaScript для сворачивания панели
-document.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.querySelector('.main-content');
-    const toggleBtn = document.getElementById('toggleSidebar');
-
-    function removeSidebarTooltips() {
-        sidebar.querySelectorAll('.sidebar-tooltip').forEach(function(t) { t.remove(); });
+/**
+ * Боковое меню: сворачивание, подсказки, состояние в cookie.
+ */
+document.addEventListener('DOMContentLoaded', function () {
+    var sidebar = document.getElementById('sidebar');
+    var toggleBtn = document.getElementById('toggleSidebar');
+    if (!sidebar || !toggleBtn) {
+        return;
     }
+
+    var activeTooltip = null;
 
     function setSidebarCookie(expanded) {
-        var val = expanded ? '1' : '0';
-        document.cookie = 'sidebarExpanded=' + val + ';path=/;max-age=31536000;SameSite=Lax';
+        document.cookie = 'sidebarExpanded=' + (expanded ? '1' : '0') + ';path=/;max-age=31536000;SameSite=Lax';
     }
 
-    // На первой загрузке без cookie подтягиваем состояние из localStorage и пишем cookie
+    function updateToggleAria() {
+        var expanded = sidebar.classList.contains('expanded');
+        toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        toggleBtn.title = expanded ? 'Свернуть меню' : 'Развернуть меню';
+    }
+
+    function removeSidebarTooltip() {
+        if (activeTooltip) {
+            activeTooltip.remove();
+            activeTooltip = null;
+        }
+    }
+
     if (!document.cookie.match(/\bsidebarExpanded=/)) {
-        var isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
-        if (isExpanded) {
+        var stored = localStorage.getItem('sidebarExpanded');
+        if (stored === 'false') {
+            sidebar.classList.remove('expanded');
+            setSidebarCookie(false);
+        } else {
             sidebar.classList.add('expanded');
-            if (mainContent) mainContent.classList.add('expanded');
             setSidebarCookie(true);
         }
     }
 
-    // Обработчик клика на кнопку сворачивания
-    toggleBtn.addEventListener('click', function() {
-        removeSidebarTooltips();
+    updateToggleAria();
+
+    toggleBtn.addEventListener('click', function () {
+        removeSidebarTooltip();
         sidebar.classList.toggle('expanded');
-        if (mainContent) mainContent.classList.toggle('expanded');
-
         var expanded = sidebar.classList.contains('expanded');
-        localStorage.setItem('sidebarExpanded', expanded);
+        localStorage.setItem('sidebarExpanded', expanded ? 'true' : 'false');
         setSidebarCookie(expanded);
+        updateToggleAria();
     });
 
-    // Подсказки только для свернутой панели; при раскрытии — удаляем
-    sidebar.addEventListener('mouseenter', function() {
-        if (!sidebar.classList.contains('expanded')) {
-            removeSidebarTooltips();
-            const navLinks = sidebar.querySelectorAll('.nav-link');
-            navLinks.forEach(link => {
-                const text = link.querySelector('.nav-text');
-                if (text) {
-                    const tooltip = document.createElement('div');
-                    tooltip.className = 'sidebar-tooltip';
-                    tooltip.textContent = text.textContent.trim();
-                    tooltip.style.cssText = `
-                        position: absolute;
-                        left: 60px;
-                        background: #000;
-                        color: #fff;
-                        padding: 8px 12px;
-                        border-radius: 4px;
-                        font-size: 12px;
-                        white-space: nowrap;
-                        z-index: 1001;
-                        pointer-events: none;
-                    `;
-                    link.style.position = 'relative';
-                    link.appendChild(tooltip);
-                }
-            });
+    sidebar.addEventListener('mouseover', function (e) {
+        if (sidebar.classList.contains('expanded')) {
+            return;
         }
+        var link = e.target.closest('.sidebar-nav__link');
+        if (!link) {
+            return;
+        }
+        var textEl = link.querySelector('.sidebar-nav__text');
+        var label = (textEl && textEl.textContent.trim()) || link.getAttribute('title') || '';
+        if (!label) {
+            return;
+        }
+        removeSidebarTooltip();
+        var rect = link.getBoundingClientRect();
+        activeTooltip = document.createElement('div');
+        activeTooltip.className = 'sidebar-tooltip';
+        activeTooltip.textContent = label;
+        activeTooltip.style.top = rect.top + rect.height / 2 - 14 + 'px';
+        document.body.appendChild(activeTooltip);
     });
 
-    sidebar.addEventListener('mouseleave', function() {
-        removeSidebarTooltips();
-    });
+    sidebar.addEventListener('mouseleave', removeSidebarTooltip);
 });

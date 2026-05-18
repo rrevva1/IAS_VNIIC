@@ -14,6 +14,21 @@ use yii\db\Query;
  */
 class EquipmentTypes
 {
+    /** Подписи вкладок «Учёт ТС» (множественное число); ключ — значение equipment_type в БД. */
+    private const TAB_LABELS_PLURAL = [
+        'АРМ' => 'АРМ',
+        'ПК' => 'ПК',
+        'МФУ' => 'МФУ',
+        'ИБП' => 'ИБП',
+        'Системный блок' => 'Системные блоки',
+        'Моноблок' => 'Моноблоки',
+        'Монитор' => 'Мониторы',
+        'Ноутбук' => 'Ноутбуки',
+        'Принтер' => 'Принтеры',
+        'Сканер' => 'Сканеры',
+        'Сервер' => 'Серверы',
+    ];
+
     /**
      * Кеш для ускорения resolveNameById() при afterFind().
      * Формат: [equipment_type_id => name]
@@ -59,7 +74,34 @@ class EquipmentTypes
     }
 
     /**
-     * Список для вкладок: [['id' => тип, 'name' => тип], ...].
+     * Подпись вкладки по типу техники (множественное число для UI).
+     */
+    public static function getTabLabel(string $typeName): string
+    {
+        $typeName = trim($typeName);
+        if ($typeName === '') {
+            return '';
+        }
+        if (isset(self::TAB_LABELS_PLURAL[$typeName])) {
+            return self::TAB_LABELS_PLURAL[$typeName];
+        }
+
+        $lower = mb_strtolower($typeName, 'UTF-8');
+        if (mb_substr($lower, -2, 2, 'UTF-8') === 'ер') {
+            return mb_substr($typeName, 0, -2, 'UTF-8') . 'еры';
+        }
+        if (mb_substr($lower, -1, 1, 'UTF-8') === 'к') {
+            return $typeName . 'и';
+        }
+        if (mb_substr($lower, -1, 1, 'UTF-8') === 'р') {
+            return $typeName . 'ы';
+        }
+
+        return $typeName;
+    }
+
+    /**
+     * Список для вкладок: id — тип в БД, name — подпись во множественном числе.
      * @return array<int, array{id: string, name: string}>
      */
     public static function getListForTabs(): array
@@ -67,7 +109,10 @@ class EquipmentTypes
         $types = self::getNames();
         $result = [];
         foreach ($types as $name) {
-            $result[] = ['id' => $name, 'name' => $name];
+            $result[] = [
+                'id' => $name,
+                'name' => self::getTabLabel($name),
+            ];
         }
         return $result;
     }

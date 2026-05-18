@@ -6,7 +6,8 @@
 - Лист АРМ: одна строка → запись equipment (ПК/только монитор) + отдельные записи equipment на каждый
   монитор по monitor_kit_entries (столбец «Монитор», см. РЕГЛАМЕНТ_ЗАГРУЗКИ_В_БД.md §5.1.5) и на каждый ИБП
   из «Другая техника» (МЦ.04-ups-XXX). Колонки ведомости бух. (19–21) не увеличивают число мониторов.
-- Лист Принтеры: одна строка → одна запись equipment (Принтер/МФУ).
+- Лист Принтеры: одна строка → одна запись equipment (Принтер/МФУ/Сканер);
+  см. docs/import_ou/РЕГЛАМЕНТ_ПАРСИНГА.md п. 1.2.1–1.2.2 (бухведомость МЦ, без перезаписи ПК).
 """
 import os
 import re
@@ -28,6 +29,13 @@ DB_NAME = os.environ.get("PGDATABASE", "ias_vniic")
 DB_USER = os.environ.get("PGUSER", "postgres")
 DB_PASSWORD = os.environ.get("PGPASSWORD", "12345")
 SCHEMA = "tech_accounting"
+ORG_EQUIPMENT_TYPES = frozenset({"Принтер", "МФУ", "Сканер"})
+# Хост комплекта АРМ (к нему относится столбец «Другая техника»).
+KIT_HOST_EQUIPMENT_TYPES = frozenset(
+    {"АРМ", "ПК", "Моноблок", "Системный блок", "Ноутбук", "Сервер"}
+)
+# Периферия и оргтехника: без «Другой техники» (ни в description, ни в UI).
+NO_OTHER_TECH_TYPES = frozenset({"Монитор", "ИБП", "Принтер", "МФУ", "Сканер"})
 
 
 def norm(v):
@@ -193,6 +201,81 @@ def location_name(val):
     if isinstance(val, (int, float)):
         return str(int(val))
     return str(val).strip() or None
+
+
+def equipment_type_from_printer_name(name):
+    """Тип актива по наименованию оргтехники (лист «Принтеры»)."""
+    low = (name or "").lower()
+    if "сканер" in low:
+        return "Сканер"
+    if "мфу" in low or "многофункциональн" in low:
+        return "МФУ"
+    return "Принтер"
+
+
+def is_org_equipment_type(eq_type):
+    return (eq_type or "").strip() in ORG_EQUIPMENT_TYPES
+
+
+def is_kit_host_equipment_type(eq_type):
+    """ПК/хост АРМ — единственный класс, к которому относится «Другая техника» из листа АРМ."""
+    t = (eq_type or "").strip()
+    if not t or t in NO_OTHER_TECH_TYPES:
+        return False
+    if t in KIT_HOST_EQUIPMENT_TYPES:
+        return True
+    low = t.lower()
+    return "систем" in low or "ноутбук" in low or "моноблок" in low
+
+
+def is_host_equipment_type(eq_type):
+    """Запись, которую нельзя перезаписывать при импорте оргтехники по совпавшему инв. номеру."""
+    return is_kit_host_equipment_type(eq_type)
+
+
+def allows_other_tech_description(eq_type):
+    return is_kit_host_equipment_type(eq_type)
+
+
+def resolve_org_inventory(cur, inv, row_num, seen_inv):
+    """Не перезаписывать ПК/монитор по совпавшему инв. номеру — выдать отдельный номер оргтехники."""
+    if inv in seen_inv:
+        inv = f"{inv}-строка{row_num}"
+    cur.execute(
+        "SELECT id, equipment_type FROM equipment WHERE inventory_number = %s",
+        (inv,),
+    )
+    row = cur.fetchone()
+    if row and is_host_equipment_type(row[1]):
+        inv = f"{inv}-оргтехника-{row_num}"
+    if inv in seen_inv:
+        inv = f"{inv}-строка{row_num}"
+    seen_inv.add(inv)
+    return inv
+
+
+def reset_org_equipment_side_effects(cur, equip_id):
+    """У оргтехники не должно быть характеристик ПК, связей с АРМ и «Другой техники»."""
+    cur.execute("DELETE FROM part_char_values WHERE equipment_id = %s", (equip_id,))
+    cur.execute(
+        "DELETE FROM equipment_links WHERE parent_equipment_id = %s OR child_equipment_id = %s",
+        (equip_id, equip_id),
+    )
+
+
+def build_arm_other_tech_description(other_text, ups_list, note_text):
+    """Остаток столбца «Другая техника» после извлечения ИБП + примечание строки-ПК."""
+    desc_parts = []
+    if other_text:
+        remaining = other_text
+        for u in ups_list:
+            remaining = remaining.replace("ИБП " + u, "").strip()
+        remaining = re.sub(r"\n+", " ", remaining).strip()
+        if remaining:
+            desc_parts.append(remaining)
+    if note_text:
+        desc_parts.append(note_text)
+    return "; ".join(desc_parts) if desc_parts else None
 
 
 def extract_ups_list(text):
@@ -409,19 +492,15 @@ def load_arm_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_inv, 
 
         purchase_date = parse_date(cell(idx_date_sb)) if idx_date_sb is not None else None
 
-        desc_parts = []
         other_text = cell(idx_other)
         ups_list = extract_ups_list(other_text)
-        if other_text:
-            remaining = other_text
-            for u in ups_list:
-                remaining = remaining.replace("ИБП " + u, "").strip()
-            remaining = re.sub(r"\n+", " ", remaining).strip()
-            if remaining:
-                desc_parts.append(remaining)
-        if idx_note is not None and cell(idx_note):
-            desc_parts.append(cell(idx_note))
-        description = "; ".join(desc_parts) if desc_parts else None
+        description = None
+        if allows_other_tech_description(equipment_type):
+            description = build_arm_other_tech_description(
+                other_text,
+                ups_list,
+                cell(idx_note) if idx_note is not None else None,
+            )
 
         try:
             equip_id = insert_equipment(
@@ -711,11 +790,9 @@ def load_printers_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_
         inv = first_line_only(cell(idx_inv)) if idx_inv is not None else None
         if not inv:
             inv = f"МЦ.04-принтер-{row_num}"
-        if inv in seen_inv:
-            inv = f"{inv}-строка{row_num}"
-        seen_inv.add(inv)
+        inv = resolve_org_inventory(cur, inv, row_num, seen_inv)
 
-        eq_type = "МФУ" if "мфу" in name_equip.lower() or "многофункциональн" in name_equip.lower() else "Принтер"
+        eq_type = equipment_type_from_printer_name(name_equip)
         loc_name = location_name(cell(idx_room))
         if not loc_name:
             errors.append(f"Принтеры строка {row_num}: нет помещения, пропуск")
@@ -725,6 +802,7 @@ def load_printers_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_
             continue
         user_id = get_or_create_user(row[idx_user] if idx_user is not None else None)
         purchase_date = parse_date(cell(idx_date)) if idx_date is not None else None
+        # Примечания листа «Принтеры» — не «Другая техника» АРМ; в гриде не показываются как ДР техника.
         desc_list = []
         if idx_note is not None and cell(idx_note):
             desc_list.append(first_line_only(cell(idx_note)))
@@ -751,6 +829,8 @@ def load_printers_sheet(conn, cur, path, status_id, role_id, parts, chars, seen_
         except psycopg2.IntegrityError as e:
             errors.append(f"Принтеры строка {row_num}: {e}")
             raise
+
+        reset_org_equipment_side_effects(cur, equip_id)
 
         if idx_ip is not None and cell(idx_ip):
             p_id = parts.get("Принтер")
@@ -833,18 +913,32 @@ def main():
     ups_counter = [0]
 
     try:
-        loaded_arm, links_arm = load_arm_sheet(
-            conn, cur, str(path), status_id, role_id, parts, chars, seen_inv, mon_counter, ups_counter, errors
-        )
         wb_check = openpyxl.load_workbook(str(path), read_only=True)
-        has_printers = "Принтеры" in wb_check.sheetnames
+        sheetnames = wb_check.sheetnames
         wb_check.close()
+        has_arm = "АРМ" in sheetnames
+        has_printers = "Принтеры" in sheetnames
+
+        if has_arm:
+            loaded_arm, links_arm = load_arm_sheet(
+                conn, cur, str(path), status_id, role_id, parts, chars, seen_inv, mon_counter, ups_counter, errors
+            )
+        else:
+            loaded_arm, links_arm = 0, 0
+
         loaded_printers = (
             load_printers_sheet(conn, cur, str(path), status_id, role_id, parts, chars, seen_inv, errors)
             if has_printers
             else 0
         )
-        repair_stats = link_arm_kits_existing(str(path), conn, cur, status_id, errors)
+
+        if has_arm:
+            repair_stats = link_arm_kits_existing(str(path), conn, cur, status_id, errors)
+            expected_monitors = count_arm_monitors_in_source(str(path))
+        else:
+            repair_stats = {"links": 0, "equipment_created": 0}
+            expected_monitors = 0
+
         conn.commit()
     except Exception:
         conn.rollback()
@@ -855,7 +949,6 @@ def main():
     cur.close()
     conn.close()
 
-    expected_monitors = count_arm_monitors_in_source(str(path))
     print(f"Лист АРМ: загружено записей equipment (ПК/мониторы/ИБП): {loaded_arm}; дополнительно мониторов: {mon_counter[0]}, ИБП: {ups_counter[0]}")
     print(f"Лист АРМ: связей при импорте: {links_arm}; досоздано связей: {repair_stats['links']}, equipment: {repair_stats['equipment_created']}")
     print(f"Контроль: мониторов в источнике (строки-ПК): {expected_monitors}; создано записей мониторов при импорте: {mon_counter[0]}")

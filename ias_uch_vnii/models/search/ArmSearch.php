@@ -16,6 +16,16 @@ use yii\db\Query;
  */
 class ArmSearch extends Model
 {
+    /** Типы записей «рабочее место / ПК» (вкладка «АРМ» в UI). */
+    private const KIT_HOST_EQUIPMENT_TYPES = [
+        'АРМ',
+        'ПК',
+        'Системный блок',
+        'Ноутбук',
+        'Моноблок',
+        'Сервер',
+    ];
+
     public $id;
     public $name;
     /** @var string|null Описание оборудования для фильтрации */
@@ -95,16 +105,7 @@ class ArmSearch extends Model
 
         $eqType = $this->equipment_type !== null ? trim((string) $this->equipment_type) : '';
         if ($eqType !== '') {
-            if (EquipmentTypes::usesDictionary()) {
-                $typeId = EquipmentTypes::resolveIdByName($eqType);
-                if ($typeId === null) {
-                    $query->andWhere('1 = 0');
-                } else {
-                    $query->andWhere(['equipment.equipment_type_id' => $typeId]);
-                }
-            } else {
-                $query->andFilterWhere(['equipment.equipment_type' => $eqType]);
-            }
+            $this->applyEquipmentTypeFilter($query, $eqType);
         } else {
             // Вкладка «Вся техника»: комплект показывается строкой ПК; дочерние монитор/ИБП — в колонках связей.
             $this->excludeKitLinkedMonitorsAndUps($query);
@@ -132,6 +133,64 @@ class ArmSearch extends Model
         $this->applyAgGridSortModel($dataProvider);
 
         return $dataProvider;
+    }
+
+    /**
+     * Фильтр по вкладке типа техники. «АРМ» — все хосты (ПК), не только equipment_type = 'АРМ'.
+     */
+    private function applyEquipmentTypeFilter($query, string $eqType): void
+    {
+        if (mb_strtolower($eqType, 'UTF-8') === 'арм') {
+            $this->applyKitHostTypesFilter($query);
+
+            return;
+        }
+
+        if (EquipmentTypes::usesDictionary()) {
+            $typeId = EquipmentTypes::resolveIdByName($eqType);
+            if ($typeId === null) {
+                $query->andWhere('1 = 0');
+            } else {
+                $query->andWhere(['equipment.equipment_type_id' => $typeId]);
+            }
+
+            return;
+        }
+
+        $query->andFilterWhere(['equipment.equipment_type' => $eqType]);
+    }
+
+    /**
+     * Вкладка «АРМ»: системные блоки, ноутбуки, моноблоки и записи с типом «АРМ»/«ПК».
+     */
+    private function applyKitHostTypesFilter($query): void
+    {
+        if (EquipmentTypes::usesDictionary()) {
+            $typeIds = [];
+            foreach (self::KIT_HOST_EQUIPMENT_TYPES as $typeName) {
+                $id = EquipmentTypes::resolveIdByName($typeName);
+                if ($id !== null) {
+                    $typeIds[] = $id;
+                }
+            }
+            if ($typeIds === []) {
+                $query->andWhere('1 = 0');
+
+                return;
+            }
+            $query->andWhere(['equipment.equipment_type_id' => $typeIds]);
+
+            return;
+        }
+
+        $query->andWhere([
+            'or',
+            ['equipment.equipment_type' => self::KIT_HOST_EQUIPMENT_TYPES],
+            ['ilike', 'equipment.equipment_type', 'систем'],
+            ['ilike', 'equipment.equipment_type', 'ноутбук'],
+            ['ilike', 'equipment.equipment_type', 'моноблок'],
+            ['ilike', 'equipment.equipment_type', 'пк'],
+        ]);
     }
 
     /**
@@ -197,6 +256,7 @@ class ArmSearch extends Model
             'system_block' => ['column' => 'equipment.name'],
             'inventory_number' => ['column' => 'equipment.inventory_number'],
             'other_tech' => ['column' => 'equipment.description'],
+            'cartridge_procurement' => ['column' => 'equipment.description'],
         ];
 
         $partCharFields = ['cpu', 'ram', 'disk', 'monitor', 'hostname', 'ip', 'os'];
@@ -626,6 +686,7 @@ class ArmSearch extends Model
             'system_block' => ['column' => 'equipment.name'],
             'inventory_number' => ['column' => 'equipment.inventory_number'],
             'other_tech' => ['column' => 'equipment.description'],
+            'cartridge_procurement' => ['column' => 'equipment.description'],
             'monitor_count' => ['column' => "(SELECT COUNT(*) FROM equipment_links el WHERE el.parent_equipment_id = equipment.id AND el.link_type = '" . EquipmentLink::TYPE_MONITOR . "')"],
             'disk_count' => ['column' => "(SELECT COUNT(*) FROM equipment_links el WHERE el.parent_equipment_id = equipment.id AND el.link_type = '" . EquipmentLink::TYPE_DISK . "')"],
             'ups_count' => ['column' => "(SELECT COUNT(*) FROM equipment_links el WHERE el.parent_equipment_id = equipment.id AND el.link_type = '" . EquipmentLink::TYPE_UPS . "')"],

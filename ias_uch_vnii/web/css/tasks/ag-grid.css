@@ -38,7 +38,8 @@
     text-decoration: underline;
 }
 
-#agGridArmContainer .arm-monitor-cell {
+#agGridArmContainer .arm-monitor-cell,
+#agGridArmContainer .arm-disk-cell {
     display: block;
     line-height: 1.35;
     padding: 2px 0;

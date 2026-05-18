@@ -30,6 +30,10 @@ $this->params['breadcrumbs'][] = $this->title;
         'equipmentTypes' => $equipmentTypes ?? [],
         'chars' => $chars ?? [],
         'cpuModels' => $cpuModels ?? [],
+        'ramModels' => $ramModels ?? [],
+        'osModels' => $osModels ?? [],
+        'diskModels' => $diskModels ?? [],
+        'supplierNames' => $supplierNames ?? [],
     ]) ?>
 </div>
 

@@ -1,0 +1,164 @@
+/* Страница входа в ИАС */
+.login-layout {
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(145deg, #1e3a5f 0%, #2c5282 45%, #4a6fa5 100%);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.login-layout__main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.login-layout__footer {
+    padding: 1rem;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.login-layout__footer .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.login-page {
+    width: 100%;
+    max-width: 420px;
+}
+
+.login-card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.login-card__brand {
+    text-align: center;
+    padding: 1.75rem 1.5rem 1.25rem;
+    background: linear-gradient(180deg, #f8f9fa 0%, #fff 100%);
+    border-bottom: 1px solid #e9ecef;
+}
+
+.login-card__logo {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 0.75rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.login-card__app-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.35;
+    margin: 0 0 0.35rem;
+}
+
+.login-card__subtitle {
+    font-size: 0.8125rem;
+    color: #64748b;
+    margin: 0;
+}
+
+.login-card__body {
+    padding: 1.5rem 1.5rem 1.75rem;
+}
+
+.login-card__heading {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0 0 0.35rem;
+    text-align: center;
+}
+
+.login-card__hint {
+    font-size: 0.875rem;
+    color: #64748b;
+    text-align: center;
+    margin: 0 0 1.25rem;
+}
+
+.login-form .form-label {
+    font-weight: 500;
+    color: #334155;
+    font-size: 0.875rem;
+}
+
+.login-form .form-control {
+    padding: 0.65rem 0.85rem;
+    border-radius: 8px;
+    border-color: #cbd5e1;
+}
+
+.login-form .form-control:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.login-form .input-group-text {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #64748b;
+}
+
+.login-form .form-check-label {
+    font-size: 0.875rem;
+    color: #475569;
+}
+
+.login-form .invalid-feedback {
+    font-size: 0.8125rem;
+}
+
+.login-form__submit {
+    margin-top: 0.5rem;
+    padding: 0.7rem 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+.login-card__footer {
+    padding-top: 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+    text-align: center;
+    font-size: 0.875rem;
+}
+
+.login-card__footer a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-card__footer a:hover {
+    text-decoration: underline;
+}
+
+.login-layout .alert {
+    max-width: 420px;
+    margin: 0 auto 1rem;
+    border-radius: 10px;
+}
+
+@media (max-width: 480px) {
+    .login-card__brand {
+        padding: 1.25rem 1rem 1rem;
+    }
+
+    .login-card__body {
+        padding: 1.25rem 1rem 1.5rem;
+    }
+}

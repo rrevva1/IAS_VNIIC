@@ -22,10 +22,19 @@ class LoginForm extends Model
     public function rules()
     {
         return [
-            [['email', 'password'], 'required'],
+            [['email', 'password'], 'required', 'message' => 'Заполните поле «{attribute}».'],
             ['email', 'trim'],
             ['rememberMe', 'boolean'],
             ['password', 'validatePassword'],
+        ];
+    }
+
+    public function attributeLabels()
+    {
+        return [
+            'email' => 'Email или логин',
+            'password' => 'Пароль',
+            'rememberMe' => 'Запомнить меня на этом компьютере',
         ];
     }
 

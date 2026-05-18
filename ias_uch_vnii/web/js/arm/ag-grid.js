@@ -14,8 +14,8 @@
         default: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'monitor', 'hostname', 'ip', 'os', 'other_tech'],
         monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number'],
         system: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'monitor_count', 'disk_count', 'ups_count', 'hostname', 'ip', 'os'],
-        ups: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'other_tech'],
-        print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'other_tech']
+        ups: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number'],
+        print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'cartridge_procurement', 'ip', 'other_tech']
     };
 
     function getViewUrl(id) {
@@ -108,6 +108,54 @@
         return Math.max(1, lines);
     }
 
+    function splitDiskFallback(text) {
+        return String(text || '')
+            .split(/\s*[,;]\s*/)
+            .map(function(s) { return s.trim(); })
+            .filter(function(s) { return s !== ''; });
+    }
+
+    function countDiskDisplayLines(data) {
+        if (!data) {
+            return 1;
+        }
+        var list = data.disk_lines;
+        if (Array.isArray(list) && list.length) {
+            return Math.max(1, list.length);
+        }
+        var fallback = String(data.disk || '').trim();
+        if (!fallback) {
+            return 1;
+        }
+        return Math.max(1, splitDiskFallback(fallback).length);
+    }
+
+    function renderDiskCell(params) {
+        var data = params.data;
+        if (!data) {
+            return '';
+        }
+        var lines = [];
+        var list = data.disk_lines;
+        if (Array.isArray(list)) {
+            list.forEach(function(d) {
+                var label = String(d || '').trim();
+                if (label) {
+                    lines.push(escapeHtml(label));
+                }
+            });
+        }
+        if (!lines.length) {
+            splitDiskFallback(params.value || data.disk).forEach(function(label) {
+                lines.push(escapeHtml(label));
+            });
+        }
+        if (!lines.length) {
+            return '';
+        }
+        return '<div class="arm-disk-cell">' + lines.join('<br>') + '</div>';
+    }
+
     function getColumnDefs() {
         return [
             { headerName: 'Пользователь', field: 'user_name', flex: 1, minWidth: 140, filter: 'agTextColumnFilter' },
@@ -125,7 +173,27 @@
             },
             { headerName: 'ЦП', field: 'cpu', width: 140, filter: 'agTextColumnFilter', sortable: false },
             { headerName: 'ОЗУ', field: 'ram', width: 80, filter: 'agTextColumnFilter', sortable: false },
-            { headerName: 'Диск', field: 'disk', width: 120, filter: 'agTextColumnFilter', sortable: false },
+            {
+                headerName: 'Диск',
+                field: 'disk',
+                width: 150,
+                minWidth: 120,
+                filter: 'agTextColumnFilter',
+                sortable: false,
+                wrapText: true,
+                cellStyle: { whiteSpace: 'normal', lineHeight: '1.35' },
+                cellRenderer: renderDiskCell,
+                tooltipValueGetter: function(params) {
+                    if (!params.data) {
+                        return '';
+                    }
+                    var list = params.data.disk_lines;
+                    if (Array.isArray(list) && list.length) {
+                        return list.map(function(d) { return String(d || '').trim(); }).filter(Boolean).join('\n');
+                    }
+                    return splitDiskFallback(params.value || '').join('\n');
+                },
+            },
             {
                 headerName: 'Тип/Название техники',
                 field: 'system_block',
@@ -179,7 +247,16 @@
             { headerName: 'Имя ПК', field: 'hostname', width: 120, filter: 'agTextColumnFilter', sortable: false },
             { headerName: 'IP адрес', field: 'ip', width: 110, filter: 'agTextColumnFilter', sortable: false },
             { headerName: 'ОС', field: 'os', width: 120, filter: 'agTextColumnFilter', sortable: false },
-            { headerName: 'ДР техника', field: 'other_tech', flex: 1, minWidth: 160, filter: 'agTextColumnFilter', tooltipField: 'other_tech' },
+            {
+                headerName: 'Закупка картриджей',
+                field: 'cartridge_procurement',
+                width: 200,
+                minWidth: 160,
+                filter: 'agTextColumnFilter',
+                sortable: false,
+                tooltipField: 'cartridge_procurement',
+            },
+            { headerName: 'Комментарий', field: 'other_tech', flex: 1, minWidth: 160, filter: 'agTextColumnFilter', tooltipField: 'other_tech' },
         ];
     }
 
@@ -320,7 +397,9 @@
         var raw = (typeId || '').toString().toLowerCase();
         if (!raw) return COLUMN_PRESETS.default;
         if (raw.indexOf('монитор') >= 0) return COLUMN_PRESETS.monitor;
-        if (raw.indexOf('систем') >= 0 || raw.indexOf('моноблок') >= 0 || raw.indexOf('ноут') >= 0) return COLUMN_PRESETS.system;
+        if (raw === 'арм' || raw.indexOf('систем') >= 0 || raw.indexOf('моноблок') >= 0 || raw.indexOf('ноут') >= 0 || raw === 'пк') {
+            return COLUMN_PRESETS.system;
+        }
         if (raw.indexOf('ибп') >= 0 || raw.indexOf('ups') >= 0) return COLUMN_PRESETS.ups;
         if (raw.indexOf('мфу') >= 0 || raw.indexOf('принтер') >= 0) return COLUMN_PRESETS.print;
         return COLUMN_PRESETS.default;
@@ -586,7 +665,10 @@
             paginationPageSizeSelector: [10, 20, 50, 100, 200],
             domLayout: 'normal',
             getRowHeight: function(params) {
-                var lines = countMonitorDisplayLines(params.data);
+                var lines = Math.max(
+                    countMonitorDisplayLines(params.data),
+                    countDiskDisplayLines(params.data)
+                );
                 return Math.min(160, Math.max(36, lines * 22 + 14));
             },
             localeText: localeTextRu,

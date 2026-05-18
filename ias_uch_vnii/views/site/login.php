@@ -2,68 +2,72 @@
 
 /** @var yii\web\View $this */
 /** @var yii\bootstrap5\ActiveForm $form */
-/** @var app\models\LoginForm $model */
+/** @var app\models\forms\LoginForm $model */
 
 use yii\bootstrap5\ActiveForm;
 use yii\bootstrap5\Html;
-use app\assets\SiteAsset;
 
-// Подключаем assets для страниц сайта
-SiteAsset::register($this);
-
-$this->title = 'Авторизация';
-$this->params['breadcrumbs'][] = $this->title;
+$this->title = 'Вход в систему';
 ?>
-<div class="site-login">
-    <div class="row justify-content-center">
-        <div class="col-lg-5">
-            <div class="card">
-                <div class="card-header">
-                    <h1 class="card-title text-center"><?= Html::encode($this->title) ?></h1>
-                </div>
-                <div class="card-body">
-                    <p class="text-center">Пожалуйста, заполните поля для входа в систему:</p>
 
-                    <?php $form = ActiveForm::begin([
-                        'id' => 'login-form',
-                        'fieldConfig' => [
-                            'template' => "{label}\n{input}\n{error}",
-                            'labelOptions' => ['class' => 'form-label'],
-                            'inputOptions' => ['class' => 'form-control'],
-                            'errorOptions' => ['class' => 'invalid-feedback'],
-                        ],
-                    ]); ?>
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-card__brand">
+            <div class="login-card__logo" aria-hidden="true">
+                <i class="fas fa-desktop"></i>
+            </div>
+            <p class="login-card__app-name"><?= Html::encode(Yii::$app->name) ?></p>
+            <p class="login-card__subtitle">Информационно-аналитическая система учёта технических средств</p>
+        </div>
 
-                    <?= $form->field($model, 'email')->textInput([
-                        'autofocus' => true,
-                        'placeholder' => 'Введите ваш email',
-                        'type' => 'email'
-                    ]) ?>
+        <div class="login-card__body">
+            <h1 class="login-card__heading">Вход в систему</h1>
+            <p class="login-card__hint">Введите email или логин и пароль, выданные администратором</p>
 
-                    <?= $form->field($model, 'password')->passwordInput([
-                        'placeholder' => 'Введите пароль'
-                    ]) ?>
+            <?php $form = ActiveForm::begin([
+                'id' => 'login-form',
+                'options' => ['class' => 'login-form'],
+                'fieldConfig' => [
+                    'template' => "{label}\n{input}\n{error}",
+                    'labelOptions' => ['class' => 'form-label'],
+                    'inputOptions' => ['class' => 'form-control'],
+                    'errorOptions' => ['class' => 'invalid-feedback d-block'],
+                ],
+            ]); ?>
 
-                    <?= $form->field($model, 'rememberMe')->checkbox([
-                        'template' => "<div class=\"form-check\">{input} {label}</div>\n<div class=\"col-lg-8\">{error}</div>",
-                    ]) ?>
+            <?= $form->field($model, 'email', [
+                'template' => "{label}\n<div class=\"input-group\"><span class=\"input-group-text\"><i class=\"fas fa-user\" aria-hidden=\"true\"></i></span>{input}</div>\n{error}",
+            ])->textInput([
+                'autofocus' => true,
+                'autocomplete' => 'username',
+                'placeholder' => 'Например: ivanov или user@vnii.ru',
+            ]) ?>
 
-                    <div class="form-group text-center">
-                        <?= Html::submitButton('Войти', [
-                            'class' => 'btn btn-primary btn-lg w-100', 
-                            'name' => 'login-button'
-                        ]) ?>
-                    </div>
+            <?= $form->field($model, 'password', [
+                'template' => "{label}\n<div class=\"input-group\"><span class=\"input-group-text\"><i class=\"fas fa-lock\" aria-hidden=\"true\"></i></span>{input}</div>\n{error}",
+            ])->passwordInput([
+                'autocomplete' => 'current-password',
+                'placeholder' => 'Введите пароль',
+            ]) ?>
 
-                    <?php ActiveForm::end(); ?>
+            <?= $form->field($model, 'rememberMe')->checkbox([
+                'template' => "<div class=\"form-check mt-2\">{input} {label}</div>\n{error}",
+                'labelOptions' => ['class' => 'form-check-label'],
+            ]) ?>
 
-                    <div class="text-center mt-3">
-                        <p class="text-muted">
-                            Нет аккаунта? 
-                            <?= Html::a('Зарегистрироваться', ['/users/create'], ['class' => 'text-decoration-none']) ?>
-                        </p>
-                    </div>
-                </div>
+            <div class="d-grid">
+                <?= Html::submitButton('<i class="fas fa-sign-in-alt me-2"></i>Войти', [
+                    'class' => 'btn btn-primary login-form__submit',
+                    'name' => 'login-button',
+                    'encode' => false,
+                ]) ?>
+            </div>
+
+            <?php ActiveForm::end(); ?>
+
+            <div class="login-card__footer">
+                <p class="mb-1 text-muted">Нет учётной записи?</p>
+                <?= Html::a('Обратиться к администратору', ['/site/contact'], ['title' => 'Контакты администратора']) ?>
             </div>
         </div>
     </div>

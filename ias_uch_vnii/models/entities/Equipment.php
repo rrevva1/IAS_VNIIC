@@ -23,6 +23,7 @@ use yii\db\ActiveRecord;
  * @property string|null $purchase_date
  * @property string|null $commissioning_date
  * @property string|null $warranty_until
+ * @property float|string|null $warranty_years Срок гарантии в годах (виртуальное поле формы)
  * @property string|null $archived_at
  * @property string|null $archive_reason
  * @property bool $is_archived
@@ -41,6 +42,9 @@ class Equipment extends ActiveRecord
 {
     public ?string $equipment_type = null;
 
+    /** @var float|string|null */
+    public $warranty_years = null;
+
     public static function tableName()
     {
         return 'equipment';
@@ -58,10 +62,13 @@ class Equipment extends ActiveRecord
             [$integerAttrs, 'integer'],
             [['name'], 'string', 'max' => 200],
             [['inventory_number'], 'string', 'max' => 100],
+            [['serial_number'], 'filter', 'filter' => [static::class, 'normalizeSerialNumberValue']],
             [['serial_number'], 'string', 'max' => 150],
+            [['serial_number'], 'unique', 'skipOnEmpty' => true],
             [['equipment_type'], 'string', 'max' => 100],
             [['description', 'supplier', 'archive_reason'], 'string'],
             [['purchase_date', 'commissioning_date', 'warranty_until', 'archived_at', 'created_at', 'updated_at'], 'safe'],
+            [['warranty_years'], 'number', 'min' => 0, 'max' => 50],
             [['is_archived', 'is_deleted'], 'boolean'],
             [['inventory_number'], 'unique'],
             [['status_id'], 'exist', 'targetClass' => DicEquipmentStatus::class, 'targetAttribute' => ['status_id' => 'id']],
@@ -86,6 +93,7 @@ class Equipment extends ActiveRecord
             'supplier' => 'Поставщик',
             'purchase_date' => 'Дата закупки',
             'commissioning_date' => 'Дата ввода в эксплуатацию',
+            'warranty_years' => 'Срок гарантии (лет)',
             'warranty_until' => 'Гарантия до',
             'archived_at' => 'Дата архивации',
             'archive_reason' => 'Причина архивации',
@@ -100,6 +108,10 @@ class Equipment extends ActiveRecord
     {
         parent::afterFind();
         $this->equipment_type = $this->resolveEquipmentTypeName();
+        $this->warranty_years = static::deriveWarrantyYears(
+            static::resolveWarrantyBaseDate($this->commissioning_date, $this->purchase_date),
+            $this->warranty_until
+        );
     }
 
     public function beforeValidate()
@@ -107,6 +119,8 @@ class Equipment extends ActiveRecord
         if (!parent::beforeValidate()) {
             return false;
         }
+
+        $this->normalizeSerialNumberAttribute();
 
         $typeName = trim((string) $this->equipment_type);
         $schema = static::getTableSchema();
@@ -118,7 +132,148 @@ class Equipment extends ActiveRecord
             $this->setAttribute('equipment_type_id', $typeId);
         }
 
+        $this->applyWarrantyUntilFromYears();
+
         return true;
+    }
+
+    public function afterValidate()
+    {
+        parent::afterValidate();
+        $this->normalizeSerialNumberAttribute();
+    }
+
+    public function beforeSave($insert)
+    {
+        if (!parent::beforeSave($insert)) {
+            return false;
+        }
+        $this->normalizeSerialNumberAttribute();
+        $this->applyWarrantyUntilFromYears();
+
+        return true;
+    }
+
+    /**
+     * Базовая дата для расчёта гарантии: ввод в эксплуатацию, иначе закупка.
+     */
+    public static function resolveWarrantyBaseDate(?string $commissioningDate, ?string $purchaseDate): ?string
+    {
+        $commissioningDate = trim((string) $commissioningDate);
+        if ($commissioningDate !== '') {
+            return $commissioningDate;
+        }
+        $purchaseDate = trim((string) $purchaseDate);
+
+        return $purchaseDate !== '' ? $purchaseDate : null;
+    }
+
+    /**
+     * Дата окончания гарантии по сроку в годах от базовой даты.
+     */
+    public static function calculateWarrantyUntil(?string $baseDate, $years): ?string
+    {
+        if ($baseDate === null || trim($baseDate) === '') {
+            return null;
+        }
+        $years = str_replace(',', '.', trim((string) $years));
+        if ($years === '' || !is_numeric($years) || (float) $years <= 0) {
+            return null;
+        }
+
+        try {
+            $dt = new \DateTimeImmutable(trim($baseDate));
+            $months = (int) round((float) $years * 12);
+
+            return $dt->modify('+' . $months . ' months')->format('Y-m-d');
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Срок гарантии в годах по сохранённой дате окончания (для формы редактирования).
+     *
+     * @return float|null
+     */
+    public static function deriveWarrantyYears(?string $baseDate, ?string $warrantyUntil)
+    {
+        if ($baseDate === null || trim($baseDate) === '' || $warrantyUntil === null || trim($warrantyUntil) === '') {
+            return null;
+        }
+
+        try {
+            $start = new \DateTimeImmutable(trim($baseDate));
+            $end = new \DateTimeImmutable(trim($warrantyUntil));
+            if ($end < $start) {
+                return null;
+            }
+            $days = (int) $start->diff($end)->days;
+            $years = round($days / 365.25, 1);
+
+            return $years > 0 ? $years : null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    public function getWarrantyUntilDisplay(): string
+    {
+        $until = trim((string) $this->warranty_until);
+        if ($until === '') {
+            return '';
+        }
+
+        try {
+            return (new \DateTimeImmutable($until))->format('d.m.Y');
+        } catch (\Exception $e) {
+            return $until;
+        }
+    }
+
+    private function applyWarrantyUntilFromYears(): void
+    {
+        $years = $this->warranty_years;
+        $baseDate = static::resolveWarrantyBaseDate($this->commissioning_date, $this->purchase_date);
+
+        if ($years === null || $years === '') {
+            $existingUntil = trim((string) $this->warranty_until);
+            if ($existingUntil !== '' && $baseDate === null) {
+                return;
+            }
+            $this->setAttribute('warranty_until', null);
+
+            return;
+        }
+
+        $years = str_replace(',', '.', trim((string) $years));
+        if ($years === '' || !is_numeric($years) || (float) $years <= 0) {
+            $this->setAttribute('warranty_until', null);
+
+            return;
+        }
+
+        $this->setAttribute('warranty_until', static::calculateWarrantyUntil($baseDate, $years));
+    }
+
+    /**
+     * Пустой серийный номер → NULL (иначе '' нарушает uq_equipment_serial_number_not_null).
+     *
+     * @param mixed $value
+     */
+    public static function normalizeSerialNumberValue($value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+
+    private function normalizeSerialNumberAttribute(): void
+    {
+        $this->setAttribute('serial_number', static::normalizeSerialNumberValue($this->serial_number));
     }
 
     /**

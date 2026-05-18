@@ -33,7 +33,7 @@ use yii\web\UploadedFile;
  * ArmController — учёт техники (оборудование, таблица equipment).
  * Доступен только администраторам.
  * Колонки грида соответствуют Основному учёту: Пользователь, Помещение, ЦП, ОЗУ, Диск,
- * Системный блок, Инв. №, Монитор, Имя ПК, IP адрес, ОС, ДР техника (см. docs/МАППИНГ_КОЛОНОК_УЧЕТ_ТС.md).
+ * Системный блок, Инв. №, Монитор, Имя ПК, IP адрес, ОС, Комментарий (см. docs/МАППИНГ_КОЛОНОК_УЧЕТ_ТС.md).
  */
 class ArmController extends Controller
 {
@@ -44,12 +44,17 @@ class ArmController extends Controller
                 'class' => AccessControl::class,
                 'rules' => [
                     [
+                        'actions' => ['index', 'get-grid-data'],
+                        'allow' => true,
+                        'roles' => ['@'],
+                    ],
+                    [
                         'actions' => ['view', 'update'],
                         'allow' => true,
                         'roles' => ['@'],
                     ],
                     [
-                        'actions' => ['index', 'create', 'get-grid-data', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'user-primary-location', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
+                        'actions' => ['create', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'user-primary-location', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function () {
@@ -157,6 +162,10 @@ class ArmController extends Controller
             foreach ($models as $model) {
                 $chars = $charsByEquipment[$model->id] ?? [];
                 $linked = $linksByParent[(int) $model->id] ?? ['monitor' => [], 'disk' => [], 'ups' => []];
+                $diskLines = EquipmentCharCatalog::formatDiskGridLines(
+                    (string) ($chars['disk'] ?? ''),
+                    $linked['disk']
+                );
                 $statusName = $model->equipmentStatus ? (string) $model->equipmentStatus->status_name : '';
                 $data[] = [
                     'id' => $model->id,
@@ -167,7 +176,8 @@ class ArmController extends Controller
                     'status_color' => $this->resolveStatusColor($statusName),
                     'cpu' => $chars['cpu'] ?? '',
                     'ram' => $chars['ram'] ?? '',
-                    'disk' => $chars['disk'] ?? '',
+                    'disk' => $diskLines !== [] ? implode("\n", $diskLines) : '',
+                    'disk_lines' => $diskLines,
                     'system_block' => $model->name ?? '',
                     'inventory_number' => $model->inventory_number ?? '',
                     'monitor' => EquipmentCharCatalog::formatMonitorColumnValue(
@@ -184,7 +194,8 @@ class ArmController extends Controller
                     'hostname' => $chars['hostname'] ?? '',
                     'ip' => $chars['ip'] ?? '',
                     'os' => $chars['os'] ?? '',
-                    'other_tech' => $model->description ?? '',
+                    'cartridge_procurement' => $this->formatCartridgeProcurementForGrid($model),
+                    'other_tech' => $this->formatOtherTechForGrid($model),
                 ];
             }
             return ['success' => true, 'data' => $data, 'total' => $total, 'offset' => $offset, 'limit' => $limit];
@@ -295,6 +306,10 @@ class ArmController extends Controller
                 continue;
             }
             if ($part === 'ПК' && $char === 'IP адрес') {
+                $out[$id]['ip'] = $val;
+                continue;
+            }
+            if ($part === 'Принтер' && $char === 'IP адрес') {
                 $out[$id]['ip'] = $val;
                 continue;
             }
@@ -410,13 +425,16 @@ class ArmController extends Controller
         $statuses = DicEquipmentStatus::getList();
         $equipmentTypes = EquipmentTypes::getList();
 
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            $this->savePartCharValuesFromPost($model->id, Yii::$app->request->post('PartChar', []));
-            EquipHistory::log($model->id, 'create', null, ['inventory_number' => $model->inventory_number, 'name' => $model->name]);
-            AuditLog::log('equipment.create', 'equipment', $model->id, 'success');
-            UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
-            Yii::$app->session->setFlash('success', 'Техника успешно добавлена.');
-            return $this->redirect(['index']);
+        if ($model->load(Yii::$app->request->post())) {
+            $this->applyOrgTechDescriptionFromPost($model);
+            if ($model->save()) {
+                $this->savePartCharValuesFromPost($model->id, Yii::$app->request->post('PartChar', []));
+                EquipHistory::log($model->id, 'create', null, ['inventory_number' => $model->inventory_number, 'name' => $model->name]);
+                AuditLog::log('equipment.create', 'equipment', $model->id, 'success');
+                UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
+                Yii::$app->session->setFlash('success', 'Техника успешно добавлена.');
+                return $this->redirect(['index']);
+            }
         }
 
         return $this->render('create', [
@@ -427,6 +445,10 @@ class ArmController extends Controller
             'equipmentTypes' => $equipmentTypes,
             'chars' => [],
             'cpuModels' => EquipmentCharCatalog::getDistinctCpuModels(),
+            'ramModels' => EquipmentCharCatalog::getDistinctRamValues(),
+            'osModels' => EquipmentCharCatalog::getDistinctOsValues(),
+            'diskModels' => EquipmentCharCatalog::getDistinctDiskModels(),
+            'supplierNames' => EquipmentCharCatalog::getDistinctSuppliers(),
         ]);
     }
 
@@ -467,6 +489,7 @@ class ArmController extends Controller
         $equipmentTypes = EquipmentTypes::getList();
         $chars = $this->loadPartCharValuesByEquipment([$model->id]);
         if ($model->load(Yii::$app->request->post())) {
+            $this->applyOrgTechDescriptionFromPost($model);
             $oldStatus = $model->getOldAttribute('status_id');
             $oldLocation = $model->getOldAttribute('location_id');
             $oldResponsible = $model->getOldAttribute('responsible_user_id');
@@ -503,6 +526,10 @@ class ArmController extends Controller
             'equipmentTypes' => $equipmentTypes,
             'chars' => $chars[$model->id] ?? [],
             'cpuModels' => EquipmentCharCatalog::getDistinctCpuModels(),
+            'ramModels' => EquipmentCharCatalog::getDistinctRamValues(),
+            'osModels' => EquipmentCharCatalog::getDistinctOsValues(),
+            'diskModels' => EquipmentCharCatalog::getDistinctDiskModels(),
+            'supplierNames' => EquipmentCharCatalog::getDistinctSuppliers(),
         ]);
     }
 
@@ -511,15 +538,49 @@ class ArmController extends Controller
      * Маппинг: cpu->(ЦП,Модель), ram->(ОЗУ,Объём), disk->(Накопитель,Объём), monitor->(Монитор,Модель),
      * hostname->(ПК,Имя ПК), ip->(ПК,IP адрес), os->(ПК,ОС), model->(Монитор,Модель).
      */
+    private function applyOrgTechDescriptionFromPost(Equipment $model): void
+    {
+        if (!EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName())) {
+            return;
+        }
+
+        if (Yii::$app->request->post('OrgTechSubmitted') === null) {
+            return;
+        }
+
+        $orgTech = Yii::$app->request->post('OrgTech', []);
+        if (!is_array($orgTech)) {
+            $orgTech = [];
+        }
+
+        $code = trim((string) ($orgTech['cartridge_procurement'] ?? ''));
+        if ($code !== 'yes' && $code !== 'no') {
+            $code = '';
+        }
+
+        $model->description = EquipmentCharCatalog::buildPrinterDescription(
+            $code,
+            (string) ($orgTech['printer_comment'] ?? '')
+        );
+    }
+
     private function savePartCharValuesFromPost(int $equipmentId, array $partChar): void
     {
+        if (Yii::$app->request->post('PartCharDisksSubmitted') !== null
+            || Yii::$app->request->post('PartCharDisks') !== null) {
+            $this->saveDiskPartCharValuesFromPost($equipmentId);
+            unset($partChar['disk']);
+        }
+
+        $equipment = Equipment::findOne($equipmentId);
+        $isOrgTech = $equipment && EquipmentCharCatalog::isPrinterOrMfuType($equipment->resolveEquipmentTypeName());
+
         $map = [
             'cpu' => ['ЦП', 'Модель'],
             'ram' => ['ОЗУ', 'Объём'],
-            'disk' => ['Накопитель', 'Объём'],
             'monitor' => ['Монитор', 'Модель'],
             'hostname' => ['ПК', 'Имя ПК'],
-            'ip' => ['ПК', 'IP адрес'],
+            'ip' => $isOrgTech ? ['Принтер', 'IP адрес'] : ['ПК', 'IP адрес'],
             'os' => ['ПК', 'ОС'],
             'model' => ['Монитор', 'Модель'],
             'diagonal' => ['Монитор', '№ монитора'],
@@ -549,6 +610,57 @@ class ArmController extends Controller
                 $pcv->save(false);
             }
         }
+    }
+
+    /**
+     * Сохранение накопителей: удаляет все старые записи «Накопитель» и пишет актуальный список.
+     * Иначе при удалении диска остаются строки из импорта (часто с характеристикой «Модель»).
+     */
+    private function saveDiskPartCharValuesFromPost(int $equipmentId): void
+    {
+        $disksRaw = Yii::$app->request->post('PartCharDisks', []);
+        if (!is_array($disksRaw)) {
+            $disksRaw = [];
+        }
+        $value = EquipmentCharCatalog::joinDiskList($disksRaw);
+
+        $part = SprParts::find()->where(['name' => 'Накопитель'])->one();
+        if (!$part) {
+            return;
+        }
+
+        $eqCol = $this->resolvePartCharEquipmentIdColumn();
+        PartCharValues::deleteAll([
+            $eqCol => $equipmentId,
+            'part_id' => $part->id,
+        ]);
+
+        if ($value === '') {
+            return;
+        }
+
+        $char = SprChars::find()->where(['name' => 'Модель'])->one()
+            ?? SprChars::find()->where(['name' => 'Объём'])->one();
+        if (!$char) {
+            return;
+        }
+
+        $pcv = new PartCharValues();
+        $pcv->setAttribute($eqCol, $equipmentId);
+        $pcv->part_id = $part->id;
+        $pcv->char_id = $char->id;
+        $pcv->value_text = $value;
+        $pcv->save(false);
+    }
+
+    private function resolvePartCharEquipmentIdColumn(): string
+    {
+        $schema = Yii::$app->db->getTableSchema('part_char_values', true);
+        if ($schema && isset($schema->columns['equipment_id'])) {
+            return 'equipment_id';
+        }
+
+        return 'id_arm';
     }
 
     /**
@@ -857,10 +969,18 @@ class ArmController extends Controller
      */
     private function isHostEquipment(Equipment $equipment): bool
     {
+        $type = trim((string) $equipment->equipment_type);
+        if (in_array($type, $this->getPeripheralEquipmentTypes(), true)) {
+            return false;
+        }
+        if (in_array($type, $this->getKitHostEquipmentTypes(), true)) {
+            return true;
+        }
+
         $name = mb_strtolower(trim((string) $equipment->name), 'UTF-8');
-        $type = mb_strtolower(trim((string) $equipment->equipment_type), 'UTF-8');
+        $typeLower = mb_strtolower($type, 'UTF-8');
         foreach ($this->getHostEquipmentLabelPatterns() as $pattern) {
-            if ($type !== '' && mb_strpos($type, $pattern, 0, 'UTF-8') !== false) {
+            if ($typeLower !== '' && mb_strpos($typeLower, $pattern, 0, 'UTF-8') !== false) {
                 return true;
             }
             if ($name !== '' && mb_strpos($name, $pattern, 0, 'UTF-8') !== false) {
@@ -869,6 +989,46 @@ class ArmController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Столбец «Комментарий» — «Другая техника» у ПК; у принтера/МФУ — примечание без строки про картриджи.
+     */
+    private function formatOtherTechForGrid(Equipment $equipment): string
+    {
+        $type = $equipment->resolveEquipmentTypeName();
+        if (EquipmentCharCatalog::isPrinterOrMfuType($type)) {
+            return EquipmentCharCatalog::formatPrinterComment($equipment->description);
+        }
+        if (!$this->isHostEquipment($equipment)) {
+            return '';
+        }
+
+        return trim((string) ($equipment->description ?? ''));
+    }
+
+    /**
+     * Столбец «Закупка картриджей» — только принтер и МФУ.
+     */
+    private function formatCartridgeProcurementForGrid(Equipment $equipment): string
+    {
+        if (!EquipmentCharCatalog::isPrinterOrMfuType($equipment->resolveEquipmentTypeName())) {
+            return '';
+        }
+
+        return EquipmentCharCatalog::formatCartridgeProcurementStatus($equipment->description);
+    }
+
+    /** @return string[] */
+    private function getKitHostEquipmentTypes(): array
+    {
+        return ['АРМ', 'ПК', 'Моноблок', 'Системный блок', 'Ноутбук', 'Сервер'];
+    }
+
+    /** @return string[] */
+    private function getPeripheralEquipmentTypes(): array
+    {
+        return ['Монитор', 'ИБП', 'Принтер', 'МФУ', 'Сканер'];
     }
 
     /** @return string[] */
@@ -1042,7 +1202,10 @@ class ArmController extends Controller
             'status_name' => ['Статус', static fn($m, $chars, $links) => $m->equipmentStatus ? $m->equipmentStatus->status_name : ''],
             'cpu' => ['ЦП', static fn($m, $chars, $links) => $chars['cpu'] ?? ''],
             'ram' => ['ОЗУ', static fn($m, $chars, $links) => $chars['ram'] ?? ''],
-            'disk' => ['Диск', static fn($m, $chars, $links) => $chars['disk'] ?? ''],
+            'disk' => ['Диск', static fn($m, $chars, $links) => implode(
+                "\n",
+                EquipmentCharCatalog::formatDiskGridLines((string) ($chars['disk'] ?? ''), $links['disk'] ?? [])
+            )],
             'system_block' => ['Системный блок', static fn($m, $chars, $links) => $m->name ?? ''],
             'inventory_number' => ['Инв. №', static fn($m, $chars, $links) => $m->inventory_number ?? ''],
             'monitor' => ['Монитор', static fn($m, $chars, $links) => EquipmentCharCatalog::formatMonitorColumnValue(
@@ -1055,7 +1218,8 @@ class ArmController extends Controller
             'hostname' => ['Имя ПК', static fn($m, $chars, $links) => $chars['hostname'] ?? ''],
             'ip' => ['IP адрес', static fn($m, $chars, $links) => $chars['ip'] ?? ''],
             'os' => ['ОС', static fn($m, $chars, $links) => $chars['os'] ?? ''],
-            'other_tech' => ['ДР техника', static fn($m, $chars, $links) => $m->description ?? ''],
+            'cartridge_procurement' => ['Закупка картриджей', fn($m, $chars, $links) => $this->formatCartridgeProcurementForGrid($m)],
+            'other_tech' => ['Комментарий', fn($m, $chars, $links) => $this->formatOtherTechForGrid($m)],
         ];
 
         $defaultCols = ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'monitor', 'hostname', 'ip', 'os', 'other_tech'];

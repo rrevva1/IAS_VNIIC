@@ -68,16 +68,8 @@ class SiteController extends Controller
         if (Yii::$app->user->isGuest) {
             return $this->redirect(['login']);
         }
-        
-        $user = Yii::$app->user->identity;
-        
-        if ($user->isAdministrator()) {
-            /** Администратор видит список всех пользователей */
-            return $this->redirect(['/users/index']);
-        } else {
-            /** Обычный пользователь видит только свои данные */
-            return $this->redirect(['/users/view', 'id' => $user->id]);
-        }
+
+        return $this->redirect(['/arm/index']);
     }
 
     /**
@@ -87,10 +79,12 @@ class SiteController extends Controller
      */
     public function actionLogin()
     {
+        $this->layout = 'login';
+
         if (!Yii::$app->user->isGuest) {
             return $this->goHome();
         }
-    
+
         $model = new LoginForm();
         
         /** Отладка: логируем данные POST запроса */
@@ -102,7 +96,7 @@ class SiteController extends Controller
             
             if ($model->login()) {
                 Yii::debug('Login successful');
-                return $this->goHome();
+                return $this->redirect(['/arm/index']);
             } else {
                 Yii::debug('Login failed. Errors: ' . print_r($model->errors, true));
             }
@@ -126,7 +120,7 @@ class SiteController extends Controller
     {
         Yii::$app->user->logout();
 
-        return $this->goHome();
+        return $this->redirect(['login']);
     }
 
     /**
