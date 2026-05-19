@@ -46,12 +46,9 @@ $renderLink = static function (
     );
 };
 
-$renderSection = static function (string $title) use ($sidebarExpanded): string {
-    if (!$sidebarExpanded) {
-        return '<div class="sidebar-nav__divider" role="separator"></div>';
-    }
-
-    return '<div class="sidebar-nav__section">' . Html::encode($title) . '</div>';
+$renderSection = static function (string $title): string {
+    return '<div class="sidebar-nav__section">' . Html::encode($title) . '</div>'
+        . '<div class="sidebar-nav__divider" role="separator" aria-hidden="true"></div>';
 };
 
 $isAdmin = !Yii::$app->user->isGuest

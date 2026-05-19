@@ -45,6 +45,8 @@ class ArmSearch extends Model
     public $ag_filter_model;
     /** @var string|null JSON sortModel AG Grid */
     public $ag_sort_model;
+    /** @var string|null Быстрый поиск по основным полям таблицы */
+    public $quick_search;
 
     /** @var string|null кэш имени FK equipment в part_char_values: equipment_id | id_arm | пусто */
     private static ?string $partCharEquipmentFkColumn = null;
@@ -54,7 +56,7 @@ class ArmSearch extends Model
         return [
             [['id', 'responsible_user_id', 'location_id', 'status_id'], 'integer'],
             [['is_archived'], 'boolean'],
-            [['name', 'description', 'inventory_number', 'equipment_type', 'status_group', 'ag_filter_model', 'ag_sort_model'], 'safe'],
+            [['name', 'description', 'inventory_number', 'equipment_type', 'status_group', 'ag_filter_model', 'ag_sort_model', 'quick_search'], 'safe'],
         ];
     }
 
@@ -130,9 +132,62 @@ class ArmSearch extends Model
         }
 
         $this->applyAgGridFilterModel($query);
+        $this->applyQuickSearch($query);
         $this->applyAgGridSortModel($dataProvider);
 
         return $dataProvider;
+    }
+
+    /**
+     * Быстрый поиск по отображаемым полям строки (для AG Grid infinite row model).
+     */
+    private function applyQuickSearch($query): void
+    {
+        $q = trim((string) $this->quick_search);
+        if ($q === '') {
+            return;
+        }
+
+        $query->joinWith(['responsibleUser u', 'location l', 'equipmentStatus dstatus'], false);
+
+        $or = [
+            'or',
+            ['ilike', 'equipment.name', $q],
+            ['ilike', 'equipment.inventory_number', $q],
+            ['ilike', 'equipment.description', $q],
+            ['ilike', 'u.full_name', $q],
+            ['ilike', 'u.email', $q],
+            ['ilike', 'u.username', $q],
+            ['ilike', 'l.name', $q],
+            ['ilike', 'dstatus.status_name', $q],
+        ];
+
+        $idCol = $this->getPartCharEquipmentFkColumn();
+        if ($idCol !== null) {
+            $valExpr = $this->getPartCharCoalescedValueExpression();
+            $eqTable = Equipment::tableName();
+            $charSub = (new Query())
+                ->from(['pcv' => 'part_char_values'])
+                ->where(['=', 'pcv.' . $idCol, new Expression($eqTable . '.id')])
+                ->andWhere(['ilike', $valExpr, $q]);
+            $or[] = ['exists', $charSub];
+        }
+
+        if (Yii::$app->db->getTableSchema('equipment_links', true) !== null) {
+            $eqTable = Equipment::tableName();
+            $linkSub = (new Query())
+                ->from(['el' => 'equipment_links'])
+                ->innerJoin(['child' => $eqTable], 'child.id = el.child_equipment_id')
+                ->where(['el.parent_equipment_id' => new Expression($eqTable . '.id')])
+                ->andWhere([
+                    'or',
+                    ['ilike', 'child.name', $q],
+                    ['ilike', 'child.inventory_number', $q],
+                ]);
+            $or[] = ['exists', $linkSub];
+        }
+
+        $query->andWhere($or);
     }
 
     /**

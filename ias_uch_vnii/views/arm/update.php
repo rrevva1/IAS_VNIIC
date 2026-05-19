@@ -14,7 +14,6 @@
 use yii\helpers\Html;
 
 $this->title = 'Редактирование: ' . Html::encode($model->name ?: $model->inventory_number);
-$this->params['breadcrumbs'][] = ['label' => 'Учет ТС', 'url' => ['index']];
 $this->params['breadcrumbs'][] = ['label' => $model->inventory_number, 'url' => ['view', 'id' => $model->id]];
 $this->params['breadcrumbs'][] = 'Редактирование';
 ?>

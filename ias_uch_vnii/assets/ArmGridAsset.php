@@ -16,11 +16,13 @@ class ArmGridAsset extends AssetBundle
     public $css = [
         'ag-grid-community/styles/ag-theme-quartz.css',
         'css/tasks/ag-grid.css',
+        'css/arm/index.css',
     ];
 
     public $js = [
         'ag-grid-community/dist/ag-grid-community.min.js',
         'js/arm/ag-grid.js',
+        'js/arm/page-ui.js',
     ];
 
     public $depends = [

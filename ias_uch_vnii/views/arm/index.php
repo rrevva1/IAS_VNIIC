@@ -11,66 +11,137 @@ use yii\helpers\Url;
 ArmGridAsset::register($this);
 
 $this->title = 'Учет ТС';
-$this->params['breadcrumbs'][] = $this->title;
+$this->params['breadcrumbs'] = [];
 
 $equipmentTypes = $equipmentTypes ?? [];
+$isAdmin = $isAdmin ?? false;
 ?>
-<div class="arm-index">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <h1 class="mb-0"><?= Html::encode($this->title) ?></h1>
-        <div class="btn-group">
-            <?= Html::a('<i class="glyphicon glyphicon-plus"></i> Добавить технику', ['create'], ['class' => 'btn btn-success']) ?>
-            <?= Html::button('<i class="glyphicon glyphicon-refresh"></i> Обновить', [
-                'class' => 'btn btn-outline-secondary',
-                'onclick' => 'refreshArmGrid()',
+<div class="arm-page">
+    <header class="arm-page__header">
+        <div class="arm-page__heading">
+            <h1 class="arm-page__title"><?= Html::encode($this->title) ?></h1>
+        </div>
+        <?php if ($isAdmin): ?>
+        <div class="arm-page__primary-actions">
+            <?= Html::a('<i class="fas fa-plus" aria-hidden="true"></i><span>Добавить</span>', ['create'], [
+                'class' => 'btn btn-primary arm-btn-primary',
+                'title' => 'Создать новую запись техники',
             ]) ?>
-            <?= Html::button('<i class="glyphicon glyphicon-transfer"></i> Переместить/Переназначить', [
-                'class' => 'btn btn-primary',
+            <?= Html::button('<i class="fas fa-user-pen" aria-hidden="true"></i><span>Переназначить</span>', [
+                'class' => 'btn btn-outline-primary arm-btn-primary',
                 'id' => 'btnReassignArm',
-                'title' => 'Выберите одну или несколько строк в таблице, затем нажмите',
+                'title' => 'Отметьте строки чекбоксом слева в таблице',
+                'disabled' => true,
             ]) ?>
-            <?= Html::button('<i class="glyphicon glyphicon-th-list"></i> Колонки', [
-                'class' => 'btn btn-outline-dark',
+        </div>
+        <?php endif; ?>
+    </header>
+
+    <div class="arm-command-bar" role="region" aria-label="Фильтры и действия с таблицей">
+        <div class="arm-search">
+            <label class="visually-hidden" for="armQuickFilter">Поиск по таблице</label>
+            <i class="fas fa-search arm-search__icon" aria-hidden="true"></i>
+            <input type="search" id="armQuickFilter" class="form-control arm-search__input"
+                   placeholder="Поиск: ФИО, помещение, инв. №…" autocomplete="off">
+        </div>
+
+        <div class="arm-command-bar__tabs" role="tablist" aria-label="Тип техники">
+            <ul class="nav nav-tabs arm-type-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active arm-type-tab" href="#" data-type-id="" role="tab" aria-selected="true">Вся техника</a>
+                </li>
+                <?php foreach ($equipmentTypes as $type): ?>
+                <li class="nav-item">
+                    <a class="nav-link arm-type-tab" href="#" role="tab" aria-selected="false"
+                       data-type-id="<?= Html::encode($type['id'] ?? '') ?>"><?= Html::encode($type['name'] ?? '') ?></a>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+
+        <div class="arm-command-bar__tools">
+            <?= Html::button('<i class="fas fa-arrows-rotate" aria-hidden="true"></i><span class="arm-btn-label">Обновить</span>', [
+                'class' => 'btn btn-outline-secondary arm-tool-btn',
+                'onclick' => 'refreshArmGrid()',
+                'title' => 'Перезагрузить данные',
+            ]) ?>
+            <?= Html::button('<i class="fas fa-table-columns" aria-hidden="true"></i><span class="arm-btn-label">Колонки</span>', [
+                'class' => 'btn btn-outline-secondary arm-tool-btn',
                 'id' => 'btnArmColumns',
-                'title' => 'Настройка отображаемых столбцов',
+                'title' => 'Видимые столбцы',
             ]) ?>
-            <?= Html::button('<i class="glyphicon glyphicon-download-alt"></i> Экспорт XLSX', [
-                'class' => 'btn btn-outline-primary',
-                'id' => 'btnArmExportXlsx',
-            ]) ?>
-            <?= Html::button('<i class="glyphicon glyphicon-save-file"></i> Шаблон импорта', [
-                'class' => 'btn btn-outline-secondary',
-                'id' => 'btnArmTemplateXlsx',
-            ]) ?>
-            <?= Html::button('<i class="glyphicon glyphicon-open-file"></i> Импорт XLSX', [
-                'class' => 'btn btn-outline-success',
-                'id' => 'btnArmImportXlsx',
-            ]) ?>
-            <?= Html::a('<i class="glyphicon glyphicon-list-alt"></i> Карточки пользователей', ['user-equipment-cards/index'], [
-                'class' => 'btn btn-outline-dark',
-            ]) ?>
+            <?php if ($isAdmin): ?>
+            <div class="dropdown arm-files-dropdown">
+                <button class="btn btn-outline-secondary arm-tool-btn dropdown-toggle" type="button"
+                        id="armFilesDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                        title="Экспорт и импорт Excel">
+                    <i class="fas fa-file-excel" aria-hidden="true"></i><span class="arm-btn-label">Excel</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="armFilesDropdown">
+                    <li>
+                        <?= Html::button('<i class="fas fa-file-export me-2" aria-hidden="true"></i>Экспорт таблицы', [
+                            'class' => 'dropdown-item',
+                            'id' => 'btnArmExportXlsx',
+                        ]) ?>
+                    </li>
+                    <li>
+                        <?= Html::button('<i class="fas fa-file-import me-2" aria-hidden="true"></i>Импорт из файла', [
+                            'class' => 'dropdown-item',
+                            'id' => 'btnArmImportXlsx',
+                        ]) ?>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <?= Html::button('<i class="fas fa-file-download me-2" aria-hidden="true"></i>Шаблон для импорта', [
+                            'class' => 'dropdown-item',
+                            'id' => 'btnArmTemplateXlsx',
+                        ]) ?>
+                    </li>
+                </ul>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 
-    <p class="text-muted small mb-2">Чтобы переместить или переназначить технику — отметьте <strong>чекбоксы слева</strong> у нужных строк, затем нажмите кнопку «Переместить/Переназначить».</p>
-    <ul class="nav nav-tabs arm-type-tabs mb-3" role="tablist">
-        <li class="nav-item">
-            <a class="nav-link active arm-type-tab" href="#" data-type-id="">Вся техника</a>
-        </li>
-        <?php foreach ($equipmentTypes as $type): ?>
-        <li class="nav-item">
-            <a class="nav-link arm-type-tab" href="#" data-type-id="<?= Html::encode($type['id'] ?? '') ?>"><?= Html::encode($type['name'] ?? '') ?></a>
-        </li>
-        <?php endforeach; ?>
-    </ul>
+    <div id="armFilterChips" class="arm-filter-chips" hidden>
+        <span class="arm-filter-chip">
+            <i class="fas fa-filter" aria-hidden="true"></i>
+            Поиск: <strong id="armFilterChipSearch"></strong>
+            <button type="button" class="arm-filter-chip__clear" id="armFilterChipClear" aria-label="Сбросить поиск">×</button>
+        </span>
+    </div>
 
-    <div id="agGridArmContainer" class="ag-theme-quartz" style="width: 100%; height: calc(100vh - 280px); min-height: 500px;">
-        <div class="text-center p-4 text-muted">
-            <span class="glyphicon glyphicon-refresh glyphicon-spin"></span>
-            <p>Загрузка таблицы...</p>
+    <?php if ($isAdmin): ?>
+    <div id="armSelectionBar" class="arm-selection-bar" aria-live="polite">
+        <p class="arm-selection-bar__text">
+            Выбрано: <strong id="armSelectionCount">0</strong>
+            <span class="arm-selection-bar__hint">— можно переназначить пользователя или помещение</span>
+        </p>
+        <div class="arm-selection-bar__actions">
+            <?= Html::button('<i class="fas fa-user-pen" aria-hidden="true"></i> Переназначить', [
+                'class' => 'btn btn-primary btn-sm',
+                'id' => 'armSelectionReassign',
+                'type' => 'button',
+            ]) ?>
+            <?= Html::button('Снять выбор', [
+                'class' => 'btn btn-outline-secondary btn-sm',
+                'id' => 'armSelectionClear',
+                'type' => 'button',
+            ]) ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <div class="arm-grid-card">
+        <div id="agGridArmContainer" class="ag-theme-quartz arm-grid-loading">
+            <div class="arm-grid-loading__inner">
+                <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                <p>Загрузка таблицы…</p>
+            </div>
         </div>
     </div>
 </div>
+
 <input type="file" id="armImportFileInput" accept=".xlsx,.xls" style="display:none;">
 
 <div class="modal fade" id="armColumnsModal" tabindex="-1" aria-labelledby="armColumnsModalLabel" aria-hidden="true">

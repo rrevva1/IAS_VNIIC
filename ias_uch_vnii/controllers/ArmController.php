@@ -95,11 +95,16 @@ class ArmController extends Controller
         );
         $locations = ArrayHelper::map(Location::find()->orderBy(['name' => SORT_ASC])->all(), 'id', 'name');
         $statuses = DicEquipmentStatus::getList();
+        $isAdmin = !Yii::$app->user->isGuest
+            && Yii::$app->user->identity
+            && Yii::$app->user->identity->isAdministrator();
+
         return $this->render('index', [
             'equipmentTypes' => $equipmentTypes,
             'users' => $users,
             'locations' => $locations,
             'statuses' => $statuses,
+            'isAdmin' => $isAdmin,
         ]);
     }
 
@@ -137,6 +142,11 @@ class ArmController extends Controller
             if ($sortModelRaw !== '') {
                 $params['ArmSearch'] = $params['ArmSearch'] ?? [];
                 $params['ArmSearch']['ag_sort_model'] = $sortModelRaw;
+            }
+            $quickSearch = isset($params['quickSearch']) ? trim((string) $params['quickSearch']) : '';
+            if ($quickSearch !== '') {
+                $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+                $params['ArmSearch']['quick_search'] = $quickSearch;
             }
 
             $limit = max(1, min(500, (int)($params['limit'] ?? 20)));
@@ -1187,6 +1197,11 @@ class ArmController extends Controller
                 if ($sortModelRaw !== '') {
                     $params['ArmSearch']['ag_sort_model'] = $sortModelRaw;
                 }
+            }
+            $quickSearch = isset($params['quickSearch']) ? trim((string) $params['quickSearch']) : '';
+            if ($quickSearch !== '') {
+                $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+                $params['ArmSearch']['quick_search'] = $quickSearch;
             }
             $provider = $searchModel->search($params);
             $provider->pagination = false;

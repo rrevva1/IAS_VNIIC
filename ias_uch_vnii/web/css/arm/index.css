@@ -1,0 +1,870 @@
+/**
+ * Страница «Учёт ТС» — дружелюбный интерфейс списка оборудования.
+ */
+
+.arm-page {
+    --arm-accent: #2563eb;
+    --arm-accent-soft: #eff6ff;
+    --arm-border: #e2e8f0;
+    --arm-text-muted: #64748b;
+    --arm-radius: 12px;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.main-content:has(.arm-page) {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.content-wrapper:has(.arm-page) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    padding: 1rem !important;
+    min-height: 0;
+    box-sizing: border-box;
+}
+
+.arm-page__header,
+.arm-command-bar,
+.arm-filter-chips,
+.arm-selection-bar {
+    flex-shrink: 0;
+}
+
+/* Шапка */
+.arm-page__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.arm-page__heading {
+    min-width: 0;
+}
+
+.arm-page__primary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.arm-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    font-weight: 500;
+    border-radius: 8px;
+    padding: 0.45rem 0.85rem;
+    line-height: 1.25;
+}
+
+.arm-btn-primary i {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-size: 0.95em;
+}
+
+.arm-btn-primary span {
+    white-space: nowrap;
+    line-height: 1.25;
+}
+
+.arm-toolbar--header {
+    margin-left: auto;
+    gap: 0.5rem;
+}
+
+.arm-toolbar--header .arm-toolbar__group {
+    padding: 0.35rem 0.45rem;
+    gap: 0.35rem;
+    border-radius: 10px;
+    background: #f8fafc;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.arm-toolbar--header .arm-toolbar__group-label {
+    font-size: 0.6875rem;
+    padding: 0 0.4rem 0 0.25rem;
+}
+
+.arm-toolbar--header .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.arm-toolbar--header .btn i {
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.arm-toolbar--header .btn-primary {
+    background: var(--arm-accent);
+    border-color: var(--arm-accent);
+}
+
+.arm-toolbar--header .btn-primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.arm-toolbar--header .btn-outline-primary {
+    color: var(--arm-accent);
+    border-color: #93c5fd;
+}
+
+.arm-toolbar--header .btn-outline-primary:hover:not(:disabled) {
+    background: var(--arm-accent-soft);
+    border-color: var(--arm-accent);
+    color: #1d4ed8;
+}
+
+.arm-toolbar--header .btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.arm-index .arm-type-tabs,
+.arm-page .arm-type-tabs {
+    margin-bottom: 1rem;
+}
+
+.arm-page__title {
+    flex: 0 0 auto;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    color: #0f172a;
+}
+
+/* Панель инструментов (рядом с вкладками) */
+.arm-toolbar {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.375rem;
+    min-width: 0;
+    margin-left: auto;
+}
+
+.arm-toolbar__group {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.3rem;
+    background: #f8fafc;
+    border: 1px solid var(--arm-border);
+    border-radius: 8px;
+}
+
+.arm-toolbar__group-label {
+    flex: 0 0 auto;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--arm-text-muted);
+    padding: 0 0.35rem 0 0.2rem;
+    margin-right: 0.1rem;
+    border-right: 1px solid #dbe3ed;
+    line-height: 1.9;
+    white-space: nowrap;
+}
+
+.arm-toolbar .btn {
+    font-size: 0.8125rem;
+    padding: 0.3rem 0.55rem;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+
+.arm-toolbar .btn.btn-sm {
+    font-size: 0.8125rem;
+    padding: 0.3rem 0.55rem;
+}
+
+.arm-toolbar .btn-primary {
+    background: var(--arm-accent);
+    border-color: var(--arm-accent);
+}
+
+/* Командная панель: поиск + вкладки + действия */
+.arm-command-bar {
+    display: grid;
+    grid-template-columns: minmax(200px, 280px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem 0.85rem;
+    margin-bottom: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    background: #f8fafc;
+    border: 1px solid var(--arm-border);
+    border-radius: var(--arm-radius);
+}
+
+.arm-command-bar__tabs {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+    align-self: center;
+}
+
+/* В командной панели — без отступа снизу и без сдвига Bootstrap nav-tabs */
+.arm-command-bar .arm-type-tabs {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    align-items: center;
+}
+
+.arm-command-bar .arm-type-tabs .nav-item {
+    display: flex;
+    align-items: center;
+}
+
+.arm-command-bar .arm-type-tabs .nav-link {
+    margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+
+.arm-command-bar .arm-search {
+    display: flex;
+    align-items: center;
+    align-self: center;
+}
+
+.arm-command-bar__tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    align-self: center;
+    gap: 0.35rem;
+}
+
+.arm-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 40px;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.25;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+
+.arm-tool-btn i {
+    font-size: 0.95em;
+}
+
+.arm-files-dropdown .dropdown-menu {
+    font-size: 0.875rem;
+}
+
+.arm-files-dropdown .dropdown-item {
+    font-size: 0.875rem;
+    padding: 0.45rem 1rem;
+}
+
+.arm-search {
+    position: relative;
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+}
+
+.arm-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+}
+
+.arm-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.65rem;
+    font-size: 0.8125rem;
+    color: #1e40af;
+    background: var(--arm-accent-soft);
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+}
+
+.arm-filter-chip__clear {
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0 0.2rem;
+    cursor: pointer;
+}
+
+.arm-filter-chip__clear:hover {
+    color: #0f172a;
+}
+
+.arm-selection-bar__hint {
+    font-weight: 400;
+    color: #3b82f6;
+}
+
+.arm-selection-bar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+/* Поиск, вкладки и кнопки (legacy) */
+.arm-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.arm-controls__tabs-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    min-width: 0;
+}
+
+.arm-search__icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--arm-text-muted);
+    pointer-events: none;
+}
+
+.arm-search__input {
+    padding-left: 2.25rem;
+    border-radius: 10px;
+    border-color: var(--arm-border);
+    height: 40px;
+}
+
+.arm-search__input:focus {
+    border-color: var(--arm-accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Компактные колонки AG Grid (Помещение, ЦП, ОЗУ, Диск) */
+#agGridArmContainer .ag-cell.arm-col-compact,
+#agGridArmContainer .ag-cell.arm-col-compact .ag-cell-value {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Вкладки типов */
+.arm-type-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    flex: 1 1 auto;
+    overflow-x: auto;
+    gap: 0.35rem;
+    padding-bottom: 0.25rem;
+    margin: 0;
+    border-bottom: none;
+    -webkit-overflow-scrolling: touch;
+    min-width: 0;
+}
+
+.arm-type-tabs .nav-link {
+    border: 1px solid var(--arm-border);
+    border-radius: 999px;
+    color: #475569;
+    font-size: 0.875rem;
+    padding: 0.4rem 1rem;
+    white-space: nowrap;
+    background: #fff;
+}
+
+.arm-type-tabs .nav-link:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.arm-type-tabs .nav-link.active {
+    background: var(--arm-accent);
+    border-color: var(--arm-accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Панель выбора */
+.arm-selection-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.65rem 1rem;
+    margin-bottom: 0.75rem;
+    background: var(--arm-accent-soft);
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+}
+
+.arm-selection-bar.is-visible {
+    display: flex;
+}
+
+.arm-selection-bar__text {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: #1e40af;
+}
+
+.arm-selection-bar__text strong {
+    font-weight: 700;
+}
+
+/* Карточка таблицы — растягивается на оставшуюся высоту окна */
+.arm-grid-card {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: #fff;
+    border: 1px solid var(--arm-border);
+    border-radius: var(--arm-radius);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+.arm-grid-card__body {
+    padding: 0;
+}
+
+.arm-page #agGridArmContainer {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100% !important;
+    min-height: 280px;
+}
+
+#agGridArmContainer:not(.arm-grid-loading) .arm-grid-loading__inner {
+    display: none;
+}
+
+#agGridArmContainer.arm-grid-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+}
+
+.arm-grid-loading__inner {
+    text-align: center;
+    color: var(--arm-text-muted);
+}
+
+.arm-grid-loading__inner i {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+    color: var(--arm-accent);
+}
+
+/* ===== Таблица AG Grid (Учёт ТС) ===== */
+#agGridArmContainer.arm-grid.ag-theme-quartz {
+    --ag-font-size: 13px;
+    --ag-font-family: inherit;
+    --ag-row-height: 56px;
+    --ag-header-height: 48px;
+    --ag-border-color: #cbd5e1;
+    --ag-row-border-color: #e2e8f0;
+    --ag-header-background-color: #e8eef4;
+    --ag-header-foreground-color: #1e293b;
+    --ag-odd-row-background-color: #f8fafc;
+    --ag-background-color: #fff;
+    --ag-row-hover-color: #eff6ff;
+    --ag-selected-row-background-color: #dbeafe;
+    --ag-cell-horizontal-border: solid #e2e8f0;
+    /* Разделитель колонок — border-right; перетаскивание — .ag-header-cell-resize */
+    --ag-header-column-separator-display: none;
+    --ag-header-column-resize-handle-display: block;
+    --ag-header-column-resize-handle-height: 100%;
+    --ag-header-column-resize-handle-width: 1px;
+    --ag-header-column-resize-handle-color: transparent;
+}
+
+/* Шапка */
+#agGridArmContainer .ag-header {
+    border-bottom: 2px solid #cbd5e1;
+}
+
+#agGridArmContainer .ag-header-row {
+    height: var(--ag-header-height) !important;
+}
+
+#agGridArmContainer .ag-header-cell,
+#agGridArmContainer .ag-header-group-cell {
+    padding: 0 12px !important;
+    height: 100% !important;
+    box-sizing: border-box !important;
+    border-right: 1px solid #cbd5e1 !important;
+    background: var(--ag-header-background-color);
+}
+
+#agGridArmContainer .ag-header-cell:last-child,
+#agGridArmContainer .ag-header-group-cell:last-child {
+    border-right: 0 !important;
+}
+
+/* Убрать только укороченный псевдо-разделитель AG Grid (::before) */
+#agGridArmContainer .ag-header-cell::before,
+#agGridArmContainer .ag-header-group-cell:not(.ag-header-span-height.ag-header-group-cell-no-group)::before {
+    display: none !important;
+    content: none !important;
+}
+
+/* Ручное изменение ширины столбца мышью */
+#agGridArmContainer .ag-header-cell-resize {
+    display: flex !important;
+    align-items: stretch !important;
+    width: 10px !important;
+    cursor: col-resize !important;
+    z-index: 2;
+}
+
+#agGridArmContainer .ag-header-cell-resize::after {
+    display: block !important;
+    height: 100% !important;
+    top: 0 !important;
+    width: 1px !important;
+    background-color: transparent !important;
+}
+
+#agGridArmContainer .ag-header-cell-label,
+#agGridArmContainer .ag-header-cell-comp-wrapper {
+    height: 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0;
+}
+
+#agGridArmContainer .ag-header-cell-text {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    color: #1e293b;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/*
+ * Перенос текста: не менять display/position ячейки (AG Grid — absolute + inline-block).
+ * Класс ag-cell-wrap-text обязателен (wrapText + cellClass в JS).
+ */
+#agGridArmContainer .ag-row {
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+#agGridArmContainer .ag-cell,
+#agGridArmContainer .ag-ltr .ag-cell:not(.ag-cell-inline-editing) {
+    padding: 8px 12px !important;
+    line-height: 1.4 !important;
+    color: #334155;
+    border-right: 1px solid #e2e8f0 !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+}
+
+#agGridArmContainer .ag-cell.ag-cell-wrap-text,
+#agGridArmContainer .ag-cell.arm-grid-cell-wrap {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.4 !important;
+}
+
+#agGridArmContainer .ag-cell.ag-cell-wrap-text:not(.ag-cell-auto-height) .ag-cell-wrapper {
+    align-items: center !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+#agGridArmContainer .ag-cell.ag-cell-wrap-text:not(.ag-cell-auto-height) .ag-cell-wrapper .ag-cell-value {
+    height: auto !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    text-align: left !important;
+    text-overflow: clip !important;
+    line-height: 1.4 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+}
+
+#agGridArmContainer .ag-cell-value .arm-cell-wrap,
+#agGridArmContainer .ag-cell-value a.arm-link-to-card,
+#agGridArmContainer .ag-cell-value span.arm-cell-wrap,
+#agGridArmContainer .ag-cell-value .arm-monitor-item,
+#agGridArmContainer .ag-cell-value .arm-disk-item {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    max-width: 100% !important;
+    line-height: 1.4 !important;
+}
+
+#agGridArmContainer .ag-cell-value a.arm-link-to-card {
+    display: inline !important;
+}
+
+#agGridArmContainer .ag-cell.arm-cell-monitors .ag-cell-wrapper,
+#agGridArmContainer .ag-cell.arm-cell-disks .ag-cell-wrapper {
+    align-items: center !important;
+}
+
+#agGridArmContainer .ag-cell.arm-cell-monitors .ag-cell-value,
+#agGridArmContainer .ag-cell.arm-cell-disks .ag-cell-value {
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+#agGridArmContainer .arm-link-to-card {
+    color: var(--arm-accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+#agGridArmContainer .arm-link-to-card:hover {
+    text-decoration: underline;
+    color: #1d4ed8;
+}
+
+/* Списки мониторов и дисков */
+#agGridArmContainer .arm-monitor-list,
+#agGridArmContainer .arm-disk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+#agGridArmContainer .arm-monitor-item,
+#agGridArmContainer .arm-disk-item {
+    display: block;
+    line-height: 1.4;
+    font-size: 13px;
+    padding: 0;
+    white-space: normal;
+    word-break: break-word;
+}
+
+/* Колонка выбора */
+#agGridArmContainer .ag-cell.ag-cell-first-right-pinned,
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] {
+    justify-content: center !important;
+    align-items: center !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-cell-wrapper,
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-selection-checkbox,
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox,
+#agGridArmContainer .ag-selection-checkbox,
+#agGridArmContainer .ag-checkbox {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 100% !important;
+    margin: 0 auto !important;
+}
+
+/* Пагинация */
+#agGridArmContainer .ag-paging-panel {
+    border-top: 1px solid var(--arm-border);
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    color: #475569;
+    background: #f8fafc;
+}
+
+/* Статус */
+.arm-status-badge {
+    display: inline-block;
+    padding: 0.2em 0.65em;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 999px;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.arm-status-badge--green {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.arm-status-badge--yellow {
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.arm-status-badge--red {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.arm-status-badge--gray {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* Модальное переназначение */
+.equipment-list-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--arm-border);
+    border-radius: 8px;
+    padding: 10px;
+    background: #f8fafc;
+}
+
+.equipment-item {
+    background: #fff;
+    border: 1px solid var(--arm-border);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
+.equipment-item:last-child {
+    margin-bottom: 0;
+}
+
+.equipment-item-header {
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+}
+
+.equipment-item-detail {
+    font-size: 0.875rem;
+    color: var(--arm-text-muted);
+    margin: 2px 0;
+}
+
+.equipment-summary {
+    background: #fff;
+    border: 1px solid var(--arm-border);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.reassign-user-sync-hint {
+    display: block;
+    font-size: 0.8125rem;
+    color: var(--arm-text-muted);
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 1100px) {
+    .arm-command-bar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .arm-command-bar__tools {
+        justify-content: flex-start;
+    }
+
+    .arm-btn-label {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .arm-page__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .arm-page__primary-actions {
+        width: 100%;
+    }
+
+    .arm-page__primary-actions .arm-btn-primary {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .arm-toolbar {
+        justify-content: flex-start;
+        margin-left: 0;
+    }
+
+    .arm-toolbar__group {
+        flex-wrap: wrap;
+    }
+
+    .arm-controls__tabs-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .arm-search {
+        flex: 1 1 auto;
+        max-width: none;
+    }
+
+    .arm-selection-bar__hint {
+        display: block;
+        margin-top: 0.15rem;
+    }
+
+    .arm-page #agGridArmContainer {
+        min-height: 240px;
+    }
+}

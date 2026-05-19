@@ -14,7 +14,6 @@
 use yii\helpers\Html;
 
 $this->title = 'Добавление техники';
-$this->params['breadcrumbs'][] = ['label' => 'Учет ТС', 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
 ?>
 

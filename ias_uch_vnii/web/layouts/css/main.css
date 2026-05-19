@@ -200,10 +200,23 @@ body.app-body {
     color: #64748b;
 }
 
+.sidebar.expanded .sidebar-nav__section {
+    display: block;
+}
+
+.sidebar:not(.expanded) .sidebar-nav__section {
+    display: none;
+}
+
 .sidebar-nav__divider {
+    display: none;
     height: 1px;
     margin: 0.5rem 0.85rem;
     background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar:not(.expanded) .sidebar-nav__divider {
+    display: block;
 }
 
 .sidebar-nav__item {

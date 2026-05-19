@@ -43,7 +43,6 @@ if ($displayTitle === '') {
 }
 
 $this->title = $displayTitle;
-$this->params['breadcrumbs'][] = ['label' => 'Учет ТС', 'url' => ['index']];
 $this->params['breadcrumbs'][] = $this->title;
 
 $formatDate = static function (?string $date): string {
