@@ -21,5 +21,6 @@
     agGrid.provideGlobalGridOptions({
         theme: 'legacy',
         defaultColDef: wrapDef,
+        suppressHorizontalScroll: false,
     });
 })();

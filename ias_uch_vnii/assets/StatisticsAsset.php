@@ -21,6 +21,7 @@ class StatisticsAsset extends AssetBundle
     public $js = [
         'js/tasks/statistics.js',
         'ag-grid-community/dist/ag-grid-community.min.js',
+        'js/ag-grid-theme-config.js',
         'js/tasks/statistics-ag-grid.js',
     ];
 

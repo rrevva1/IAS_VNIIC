@@ -21,10 +21,58 @@
     border-radius: 8px;
 }
 
-/* Контейнер AG Grid — Учет ТС (arm): высота — в css/arm/index.css (flex) */
+/* Полосы прокрутки внутри грида */
+.ag-theme-quartz .ag-body-horizontal-scroll {
+    min-height: 12px;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.ag-theme-quartz .ag-body-horizontal-scroll-viewport {
+    overflow-x: scroll !important;
+    scrollbar-width: thin;
+}
+
+.ag-theme-quartz .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-button {
+    display: none;
+}
+
+.ag-theme-quartz .ag-body-vertical-scroll {
+    min-width: 12px;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.ag-theme-quartz .ag-body-vertical-scroll-viewport {
+    overflow-y: scroll !important;
+    scrollbar-width: thin;
+}
+
+.ag-theme-quartz .ag-body-vertical-scroll-viewport::-webkit-scrollbar-button {
+    display: none;
+}
+
+/* Без стрелок под закреплёнными колонками */
+.ag-theme-quartz .ag-horizontal-left-spacer,
+.ag-theme-quartz .ag-horizontal-right-spacer {
+    overflow: hidden !important;
+    overflow-x: hidden !important;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.ag-theme-quartz .ag-horizontal-left-spacer::-webkit-scrollbar,
+.ag-theme-quartz .ag-horizontal-right-spacer::-webkit-scrollbar {
+    display: none !important;
+    width: 0;
+    height: 0;
+}
+
+/* Контейнер AG Grid — Учет ТС (arm): высота и скролл — в css/arm/index.css (flex) */
 #agGridArmContainer {
     width: 100%;
     position: relative;
+    box-sizing: border-box;
 }
 
 /* Ссылки на карточку актива в гриде Учет ТС */
@@ -37,6 +85,7 @@
 }
 
 #agGridArmContainer .arm-monitor-cell,
+#agGridArmContainer .arm-ups-cell,
 #agGridArmContainer .arm-disk-cell {
     display: block;
     line-height: 1.25;
@@ -45,7 +94,8 @@
     word-break: break-word;
     overflow-wrap: break-word;
 }
-#agGridArmContainer .arm-monitor-link {
+#agGridArmContainer .arm-monitor-link,
+#agGridArmContainer .arm-ups-link {
     display: inline-block;
     margin: 1px 0;
 }

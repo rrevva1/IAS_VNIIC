@@ -28,7 +28,9 @@ $isAdmin = $isAdmin ?? false;
             <label class="visually-hidden" for="armQuickFilter">Поиск по таблице</label>
             <i class="fas fa-search arm-search__icon" aria-hidden="true"></i>
             <input type="search" id="armQuickFilter" class="form-control arm-search__input"
-                   placeholder="Поиск: ФИО, помещение, инв. №…" autocomplete="off">
+                   placeholder="Поиск" autocomplete="off">
+            <button type="button" class="arm-search__clear" id="armQuickFilterClear"
+                    aria-label="Очистить поиск" title="Очистить поиск" hidden>×</button>
         </div>
 
         <div class="arm-command-bar__tabs" role="tablist" aria-label="Тип техники">
@@ -95,14 +97,6 @@ $isAdmin = $isAdmin ?? false;
         </div>
     </div>
 
-    <div id="armFilterChips" class="arm-filter-chips" hidden>
-        <span class="arm-filter-chip">
-            <i class="fas fa-filter" aria-hidden="true"></i>
-            Поиск: <strong id="armFilterChipSearch"></strong>
-            <button type="button" class="arm-filter-chip__clear" id="armFilterChipClear" aria-label="Сбросить поиск">×</button>
-        </span>
-    </div>
-
     <div class="arm-grid-card">
         <?php if ($isAdmin): ?>
         <div id="armSelectionBar" class="arm-selection-bar" aria-live="polite">
@@ -112,12 +106,12 @@ $isAdmin = $isAdmin ?? false;
             </p>
             <div class="arm-selection-bar__actions">
                 <?= Html::button('<i class="fas fa-user-pen" aria-hidden="true"></i> Переназначить', [
-                    'class' => 'btn btn-primary btn-sm',
+                    'class' => 'btn btn-primary arm-selection-bar__btn',
                     'id' => 'armSelectionReassign',
                     'type' => 'button',
                 ]) ?>
                 <?= Html::button('Снять выбор', [
-                    'class' => 'btn btn-outline-secondary btn-sm',
+                    'class' => 'btn btn-outline-secondary arm-selection-bar__btn',
                     'id' => 'armSelectionClear',
                     'type' => 'button',
                 ]) ?>
@@ -154,173 +148,170 @@ $isAdmin = $isAdmin ?? false;
     </div>
 </div>
 
-<div class="modal fade" id="reassignArmModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="glyphicon glyphicon-transfer"></i> Переместить/Переназначить технику
+<div class="modal fade" id="reassignArmModal" tabindex="-1" aria-labelledby="reassignArmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen arm-reassign-modal__dialog">
+        <div class="modal-content arm-reassign-modal">
+            <div class="modal-header arm-reassign-modal__header">
+                <h5 class="modal-title" id="reassignArmModalLabel">
+                    <i class="fas fa-people-arrows" aria-hidden="true"></i>
+                    Перемещение и переназначение техники
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
-            <div class="modal-body">
-                <!-- Блок информации о выбранных единицах -->
-                <div id="reassignEquipmentInfo" class="mb-4">
-                    <div class="d-flex align-items-center mb-2">
-                        <strong>Выбрано единиц техники: <span id="reassignEquipmentCount">0</span></strong>
-                    </div>
-                    <div id="reassignEquipmentList" class="equipment-list-container">
-                        <div class="text-center text-muted py-3">
-                            <span class="glyphicon glyphicon-refresh glyphicon-spin"></span> Загрузка информации...
+            <div class="modal-body arm-reassign-modal__body">
+                <div class="arm-reassign-layout">
+                    <aside class="arm-reassign-layout__aside" id="reassignEquipmentInfo" aria-labelledby="reassignStepSelectedTitle">
+                        <section class="arm-reassign-section arm-reassign-section--aside">
+                            <h6 class="arm-reassign-section__title" id="reassignStepSelectedTitle">
+                                <i class="fas fa-list-check arm-reassign-section__icon" aria-hidden="true"></i>
+                                Выбранная техника
+                                <span class="arm-reassign-section__badge" id="reassignEquipmentCount">0</span>
+                            </h6>
+                            <p class="arm-reassign-section__lead">Список выбранных строк и привязанных мониторов с ИБП.</p>
+                            <div id="reassignEquipmentList" class="arm-reassign-equipment-list">
+                                <div class="arm-reassign-equipment-list__loading text-center text-muted py-3">
+                                    <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                                    Загрузка данных…
+                                </div>
+                            </div>
+                        </section>
+                    </aside>
+
+                    <div class="arm-reassign-layout__main">
+                <section class="arm-reassign-section arm-reassign-section--action" aria-labelledby="reassignStepModeTitle">
+                    <h6 class="arm-reassign-section__title arm-reassign-section__title--plain" id="reassignStepModeTitle">
+                        Тип операции
+                    </h6>
+                    <label class="form-label visually-hidden" for="reassignOperationMode">Тип операции</label>
+                    <select id="reassignOperationMode" class="form-select arm-reassign-mode-select">
+                        <option value="reassign">Обычное переназначение</option>
+                        <option value="move_component">Перенос компонента (монитор или ИБП)</option>
+                        <option value="dismissal">Увольнение сотрудника</option>
+                    </select>
+                    <p class="arm-reassign-mode-hint" id="reassignModeHint" role="note"></p>
+                </section>
+
+                <section class="arm-reassign-section arm-reassign-section--action" aria-labelledby="reassignStepParamsTitle">
+                    <h6 class="arm-reassign-section__title arm-reassign-section__title--plain" id="reassignStepParamsTitle">
+                        Параметры
+                    </h6>
+
+                    <div class="arm-reassign-panel" id="moveComponentWrap" style="display:none;">
+                        <p class="arm-reassign-panel__caption">Куда перенести компонент</p>
+                        <div class="mb-3">
+                            <label class="form-label" for="componentLinkType">Тип компонента</label>
+                            <select id="componentLinkType" class="form-select">
+                                <option value="monitor">Монитор</option>
+                                <option value="ups">ИБП</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="moveComponentChildWrap" style="display:none;">
+                            <label class="form-label" for="moveComponentChildId" id="moveComponentChildLabel">Какой монитор перенести</label>
+                            <select id="moveComponentChildId" class="form-select"></select>
+                            <small class="form-text text-muted" id="moveComponentChildHint">
+                                У выбранного ПК несколько мониторов — укажите, какой именно переносится.
+                            </small>
+                            <div class="alert alert-warning py-2 px-3 mt-2 mb-0 small" id="moveComponentChildEmpty" style="display:none;">
+                                Нет привязанных мониторов у выбранного ПК. Выберите строку монитора в таблице или другой тип компонента.
+                            </div>
+                        </div>
+                        <div class="mb-3 js-user-select-field">
+                            <label class="form-label" for="targetSystemBlockUserId">Владелец целевого ПК</label>
+                            <select id="targetSystemBlockUserId" class="form-select js-user-select-search" data-placeholder="Выберите пользователя">
+                                <option value="">— выберите пользователя —</option>
+                                <?php foreach ($users ?? [] as $uid => $uname): ?>
+                                <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label" for="targetSystemBlockId">Целевой системный блок</label>
+                            <select id="targetSystemBlockId" class="form-select">
+                                <option value="">— сначала выберите пользователя —</option>
+                            </select>
                         </div>
                     </div>
+
+                    <div class="arm-reassign-panel" id="dismissalUserWrap" style="display:none;">
+                        <p class="arm-reassign-panel__caption">При увольнении сотрудника</p>
+                        <div class="mb-3 js-user-select-field">
+                            <label class="form-label" for="dismissalTargetUserId">Передать технику пользователю</label>
+                            <select id="dismissalTargetUserId" class="form-select js-user-select-search" data-placeholder="Не выбрано">
+                                <option value="">— не выбрано —</option>
+                                <?php foreach ($users ?? [] as $uid => $uname): ?>
+                                <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="form-check arm-reassign-check" id="dismissalWarehouseWrap">
+                            <input class="form-check-input" type="checkbox" id="dismissalToWarehouse">
+                            <label class="form-check-label" for="dismissalToWarehouse">
+                                Отправить на склад и снять ответственного
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="arm-reassign-panel" id="reassignCommonFieldsWrap">
+                        <div class="mb-3 js-user-select-field">
+                            <label class="form-label" for="reassignUserId">Ответственный</label>
+                            <select id="reassignUserId" class="form-select js-user-select-search" data-placeholder="— не менять —">
+                                <option value="">— не менять —</option>
+                                <option value="0">— снять назначение —</option>
+                                <?php foreach ($users ?? [] as $uid => $uname): ?>
+                                <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small id="reassignUserIdSyncHint" class="reassign-user-sync-hint" style="display:none;">
+                                Ответственный будет совпадать с владельцем целевого ПК.
+                            </small>
+                        </div>
+
+                        <div class="mb-3 js-user-select-field">
+                            <label class="form-label" for="reassignLocationId">Помещение</label>
+                            <select id="reassignLocationId" class="form-select js-user-select-search" data-placeholder="— не менять —">
+                                <option value="">— не менять —</option>
+                                <?php foreach ($locations ?? [] as $lid => $lname): ?>
+                                <option value="<?= (int)$lid ?>"><?= Html::encode($lname) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <div class="mb-0 js-user-select-field">
+                            <label class="form-label" for="reassignStatusId">Статус</label>
+                            <select id="reassignStatusId" class="form-select js-user-select-search" data-placeholder="— не менять —">
+                                <option value="">— не менять —</option>
+                                <?php foreach ($statuses ?? [] as $sid => $sname): ?>
+                                <option value="<?= (int)$sid ?>"><?= Html::encode($sname) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="arm-reassign-preview-slot">
+                    <div id="reassignPreview" class="arm-reassign-preview arm-reassign-preview--hidden" role="status" aria-live="polite">
+                        <div class="arm-reassign-preview__title">
+                            <i class="fas fa-circle-info" aria-hidden="true"></i>
+                            Что изменится
+                        </div>
+                        <ul id="reassignPreviewList" class="arm-reassign-preview__list mb-0"></ul>
+                    </div>
                 </div>
-
-                <hr class="my-4">
-
-                <!-- Блок изменения параметров -->
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Изменить для всех выбранных единиц:</label>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Режим операции</label>
-                    <select id="reassignOperationMode" class="form-select">
-                        <option value="reassign">Обычное переназначение</option>
-                        <option value="move_component">Переместить компонент на другой системный блок</option>
-                        <option value="dismissal">Увольнение пользователя</option>
-                    </select>
-                </div>
-
-                <div class="mb-3 js-user-select-field" id="dismissalUserWrap" style="display:none;">
-                    <label class="form-label">Передать технику пользователю</label>
-                    <select id="dismissalTargetUserId" class="form-select js-user-select-search" data-placeholder="— не выбрано —">
-                        <option value="">— не выбрано —</option>
-                        <?php foreach ($users ?? [] as $uid => $uname): ?>
-                        <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="mb-3 js-user-select-field" id="moveComponentWrap" style="display:none;">
-                    <label class="form-label">Тип компонента</label>
-                    <select id="componentLinkType" class="form-select">
-                        <option value="monitor">Монитор</option>
-                        <option value="disk">Диск</option>
-                        <option value="ups">ИБП</option>
-                    </select>
-                    <label class="form-label mt-2">Выберите пользователя (владелец целевого ПК)</label>
-                    <select id="targetSystemBlockUserId" class="form-select js-user-select-search" data-placeholder="— выберите пользователя —">
-                        <option value="">— выберите пользователя —</option>
-                        <?php foreach ($users ?? [] as $uid => $uname): ?>
-                        <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <label class="form-label mt-2">Целевой системный блок</label>
-                    <select id="targetSystemBlockId" class="form-select">
-                        <option value="">— сначала выберите пользователя —</option>
-                    </select>
-                </div>
-
-                <div class="mb-3 form-check" id="dismissalWarehouseWrap" style="display:none;">
-                    <input class="form-check-input" type="checkbox" id="dismissalToWarehouse">
-                    <label class="form-check-label" for="dismissalToWarehouse">
-                        При увольнении отправить технику на склад (и снять ответственного)
-                    </label>
-                </div>
-
-                <div class="mb-3 js-user-select-field">
-                    <label class="form-label">Ответственный</label>
-                    <select id="reassignUserId" class="form-select js-user-select-search" data-placeholder="— не менять —">
-                        <option value="">— не менять —</option>
-                        <option value="0">— снять назначение —</option>
-                        <?php foreach ($users ?? [] as $uid => $uname): ?>
-                        <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <small class="form-text text-muted">Оставьте "— не менять —", чтобы сохранить текущее значение</small>
-                    <small id="reassignUserIdSyncHint" class="reassign-user-sync-hint" style="display:none;">
-                        В режиме перемещения компонента ответственный совпадает с владельцем целевого ПК.
-                    </small>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Помещение</label>
-                    <select id="reassignLocationId" class="form-select">
-                        <option value="">— не менять —</option>
-                        <?php foreach ($locations ?? [] as $lid => $lname): ?>
-                        <option value="<?= (int)$lid ?>"><?= Html::encode($lname) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <small class="form-text text-muted">Оставьте "— не менять —", чтобы сохранить текущее значение</small>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Статус</label>
-                    <select id="reassignStatusId" class="form-select">
-                        <option value="">— не менять —</option>
-                        <?php foreach ($statuses ?? [] as $sid => $sname): ?>
-                        <option value="<?= (int)$sid ?>"><?= Html::encode($sname) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <small class="form-text text-muted">Оставьте "— не менять —", чтобы сохранить текущее значение</small>
-                </div>
-
-                <!-- Блок предпросмотра изменений -->
-                <div id="reassignPreview" class="alert alert-info mb-0" style="display: none;">
-                    <strong><i class="glyphicon glyphicon-info-sign"></i> Предпросмотр изменений:</strong>
-                    <ul id="reassignPreviewList" class="mb-0 mt-2"></ul>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" id="reassignSubmit" disabled>
-                    <span class="reassign-submit-text">Сохранить</span>
+            <div class="modal-footer arm-reassign-modal__footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary arm-reassign-submit" id="reassignSubmit" disabled>
+                    <span class="reassign-submit-text"><i class="fas fa-check" aria-hidden="true"></i> Применить</span>
                     <span class="reassign-submit-spinner" style="display: none;">
-                        <span class="glyphicon glyphicon-refresh glyphicon-spin"></span> Сохранение...
+                        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Сохранение…
                     </span>
                 </button>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.equipment-list-container {
-    max-height: 300px;
-    overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 10px;
-    background-color: #f8f9fa;
-}
-.equipment-item {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 10px;
-    margin-bottom: 8px;
-}
-.equipment-item:last-child {
-    margin-bottom: 0;
-}
-.equipment-item-header {
-    font-weight: bold;
-    color: #495057;
-    margin-bottom: 6px;
-}
-.equipment-item-detail {
-    font-size: 0.9em;
-    color: #6c757d;
-    margin: 2px 0;
-}
-.equipment-summary {
-    background: white;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 12px;
-}
-</style>
 <?php
 $this->registerJs(
     "window.agGridArmDataUrl = " . json_encode(Url::to(['arm/get-grid-data'])) . ";" .
@@ -345,13 +336,53 @@ $this->registerJs(
 $this->registerJs("
 (function(){
     var reassignModal, pendingIds = [], equipmentData = [], equipmentSummary = {}, armSystemBlocksCache = {};
+    var REASSIGN_MODE_HINTS = {
+        reassign: 'Укажите нового ответственного, помещение или статус. При переназначении системного блока связанные монитор и ИБП переназначаются вместе с ним.',
+        move_component: 'Выберите владельца целевого ПК и системный блок. Ответственный и помещение компонента подстроятся автоматически.',
+        dismissal: 'Передайте технику другому сотруднику или отправьте на склад со снятием ответственного.',
+    };
+
+    function updateModeHint() {
+        var el = document.getElementById('reassignModeHint');
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        if (el) {
+            el.textContent = REASSIGN_MODE_HINTS[mode] || '';
+        }
+    }
+
+    /** Перенос компонента — только при выборе одного системного блока (ПК) в таблице. */
+    function isMoveComponentModeAllowed() {
+        if (pendingIds.length !== 1 || !equipmentData || equipmentData.length !== 1) {
+            return false;
+        }
+        return !!equipmentData[0].is_host;
+    }
+
+    function syncMoveComponentOperationOption() {
+        var modeEl = document.getElementById('reassignOperationMode');
+        if (!modeEl) {
+            return;
+        }
+        var moveOpt = modeEl.querySelector('option[value=\"move_component\"]');
+        if (!moveOpt) {
+            return;
+        }
+        var allowed = isMoveComponentModeAllowed();
+        moveOpt.disabled = !allowed;
+        moveOpt.hidden = !allowed;
+        if (!allowed && modeEl.value === 'move_component') {
+            modeEl.value = 'reassign';
+            updateModeHint();
+            onModeChanged();
+        }
+    }
 
     function renderSystemBlocks(rows) {
         var sbSelect = document.getElementById('targetSystemBlockId');
         if (!sbSelect) return;
         var html = '<option value=\"\">— выберите системный блок —</option>';
         rows.forEach(function(row) {
-            var label = (row.name || '—') + (row.inventory_number ? ' [' + row.inventory_number + ']' : '');
+            var label = row.name || '—';
             var locId = row.location_id != null && row.location_id !== '' ? String(row.location_id) : '';
             html += '<option value=\"' + escapeHtml(String(row.id)) + '\"' + (locId ? ' data-location-id=\"' + escapeHtml(locId) + '\"' : '') + '>' + escapeHtml(label) + '</option>';
         });
@@ -374,6 +405,16 @@ $this->registerJs("
                 selectEl.dispatchEvent(new Event('change', { bubbles: true }));
             }
         }
+    }
+
+    function getSelectFieldValue(selectEl) {
+        if (!selectEl) {
+            return '';
+        }
+        if (window.IasUserSelect && window.IasUserSelect.getValue) {
+            return window.IasUserSelect.getValue(selectEl) || '';
+        }
+        return selectEl.value || '';
     }
 
     function updateReassignModalSelectState() {
@@ -423,7 +464,7 @@ $this->registerJs("
             .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
             .then(function(res) {
                 if (res && res.success && res.location_id != null && String(res.location_id) !== '') {
-                    loc.value = String(res.location_id);
+                    setUserSelectValue(loc, String(res.location_id), true);
                 }
                 scheduleUpdatePreview();
             })
@@ -440,7 +481,7 @@ $this->registerJs("
         var opt = sb.options[sb.selectedIndex];
         var lid = opt && opt.getAttribute('data-location-id');
         if (lid) {
-            loc.value = lid;
+            setUserSelectValue(loc, lid, true);
             scheduleUpdatePreview();
             return;
         }
@@ -471,33 +512,133 @@ $this->registerJs("
     function isMoveComponentEquipment(item) {
         var t = normalizeEquipmentTypeLabel(item);
         return t.indexOf('монитор') !== -1 || t.indexOf('monitor') !== -1
-            || t.indexOf('диск') !== -1 || t.indexOf('disk') !== -1
             || t.indexOf('ибп') !== -1 || t.indexOf('ups') !== -1;
     }
 
     function detectComponentLinkType(item) {
         var t = normalizeEquipmentTypeLabel(item);
-        if (t.indexOf('диск') !== -1 || t.indexOf('disk') !== -1) return 'disk';
-        if (t.indexOf('ибп') !== -1 || t.indexOf('ups') !== -1) return 'ups';
+        if (t.indexOf('ибп') !== -1 || t.indexOf('ups') !== -1) {
+            return 'ups';
+        }
         return 'monitor';
     }
 
-    /** Режим и тип компонента по выбранной в гриде технике (монитор/диск/ИБП → перемещение компонента). */
+    function formatMoveComponentOptionLabel(component, hostLabel) {
+        var name = (component.name || '').trim() || 'без названия';
+        var suffix = hostLabel ? ' (ПК: ' + hostLabel + ')' : '';
+        return name + suffix;
+    }
+
+    function getMoveComponentCandidates() {
+        var linkType = (document.getElementById('componentLinkType') || {}).value || 'monitor';
+        var candidates = [];
+        var seen = {};
+        equipmentData.forEach(function(item) {
+            if (item.is_host && item.linked_components) {
+                var list = item.linked_components[linkType] || [];
+                var hostLabel = (item.name || item.inventory_number || '').trim();
+                list.forEach(function(c) {
+                    var cid = c && c.id != null ? parseInt(c.id, 10) : 0;
+                    if (cid > 0 && !seen[cid]) {
+                        seen[cid] = true;
+                        candidates.push({
+                            id: cid,
+                            name: c.name || '',
+                            inventory_number: c.inventory_number || '',
+                            host_label: hostLabel,
+                        });
+                    }
+                });
+            } else if (item.is_component || isMoveComponentEquipment(item)) {
+                if (detectComponentLinkType(item) !== linkType) {
+                    return;
+                }
+                var id = parseInt(item.id, 10);
+                if (id > 0 && !seen[id]) {
+                    seen[id] = true;
+                    candidates.push({
+                        id: id,
+                        name: item.name || '',
+                        inventory_number: item.inventory_number || '',
+                        host_label: '',
+                    });
+                }
+            }
+        });
+        return candidates;
+    }
+
+    function updateMoveComponentChildLabels() {
+        var linkType = (document.getElementById('componentLinkType') || {}).value || 'monitor';
+        var label = document.getElementById('moveComponentChildLabel');
+        var hint = document.getElementById('moveComponentChildHint');
+        var isUps = linkType === 'ups';
+        if (label) {
+            label.textContent = isUps ? 'Какой ИБП перенести' : 'Какой монитор перенести';
+        }
+        if (hint) {
+            hint.textContent = isUps
+                ? 'У выбранного ПК несколько ИБП — укажите, какой именно переносится.'
+                : 'У выбранного ПК несколько мониторов — укажите, какой именно переносится.';
+        }
+        var emptyMsg = document.getElementById('moveComponentChildEmpty');
+        if (emptyMsg) {
+            emptyMsg.textContent = isUps
+                ? 'Нет привязанных ИБП у выбранного ПК. Выберите строку ИБП в таблице или другой тип компонента.'
+                : 'Нет привязанных мониторов у выбранного ПК. Выберите строку монитора в таблице или другой тип компонента.';
+        }
+    }
+
+    /** Список переносимых компонентов: при нескольких мониторах/ИБП — выбор одного. */
+    function syncMoveComponentChildPicker() {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        var wrap = document.getElementById('moveComponentChildWrap');
+        var select = document.getElementById('moveComponentChildId');
+        var emptyMsg = document.getElementById('moveComponentChildEmpty');
+        if (mode !== 'move_component' || !wrap || !select) {
+            if (wrap) wrap.style.display = 'none';
+            return;
+        }
+        updateMoveComponentChildLabels();
+        var candidates = getMoveComponentCandidates();
+        if (emptyMsg) {
+            emptyMsg.style.display = candidates.length === 0 ? 'block' : 'none';
+        }
+        if (candidates.length === 0) {
+            wrap.style.display = 'block';
+            select.innerHTML = '<option value=\"\">— нет доступных —</option>';
+            return;
+        }
+        if (candidates.length === 1) {
+            wrap.style.display = 'none';
+            pendingIds = [candidates[0].id];
+            return;
+        }
+        wrap.style.display = 'block';
+        var prev = select.value;
+        select.innerHTML = '';
+        candidates.forEach(function(c) {
+            var opt = document.createElement('option');
+            opt.value = String(c.id);
+            opt.textContent = formatMoveComponentOptionLabel(c, c.host_label);
+            select.appendChild(opt);
+        });
+        if (prev && candidates.some(function(c) { return String(c.id) === prev; })) {
+            select.value = prev;
+        }
+        pendingIds = [parseInt(select.value, 10) || candidates[0].id];
+    }
+
     function configureModalFromSelectedEquipment() {
         if (!equipmentData || !equipmentData.length) return;
         var modeEl = document.getElementById('reassignOperationMode');
         if (!modeEl) return;
-        var allComponents = equipmentData.every(isMoveComponentEquipment);
-        if (allComponents) {
-            modeEl.value = 'move_component';
-            var linkEl = document.getElementById('componentLinkType');
-            if (linkEl) {
-                linkEl.value = detectComponentLinkType(equipmentData[0]);
-            }
-        } else {
+        syncMoveComponentOperationOption();
+        if (modeEl.value === 'move_component' && !isMoveComponentModeAllowed()) {
             modeEl.value = 'reassign';
         }
         onModeChanged();
+        syncMoveComponentChildPicker();
     }
 
     function fetchSystemBlocksForUser(userId) {
@@ -540,8 +681,8 @@ $this->registerJs("
         
         if (!infoContainer || !countSpan) return;
         
-        infoContainer.innerHTML = '<div class=\"text-center text-muted py-3\"><span class=\"glyphicon glyphicon-refresh glyphicon-spin\"></span> Loading information...</div>';
-        countSpan.textContent = ids.length;
+        infoContainer.innerHTML = '<div class=\"arm-reassign-equipment-list__loading text-center text-muted py-3\"><i class=\"fas fa-circle-notch fa-spin\" aria-hidden=\"true\"></i> Загрузка данных…</div>';
+        countSpan.textContent = String(ids.length);
         
         var fd = new FormData();
         fd.append(window.armReassignCsrf.param, window.armReassignCsrf.token);
@@ -553,6 +694,7 @@ $this->registerJs("
                 if (result.success && result.data) {
                     equipmentData = result.data;
                     equipmentSummary = result.summary || {};
+                    syncMoveComponentChildPicker();
                     console.log('Данные о выбранных единицах загружены:', equipmentData.length, 'единиц');
                     renderEquipmentInfo();
                     configureModalFromSelectedEquipment();
@@ -565,8 +707,8 @@ $this->registerJs("
                         }
                     }, 50);
                 } else {
-                    console.error('Ошибка загрузки данных:', result.message || 'Unknown error');
-                    infoContainer.innerHTML = '<div class=\"alert alert-danger\">Error loading data: ' + (result.message || 'Unknown error') + '</div>';
+                    console.error('Ошибка загрузки данных:', result.message || 'Неизвестная ошибка');
+                    infoContainer.innerHTML = '<div class=\"alert alert-danger mb-0\">Не удалось загрузить данные: ' + escapeHtml(result.message || 'Неизвестная ошибка') + '</div>';
                     // Все равно пытаемся обновить предпросмотр, если модальное окно открыто
                     setTimeout(function() {
                         var modal = document.getElementById('reassignArmModal');
@@ -578,7 +720,7 @@ $this->registerJs("
             })
             .catch(function(err) {
                 console.error('Ошибка загрузки информации о технике:', err);
-                infoContainer.innerHTML = '<div class=\"alert alert-danger\">Error loading data: ' + err.message + '</div>';
+                infoContainer.innerHTML = '<div class=\"alert alert-danger mb-0\">Не удалось загрузить данные: ' + escapeHtml(err.message) + '</div>';
                 // Все равно пытаемся обновить предпросмотр
                 setTimeout(function() {
                     updatePreview();
@@ -586,64 +728,93 @@ $this->registerJs("
             });
     }
     
+    function getLinkedComponentsForDisplay(item) {
+        if (!item || !item.is_host || !item.linked_components) {
+            return [];
+        }
+        var out = [];
+        var lc = item.linked_components;
+        (lc.monitor || []).forEach(function(c) {
+            out.push({ type: 'Монитор', component: c });
+        });
+        (lc.ups || []).forEach(function(c) {
+            out.push({ type: 'ИБП', component: c });
+        });
+        return out;
+    }
+
+    function countDisplayEquipmentUnits() {
+        var total = 0;
+        equipmentData.forEach(function(item) {
+            total += 1 + getLinkedComponentsForDisplay(item).length;
+        });
+        return total;
+    }
+
+    function updateEquipmentCountBadge() {
+        var countSpan = document.getElementById('reassignEquipmentCount');
+        if (countSpan) {
+            countSpan.textContent = String(countDisplayEquipmentUnits());
+        }
+    }
+
+    function formatMetaLine(item, emptyMuted) {
+        var parts = [
+            item.responsible_user_name ? escapeHtml(item.responsible_user_name) : emptyMuted,
+            item.location_name ? escapeHtml(item.location_name) : emptyMuted,
+            item.status_name ? escapeHtml(item.status_name) : emptyMuted,
+        ];
+        return parts.join(' · ');
+    }
+
+    function renderLinkedLines(item) {
+        var linked = getLinkedComponentsForDisplay(item);
+        if (!linked.length) {
+            return '';
+        }
+        var lines = linked.map(function(row) {
+            var c = row.component || {};
+            return escapeHtml(row.type) + ' — ' + escapeHtml(c.name || '—');
+        });
+        return '<ul class=\"arm-eq-item__linked\">' + lines.map(function(line) {
+            return '<li>' + line + '</li>';
+        }).join('') + '</ul>';
+    }
+
+    function renderEquipmentItemCard(item, emptyMuted) {
+        var typeLabel = item.is_host ? 'ПК' : (item.equipment_type ? escapeHtml(item.equipment_type) : 'Техника');
+        var rowClass = 'arm-eq-item' + (item.is_host ? ' arm-eq-item--host' : '');
+        var html = '<div class=\"' + rowClass + '\">';
+        html += '<div class=\"arm-eq-item__primary\">';
+        html += '<span class=\"arm-eq-item__name\">' + typeLabel + ' · ' + escapeHtml(item.name || '—') + '</span>';
+        html += '<span class=\"arm-eq-item__inv\">№ ' + escapeHtml(item.inventory_number || '—') + '</span>';
+        html += '</div>';
+        html += '<div class=\"arm-eq-item__meta\">' + formatMetaLine(item, emptyMuted) + '</div>';
+        html += renderLinkedLines(item);
+        html += '</div>';
+        return html;
+    }
+
     // Отображение информации о выбранных единицах техники
     function renderEquipmentInfo() {
         var container = document.getElementById('reassignEquipmentList');
         if (!container) return;
         
         if (equipmentData.length === 0) {
-            container.innerHTML = '<div class=\"text-muted\">No data</div>';
+            container.innerHTML = '<div class=\"arm-eq-list-empty\">Нет данных о выбранной технике</div>';
+            updateEquipmentCountBadge();
             return;
         }
         
-        var html = '';
-        
-        // If more than 5 units selected, show summary
-        if (equipmentData.length > 5) {
-            html += '<div class=\"equipment-summary\">';
-            html += '<div class=\"mb-2\"><strong>Selected: ' + equipmentData.length + ' equipment units</strong></div>';
-            
-            if (equipmentSummary.has_responsible > 0) {
-                html += '<div class=\"equipment-item-detail\">• ' + equipmentSummary.has_responsible + ' units with responsible person</div>';
-            }
-            if (equipmentSummary.without_responsible > 0) {
-                html += '<div class=\"equipment-item-detail\">• ' + equipmentSummary.without_responsible + ' units without responsible person</div>';
-            }
-            
-            // Group by locations
-            var locationsMap = {};
-            equipmentData.forEach(function(item) {
-                var locId = item.location_id || 'none';
-                if (!locationsMap[locId]) {
-                    locationsMap[locId] = { name: item.location_name || 'Not specified', count: 0 };
-                }
-                locationsMap[locId].count++;
-            });
-            Object.keys(locationsMap).forEach(function(locId) {
-                html += '<div class=\"equipment-item-detail\">• ' + locationsMap[locId].count + ' units in location: ' + escapeHtml(locationsMap[locId].name) + '</div>';
-            });
-            
-            html += '</div>';
-        } else {
-            // Show detailed information for each unit
-            equipmentData.forEach(function(item) {
-                html += '<div class=\"equipment-item\">';
-                html += '<div class=\"equipment-item-header\">';
-                html += 'Inv. #: ' + escapeHtml(item.inventory_number || '-') + ' | ' + escapeHtml(item.name || '-');
-                html += '</div>';
-                html += '<div class=\"equipment-item-detail\">';
-                html += 'Responsible: ' + (item.responsible_user_name || '<span class=\"text-muted\">not assigned</span>');
-                html += '</div>';
-                html += '<div class=\"equipment-item-detail\">';
-                html += 'Location: ' + (item.location_name || '<span class=\"text-muted\">not specified</span>');
-                html += '</div>';
-                html += '<div class=\"equipment-item-detail\">';
-                html += 'Status: ' + (item.status_name || '<span class=\"text-muted\">not specified</span>');
-                html += '</div>';
-                html += '</div>';
-            });
-        }
-        
+        var html = '<div class=\"arm-eq-list\">';
+        var emptyMuted = '<span class=\"arm-eq-item__empty\">не указано</span>';
+        updateEquipmentCountBadge();
+
+        equipmentData.forEach(function(item) {
+            html += renderEquipmentItemCard(item, emptyMuted);
+        });
+
+        html += '</div>';
         container.innerHTML = html;
     }
     
@@ -738,9 +909,9 @@ $this->registerJs("
             return;
         }
         
-        var userId = userIdEl.value || '';
-        var locationId = locationIdEl.value || '';
-        var statusId = statusIdEl.value || '';
+        var userId = getSelectFieldValue(userIdEl);
+        var locationId = getSelectFieldValue(locationIdEl);
+        var statusId = getSelectFieldValue(statusIdEl);
         
         console.log('updatePreview called: userId=', userId, 'locationId=', locationId, 'statusId=', statusId, 'equipmentData.length=', equipmentData.length);
         
@@ -752,7 +923,7 @@ $this->registerJs("
             hasChanges = true;
             var newUserName = '';
             if (userId === '0') {
-                newUserName = 'remove assignment';
+                newUserName = 'снять назначение';
             } else if (window.armUsers && window.armUsers[userId]) {
                 newUserName = window.armUsers[userId];
             }
@@ -774,8 +945,8 @@ $this->registerJs("
             });
             
             if (affectedCount > 0) {
-                var oldUserText = oldUsers.length > 0 ? oldUsers.join(', ') : 'raznye';
-                changes.push('Responsible: ' + oldUserText + ' -> ' + newUserName + ' (' + affectedCount + ' units)');
+                var oldUserText = oldUsers.length > 0 ? oldUsers.join(', ') : 'разные';
+                changes.push('Ответственный: «' + oldUserText + '» → «' + newUserName + '» (' + affectedCount + ' ед.)');
             }
         }
         
@@ -796,8 +967,8 @@ $this->registerJs("
             });
             
             if (affectedCount > 0) {
-                var oldLocText = oldLocations.length > 0 ? oldLocations.join(', ') : 'raznye';
-                changes.push('Location: ' + oldLocText + ' -> ' + newLocationName + ' (' + affectedCount + ' units)');
+                var oldLocText = oldLocations.length > 0 ? oldLocations.join(', ') : 'разные';
+                changes.push('Помещение: «' + oldLocText + '» → «' + newLocationName + '» (' + affectedCount + ' ед.)');
             }
         }
         
@@ -818,8 +989,8 @@ $this->registerJs("
             });
             
             if (affectedCount > 0) {
-                var oldStatusText = oldStatuses.length > 0 ? oldStatuses.join(', ') : 'raznye';
-                changes.push('Status: ' + oldStatusText + ' -> ' + newStatusName + ' (' + affectedCount + ' units)');
+                var oldStatusText = oldStatuses.length > 0 ? oldStatuses.join(', ') : 'разные';
+                changes.push('Статус: «' + oldStatusText + '» → «' + newStatusName + '» (' + affectedCount + ' ед.)');
             }
         }
         
@@ -830,7 +1001,10 @@ $this->registerJs("
         var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
         var hasAnyChange = (userId !== '' || locationId !== '' || statusId !== '');
         if (mode === 'move_component') {
-            hasAnyChange = targetSystemBlockUserId !== '' && targetSystemBlockId !== '';
+            syncMoveComponentChildPicker();
+            var moveCandidates = getMoveComponentCandidates();
+            hasAnyChange = targetSystemBlockUserId !== '' && targetSystemBlockId !== ''
+                && moveCandidates.length > 0 && pendingIds.length === 1;
         } else if (mode === 'dismissal') {
             hasAnyChange = dismissalToWarehouse || dismissalTargetUserId !== '';
         }
@@ -844,25 +1018,17 @@ $this->registerJs("
             
             // Обновляем предпросмотр только если элементы найдены И модальное окно видимо
             if (previewDiv && previewList && isModalVisible) {
-                // Показываем блок предпросмотра
-                previewDiv.style.display = 'block';
-                
+                previewDiv.classList.remove('arm-reassign-preview--hidden');
+
                 if (changes.length > 0) {
-                    // Показываем детальный предпросмотр изменений
                     previewList.innerHTML = changes.map(function(change) {
-                        return '<li>' + escapeHtml(change) + '</li>';
+                        return '<li class=\"arm-reassign-preview__item\"><span class=\"arm-reassign-preview__item-text\">' + escapeHtml(change) + '</span></li>';
                     }).join('');
-                    console.log('Предпросмотр обновлен: детальные изменения, элементов изменений:', changes.length);
                 } else if (equipmentData.length > 0) {
-                    // Если изменения выбраны, но не приведут к реальным изменениям (все уже имеют эти значения)
-                    previewList.innerHTML = '<li class=\"text-muted\">Changes will be applied to all selected equipment</li>';
-                    console.log('Предпросмотр обновлен: изменения будут применены ко всем выбранным единицам');
+                    previewList.innerHTML = '<li class=\"arm-reassign-preview__item arm-reassign-preview__item--muted\">Изменения будут применены ко всей выбранной технике</li>';
                 } else {
-                    // Если данные еще не загружены
-                    previewList.innerHTML = '<li class=\"text-muted\">Loading information...</li>';
-                    console.log('Предпросмотр обновлен: данные загружаются');
+                    previewList.innerHTML = '<li class=\"arm-reassign-preview__item arm-reassign-preview__item--muted\">Загрузка данных…</li>';
                 }
-                console.log('Предпросмотр обновлен, элементы найдены, модальное окно видимо');
             } else {
                 console.warn('Предпросмотр не обновлен:', {
                     previewDiv: !!previewDiv,
@@ -877,7 +1043,7 @@ $this->registerJs("
             
             // Скрываем предпросмотр только если элементы найдены И модальное окно видимо
             if (previewDiv && previewList && isModalVisible) {
-                previewDiv.style.display = 'none';
+                previewDiv.classList.add('arm-reassign-preview--hidden');
                 previewList.innerHTML = '';
             }
         }
@@ -888,16 +1054,18 @@ $this->registerJs("
     // Валидация формы
     function validateForm() {
         var modeEl = document.getElementById('reassignOperationMode');
-        var userId = document.getElementById('reassignUserId').value;
-        var locationId = document.getElementById('reassignLocationId').value;
-        var statusId = document.getElementById('reassignStatusId').value;
+        var userId = getSelectFieldValue(document.getElementById('reassignUserId'));
+        var locationId = getSelectFieldValue(document.getElementById('reassignLocationId'));
+        var statusId = getSelectFieldValue(document.getElementById('reassignStatusId'));
         var mode = modeEl ? modeEl.value : 'reassign';
         var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
         var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
         var dismissalTargetUserId = (document.getElementById('dismissalTargetUserId') || {}).value || '';
         var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
         if (mode === 'move_component') {
-            return targetSystemBlockUserId !== '' && targetSystemBlockId !== '';
+            syncMoveComponentChildPicker();
+            return targetSystemBlockUserId !== '' && targetSystemBlockId !== ''
+                && getMoveComponentCandidates().length > 0 && pendingIds.length === 1;
         }
         if (mode === 'dismissal') {
             return dismissalToWarehouse || dismissalTargetUserId !== '';
@@ -909,8 +1077,9 @@ $this->registerJs("
         var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         var moveWrap = document.getElementById('moveComponentWrap');
         var dismissalUserWrap = document.getElementById('dismissalUserWrap');
-        var dismissalWarehouseWrap = document.getElementById('dismissalWarehouseWrap');
+        var commonWrap = document.getElementById('reassignCommonFieldsWrap');
         var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
+        updateModeHint();
         if (window.IasUserSelect) {
             if (mode !== 'move_component' && moveWrap) {
                 window.IasUserSelect.destroy(moveWrap);
@@ -921,7 +1090,7 @@ $this->registerJs("
         }
         if (moveWrap) moveWrap.style.display = mode === 'move_component' ? 'block' : 'none';
         if (dismissalUserWrap) dismissalUserWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
-        if (dismissalWarehouseWrap) dismissalWarehouseWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
+        if (commonWrap) commonWrap.style.display = mode === 'move_component' ? 'none' : 'block';
         if (mode === 'move_component' && targetSystemBlockUserId !== '') {
             applyMoveComponentUserDefaults(targetSystemBlockUserId);
             fetchSystemBlocksForUser(targetSystemBlockUserId);
@@ -951,6 +1120,7 @@ $this->registerJs("
                 syncMoveComponentBlocksIfNeeded();
             }
         }
+        syncMoveComponentChildPicker();
         updatePreview();
     }
     
@@ -1003,8 +1173,8 @@ $this->registerJs("
                 ? window.IasUserSelect.getValue(reassignUserEl)
                 : reassignUserEl.value)
             : '';
-        var locationId = document.getElementById('reassignLocationId').value;
-        var statusId = document.getElementById('reassignStatusId').value;
+        var locationId = getSelectFieldValue(document.getElementById('reassignLocationId'));
+        var statusId = getSelectFieldValue(document.getElementById('reassignStatusId'));
         var operationMode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         var hasFormChanges = validateForm();
         var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
@@ -1033,9 +1203,20 @@ $this->registerJs("
             showNotification('Выберите хотя бы одно поле для изменения.', 'error');
             return;
         }
-        if (operationMode === 'move_component' && (!targetSystemBlockUserId || !targetSystemBlockId)) {
-            showNotification('Для переноса компонента выберите пользователя и системный блок.', 'error');
-            return;
+        if (operationMode === 'move_component') {
+            syncMoveComponentChildPicker();
+            if (getMoveComponentCandidates().length === 0) {
+                showNotification('У выбранного ПК нет привязанных мониторов или ИБП для переноса.', 'error');
+                return;
+            }
+            if (pendingIds.length !== 1) {
+                showNotification('Для переноса компонента выберите один системный блок (ПК) в таблице.', 'error');
+                return;
+            }
+            if (!targetSystemBlockUserId || !targetSystemBlockId) {
+                showNotification('Для переноса компонента выберите пользователя и системный блок.', 'error');
+                return;
+            }
         }
         
         // Сохраняем состояние кнопки перед отправкой
@@ -1147,14 +1328,15 @@ $this->registerJs("
         pendingIds = ids || [];
         equipmentData = [];
         equipmentSummary = {};
-        
+        syncMoveComponentOperationOption();
+
         // Сброс полей
         var u = document.getElementById('reassignUserId');
         var l = document.getElementById('reassignLocationId');
         var s = document.getElementById('reassignStatusId');
         if (u) setUserSelectValue(u, '');
-        if (l) l.value = '';
-        if (s) s.value = '';
+        if (l) setUserSelectValue(l, '');
+        if (s) setUserSelectValue(s, '');
         var mode = document.getElementById('reassignOperationMode');
         var targetSb = document.getElementById('targetSystemBlockId');
         var targetSbUser = document.getElementById('targetSystemBlockUserId');
@@ -1165,12 +1347,14 @@ $this->registerJs("
         if (targetSb) targetSb.innerHTML = '<option value=\"\">— сначала выберите пользователя —</option>';
         if (dUser) setUserSelectValue(dUser, '');
         if (dWarehouse) dWarehouse.checked = false;
+        updateModeHint();
+        onModeChanged();
         
         // Скрыть предпросмотр и очистить его содержимое
         var preview = document.getElementById('reassignPreview');
         var previewList = document.getElementById('reassignPreviewList');
         if (preview) {
-            preview.style.display = 'none';
+            preview.classList.add('arm-reassign-preview--hidden');
         }
         if (previewList) {
             previewList.innerHTML = '';
@@ -1300,11 +1484,20 @@ $this->registerJs("
                 scheduleUpdatePreview();
             });
 
-        modalRoot.find('#targetSystemBlockId, #reassignLocationId, #reassignStatusId, #reassignOperationMode, #dismissalToWarehouse')
+        modalRoot.find('#reassignLocationId, #reassignStatusId')
+            .off('.reassignArmField')
+            .on('change.reassignArmField select2:select.reassignArmField select2:clear.reassignArmField', function() {
+                scheduleUpdatePreview();
+            });
+
+        modalRoot.find('#targetSystemBlockId, #reassignOperationMode, #dismissalToWarehouse, #componentLinkType, #moveComponentChildId')
             .off('.reassignArmField')
             .on('change.reassignArmField', function() {
                 if (this.id === 'targetSystemBlockId') {
                     applyDefaultLocationFromTargetSystemBlock();
+                }
+                if (this.id === 'componentLinkType' || this.id === 'moveComponentChildId') {
+                    syncMoveComponentChildPicker();
                 }
                 scheduleUpdatePreview();
             });
@@ -1321,6 +1514,7 @@ $this->registerJs("
             applyMoveComponentUserDefaults(userId);
             fetchSystemBlocksForUser(userId);
         }
+        syncMoveComponentChildPicker();
     }
 
     // Инициализация обработчиков
@@ -1374,7 +1568,9 @@ $this->registerJs("
                     target.id === 'targetSystemBlockUserId' ||
                     target.id === 'dismissalTargetUserId' ||
                     target.id === 'dismissalToWarehouse' ||
-                    target.id === 'reassignOperationMode'
+                    target.id === 'reassignOperationMode' ||
+                    target.id === 'componentLinkType' ||
+                    target.id === 'moveComponentChildId'
                 ) {
                     // Получаем equipmentData из замыкания (она объявлена в области видимости функции)
                     var currentEquipmentDataLength = 0;
@@ -1400,6 +1596,9 @@ $this->registerJs("
                         if (opMode === 'reassign' && target.value && target.value !== '0') {
                             applyDefaultLocationForReassign(target.value);
                         }
+                    }
+                    if (target.id === 'componentLinkType' || target.id === 'moveComponentChildId') {
+                        syncMoveComponentChildPicker();
                     }
                     // Используем небольшую задержку, чтобы значение успело обновиться
                     setTimeout(function() {

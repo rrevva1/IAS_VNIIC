@@ -492,14 +492,10 @@ class EquipmentCharCatalog
     public static function formatLinkedEquipmentLabel(array $item): string
     {
         $name = trim((string) ($item['name'] ?? ''));
-        $inv = trim((string) ($item['inventory_number'] ?? ''));
-        if ($name !== '' && $inv !== '') {
-            return $name . ' (' . $inv . ')';
-        }
         if ($name !== '') {
             return $name;
         }
 
-        return $inv;
+        return trim((string) ($item['inventory_number'] ?? ''));
     }
 }

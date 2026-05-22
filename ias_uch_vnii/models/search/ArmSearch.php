@@ -292,6 +292,10 @@ class ArmSearch extends Model
             if (!is_array($cfg)) {
                 continue;
             }
+            if ($field === 'ups') {
+                $this->applyLinkedComponentGridFilter($query, $cfg, EquipmentLink::TYPE_UPS, null);
+                continue;
+            }
             if (in_array($field, $partCharFields, true)) {
                 $this->applyPartCharGridFilter($query, $field, $cfg);
                 continue;
@@ -362,7 +366,11 @@ class ArmSearch extends Model
     private function applyPartCharGridFilter($query, string $gridField, array $cfg): void
     {
         if ($gridField === 'monitor') {
-            $this->applyMonitorGridFilter($query, $cfg);
+            $this->applyLinkedComponentGridFilter($query, $cfg, EquipmentLink::TYPE_MONITOR, 'monitor');
+            return;
+        }
+        if ($gridField === 'ups') {
+            $this->applyLinkedComponentGridFilter($query, $cfg, EquipmentLink::TYPE_UPS, null);
             return;
         }
 
@@ -420,9 +428,11 @@ class ArmSearch extends Model
     }
 
     /**
-     * Фильтр колонки «Монитор»: характеристика part_char_values и привязанные мониторы (equipment_links).
+     * Фильтр колонки связанного компонента (монитор, ИБП): part_char_values (опционально) и equipment_links.
+     *
+     * @param string|null $partCharGridField поле part_char для монитора; для ИБП — null
      */
-    private function applyMonitorGridFilter($query, array $cfg): void
+    private function applyLinkedComponentGridFilter($query, array $cfg, string $linkType, ?string $partCharGridField): void
     {
         $type = (string) ($cfg['type'] ?? '');
         $value = isset($cfg['filter']) ? trim((string) $cfg['filter']) : '';
@@ -433,7 +443,7 @@ class ArmSearch extends Model
         $eqTable = Equipment::tableName();
         $hasLinksTable = Yii::$app->db->getTableSchema('equipment_links', true) !== null;
 
-        $linkedMatch = function () use ($eqTable, $value, $type, $hasLinksTable) {
+        $linkedMatch = function () use ($eqTable, $value, $type, $hasLinksTable, $linkType) {
             if (!$hasLinksTable) {
                 return null;
             }
@@ -442,7 +452,7 @@ class ArmSearch extends Model
                 ->innerJoin(['child' => $eqTable], 'child.id = el.child_equipment_id')
                 ->where([
                     'el.parent_equipment_id' => new Expression($eqTable . '.id'),
-                    'el.link_type' => EquipmentLink::TYPE_MONITOR,
+                    'el.link_type' => $linkType,
                 ]);
             if ($type === 'blank' || $type === 'notBlank') {
                 return $q;
@@ -466,7 +476,10 @@ class ArmSearch extends Model
             return $q;
         };
 
-        $charMatch = function () use ($eqTable) {
+        $charMatch = function () use ($eqTable, $partCharGridField) {
+            if ($partCharGridField === null) {
+                return null;
+            }
             $idCol = $this->getPartCharEquipmentFkColumn();
             if ($idCol === null) {
                 return null;
@@ -477,7 +490,7 @@ class ArmSearch extends Model
                 ->innerJoin(['sp' => 'spr_parts'], 'sp.id = pcv.part_id')
                 ->innerJoin(['sc' => 'spr_chars'], 'sc.id = pcv.char_id')
                 ->where(['=', 'pcv.' . $idCol, new Expression($eqTable . '.id')]);
-            $this->addPartCharScopeForGridField($q, 'monitor');
+            $this->addPartCharScopeForGridField($q, $partCharGridField);
             return ['q' => $q, 'valExpr' => $valExpr];
         };
 
@@ -818,13 +831,20 @@ class ArmSearch extends Model
             return $this->buildCoalesceSortExpression($parts, $dir);
         }
 
+        if ($col === 'ups') {
+            $sub = $this->buildLinkedChildMinSortSubquery(EquipmentLink::TYPE_UPS);
+
+            return $sub !== null ? new Expression($sub['sql'] . ' ' . $suffix) : null;
+        }
+
         return null;
     }
 
     private function applyDefaultGridSort($query): void
     {
-        $query->joinWith(['responsibleUser u']);
+        $query->joinWith(['location l', 'responsibleUser u']);
         $query->orderBy([
+            'l.name' => SORT_ASC,
             'u.full_name' => SORT_ASC,
             'equipment.id' => SORT_ASC,
         ]);

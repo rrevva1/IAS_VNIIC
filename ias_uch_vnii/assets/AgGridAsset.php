@@ -22,6 +22,8 @@ class AgGridAsset extends AssetBundle
     
     public $js = [
         'ag-grid-community/dist/ag-grid-community.min.js',
+        'js/ag-grid-wrap-utils.js',
+        'js/ag-grid-theme-config.js',
         'js/tasks/ag-grid.js',
     ];
     

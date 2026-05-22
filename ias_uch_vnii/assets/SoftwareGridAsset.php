@@ -19,6 +19,7 @@ class SoftwareGridAsset extends AssetBundle
 
     public $js = [
         'ag-grid-community/dist/ag-grid-community.min.js',
+        'js/ag-grid-theme-config.js',
         'js/software/ag-grid.js',
     ];
 

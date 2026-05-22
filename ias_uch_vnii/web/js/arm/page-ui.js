@@ -9,21 +9,12 @@
         return input ? input.value.trim() : '';
     }
 
-    function updateFilterChips() {
-        var wrap = document.getElementById('armFilterChips');
-        var label = document.getElementById('armFilterChipSearch');
-        if (!wrap) {
+    function updateSearchClearButton() {
+        var btn = document.getElementById('armQuickFilterClear');
+        if (!btn) {
             return;
         }
-        var q = getSearchText();
-        if (!q) {
-            wrap.hidden = true;
-            return;
-        }
-        wrap.hidden = false;
-        if (label) {
-            label.textContent = q;
-        }
+        btn.hidden = !getSearchText();
     }
 
     function updateSelectionBar() {
@@ -45,18 +36,19 @@
     }
 
     window.armUpdatePageChrome = function() {
-        updateFilterChips();
+        updateSearchClearButton();
         updateSelectionBar();
     };
 
     function initPageChrome() {
-        var clearChip = document.getElementById('armFilterChipClear');
-        if (clearChip) {
-            clearChip.addEventListener('click', function() {
+        var clearSearch = document.getElementById('armQuickFilterClear');
+        if (clearSearch) {
+            clearSearch.addEventListener('click', function() {
                 var input = document.getElementById('armQuickFilter');
                 if (input) {
                     input.value = '';
                     input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.focus();
                 }
             });
         }

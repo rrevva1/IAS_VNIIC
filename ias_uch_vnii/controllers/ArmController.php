@@ -200,6 +200,7 @@ class ArmController extends Controller
                     'monitor_char' => (string) ($chars['monitor'] ?? ''),
                     'monitor_list' => $linked['monitor'],
                     'disk_list' => $linked['disk'],
+                    'ups' => EquipmentCharCatalog::formatMonitorColumnValue('', $linked['ups']),
                     'ups_list' => $linked['ups'],
                     'hostname' => $chars['hostname'] ?? '',
                     'ip' => $chars['ip'] ?? '',
@@ -381,6 +382,52 @@ class ArmController extends Controller
         }
 
         return 'gray';
+    }
+
+    /**
+     * Обычное переназначение: вместе с ПК/хостом переносятся привязанные монитор, диск, ИБП.
+     *
+     * @param int[] $ids
+     * @return int[]
+     */
+    private function expandReassignIdsWithLinkedComponents(array $ids, string $operationMode): array
+    {
+        if ($operationMode !== 'reassign' || $ids === []) {
+            return $ids;
+        }
+
+        if (Yii::$app->db->getTableSchema('equipment_links', true) === null) {
+            return $ids;
+        }
+
+        $hostIds = [];
+        $models = Equipment::find()
+            ->where(['id' => $ids, 'is_deleted' => false, 'is_archived' => false])
+            ->all();
+        foreach ($models as $model) {
+            if ($this->isHostEquipment($model)) {
+                $hostIds[] = (int) $model->id;
+            }
+        }
+        if ($hostIds === []) {
+            return $ids;
+        }
+
+        $childIds = EquipmentLink::find()
+            ->select('child_equipment_id')
+            ->where(['parent_equipment_id' => $hostIds])
+            ->column();
+        $childIds = array_map('intval', $childIds);
+        if ($childIds === []) {
+            return $ids;
+        }
+
+        $activeChildIds = Equipment::find()
+            ->select('id')
+            ->where(['id' => $childIds, 'is_deleted' => false, 'is_archived' => false])
+            ->column();
+
+        return array_values(array_unique(array_merge($ids, array_map('intval', $activeChildIds))));
     }
 
     private function loadLinkedComponents(array $parentIds): array
@@ -713,10 +760,20 @@ class ArmController extends Controller
             return ['success' => false, 'message' => 'Не выбрано ни одной единицы техники.', 'data' => [], 'summary' => []];
         }
 
+        $requestedIds = $ids;
+
         $equipment = Equipment::find()
             ->where(['id' => $ids])
             ->with(['responsibleUser', 'location', 'equipmentStatus'])
             ->all();
+
+        $hostIds = [];
+        foreach ($equipment as $eq) {
+            if ($this->isHostEquipment($eq)) {
+                $hostIds[] = (int) $eq->id;
+            }
+        }
+        $linksByParent = $this->loadLinkedComponents($hostIds);
 
         $data = [];
         $responsibleUsers = [];
@@ -724,6 +781,7 @@ class ArmController extends Controller
         $statuses = [];
 
         foreach ($equipment as $eq) {
+            $isHost = $this->isHostEquipment($eq);
             $item = [
                 'id' => $eq->id,
                 'inventory_number' => $eq->inventory_number,
@@ -735,6 +793,11 @@ class ArmController extends Controller
                 'location_name' => $eq->location ? $eq->location->name : null,
                 'status_id' => $eq->status_id,
                 'status_name' => $eq->equipmentStatus ? $eq->equipmentStatus->status_name : null,
+                'is_host' => $isHost,
+                'is_component' => !$isHost && $this->isLinkableComponentEquipment($eq),
+                'linked_components' => $isHost
+                    ? ($linksByParent[(int) $eq->id] ?? ['monitor' => [], 'disk' => [], 'ups' => []])
+                    : ['monitor' => [], 'disk' => [], 'ups' => []],
             ];
             $data[] = $item;
 
@@ -760,6 +823,7 @@ class ArmController extends Controller
 
         return [
             'success' => true,
+            'ids' => $requestedIds,
             'data' => $data,
             'summary' => $summary,
         ];
@@ -782,6 +846,32 @@ class ArmController extends Controller
         }
 
         $operationMode = (string) Yii::$app->request->post('operation_mode', 'reassign');
+        if ($operationMode === 'move_component') {
+            if (count($ids) !== 1) {
+                return [
+                    'success' => false,
+                    'message' => 'Для переноса компонента выберите один системный блок (ПК) в таблице.',
+                ];
+            }
+            $moveEquipment = Equipment::findOne((int) $ids[0]);
+            if (!$moveEquipment) {
+                return ['success' => false, 'message' => 'Оборудование для переноса не найдено.'];
+            }
+            if ($this->isHostEquipment($moveEquipment)) {
+                return [
+                    'success' => false,
+                    'message' => 'Укажите в форме, какой монитор или ИБП переносится с выбранного ПК.',
+                ];
+            }
+            if (!$this->isLinkableComponentEquipment($moveEquipment)) {
+                return [
+                    'success' => false,
+                    'message' => 'Перенос компонента доступен только для мониторов и ИБП с выбранного системного блока.',
+                ];
+            }
+        } else {
+            $ids = $this->expandReassignIdsWithLinkedComponents($ids, $operationMode);
+        }
         $responsibleUserId = Yii::$app->request->post('responsible_user_id');
         $locationId = Yii::$app->request->post('location_id');
         $statusId = Yii::$app->request->post('status_id');
@@ -996,6 +1086,29 @@ class ArmController extends Controller
             Yii::error('actionUserPrimaryLocation failed: ' . $e->getMessage(), __METHOD__);
             return ['success' => false, 'location_id' => null, 'message' => 'Не удалось определить помещение'];
         }
+    }
+
+    /**
+     * Монитор или ИБП как отдельная единица учёта (переносимый компонент).
+     */
+    private function isLinkableComponentEquipment(Equipment $equipment): bool
+    {
+        if ($this->isHostEquipment($equipment)) {
+            return false;
+        }
+
+        $name = mb_strtolower(trim((string) $equipment->name), 'UTF-8');
+        $typeLower = mb_strtolower(trim((string) $equipment->equipment_type), 'UTF-8');
+        foreach (['монитор', 'monitor', 'ибп', 'ups'] as $pattern) {
+            if ($typeLower !== '' && mb_strpos($typeLower, $pattern, 0, 'UTF-8') !== false) {
+                return true;
+            }
+            if ($name !== '' && mb_strpos($name, $pattern, 0, 'UTF-8') !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1268,6 +1381,10 @@ class ArmController extends Controller
                 (string) ($chars['monitor'] ?? ''),
                 $links['monitor'] ?? []
             )],
+            'ups' => ['ИБП', static fn($m, $chars, $links) => EquipmentCharCatalog::formatMonitorColumnValue(
+                '',
+                $links['ups'] ?? []
+            )],
             'hostname' => ['Имя ПК', static fn($m, $chars, $links) => $chars['hostname'] ?? ''],
             'ip' => ['IP адрес', static fn($m, $chars, $links) => $chars['ip'] ?? ''],
             'os' => ['ОС', static fn($m, $chars, $links) => $chars['os'] ?? ''],
@@ -1275,7 +1392,7 @@ class ArmController extends Controller
             'other_tech' => ['Комментарий', fn($m, $chars, $links) => $this->formatOtherTechForGrid($m)],
         ];
 
-        $defaultCols = ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os', 'other_tech'];
+        $defaultCols = ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'];
         $scope = trim((string)($params['export_scope'] ?? 'all'));
         $colsParam = trim((string)($params['cols'] ?? ''));
         $selectedCols = $defaultCols;

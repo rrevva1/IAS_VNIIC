@@ -10,13 +10,37 @@
     let armQuickSearchText = '';
     let armQuickFilterTimer = null;
     let currentPageSize = Number(window.agGridArmDefaultLimit || 20) || 20;
-    let armFitColumnsTimer = null;
     const ARM_COLUMNS_STORAGE_PREFIX = 'arm-columns:';
+    let armFitColumnsTimer = null;
+    /** Не сбрасывать ширину после ручного изменения столбца мышью. */
+    let armSuppressFitUntil = 0;
 
-    function scheduleFitArmColumns() {
+    function shouldSkipFitArmColumns() {
+        return Date.now() < armSuppressFitUntil;
+    }
+
+    function markArmColumnUserResize() {
+        armSuppressFitUntil = Date.now() + 2500;
+    }
+
+    function scheduleArmGridRowHeights() {
+        if (window.AgGridWrap && gridApi) {
+            window.AgGridWrap.scheduleResetRowHeights(gridApi);
+        }
+    }
+
+    /** Подгонка ширины видимых колонок под область таблицы. */
+    function scheduleFitArmColumns(force) {
         clearTimeout(armFitColumnsTimer);
         armFitColumnsTimer = setTimeout(function() {
+            if (!force && shouldSkipFitArmColumns()) {
+                return;
+            }
             if (!gridApi || typeof gridApi.sizeColumnsToFit !== 'function') {
+                return;
+            }
+            var container = document.getElementById('agGridArmContainer');
+            if (!container || container.clientWidth < 80) {
                 return;
             }
             try {
@@ -27,35 +51,22 @@
         }, 50);
     }
 
-    /** Firefox: flex + height:100% даёт нулевую высоту области строк — задаём явно. */
-    function applyArmGridContainerHeight() {
-        var container = document.getElementById('agGridArmContainer');
-        var card = container && container.closest('.arm-grid-card');
-        if (!container || !card) {
-            return;
-        }
-        var cardHeight = card.clientHeight;
-        if (cardHeight < 120) {
-            return;
-        }
-        container.style.height = cardHeight + 'px';
-        container.style.minHeight = '300px';
-        if (gridApi && typeof gridApi.sizeColumnsToFit === 'function') {
-            scheduleFitArmColumns();
-        }
-    }
-
-    function scheduleArmGridContainerHeight() {
-        setTimeout(applyArmGridContainerHeight, 0);
-        setTimeout(applyArmGridContainerHeight, 100);
-    }
-
     const COLUMN_PRESETS = {
-        default: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os', 'other_tech'],
+        /** Вся техника */
+        all: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'],
+        /** Вкладки АРМ, ПК */
+        arm: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
+        /** Вкладка «Системные блоки» */
+        systemBlock: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
+        /** Ноутбуки, моноблоки и прочие хосты без колонки привязанных ИБП */
+        host: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os'],
         monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
-        system: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'hostname', 'ip', 'os'],
-        ups: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
-        print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'cartridge_procurement', 'ip', 'other_tech']
+        upsType: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+        print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'cartridge_procurement', 'ip', 'other_tech'],
+        /** Сканеры — без «Закупка картриджей» */
+        scanner: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'ip', 'other_tech'],
+        /** Остальные вкладки — без колонки «ИБП» */
+        generic: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
     };
 
     function getViewUrl(id) {
@@ -70,34 +81,29 @@
         return base + sep + 'r=arm/view&id=' + encodeURIComponent(id);
     }
 
-    function isAllEquipmentTab() {
-        return !(window.agGridArmCurrentTypeId || '').toString().trim();
-    }
-
-    function formatMonitorItemLabel(item, options) {
+    function formatLinkedItemLabel(item) {
         if (!item) {
             return '';
         }
-        options = options || {};
         var name = String(item.name || '').trim();
         var inv = String(item.inventory_number || '').trim();
-        var showInv = options.showInv !== false && !isAllEquipmentTab();
-        if (name && inv && showInv) {
-            return name + ' (' + inv + ')';
-        }
         return name || inv;
     }
 
+    function formatMonitorItemLabel(item) {
+        return formatLinkedItemLabel(item);
+    }
+
+    function formatUpsItemLabel(item) {
+        return formatLinkedItemLabel(item);
+    }
+
     function monitorLinkTitle(item) {
-        var name = String(item && item.name || '').trim();
-        var inv = String(item && item.inventory_number || '').trim();
-        if (name && inv) {
-            return 'Открыть карточку монитора: ' + name + ' (' + inv + ')';
+        var label = formatMonitorItemLabel(item);
+        if (!label) {
+            return 'Открыть карточку монитора';
         }
-        if (name) {
-            return 'Открыть карточку монитора: ' + name;
-        }
-        return 'Открыть карточку монитора';
+        return 'Открыть карточку монитора: ' + label;
     }
 
     function renderMonitorCell(params) {
@@ -158,6 +164,80 @@
         }
 
         var fallback = String(data.monitor || '').trim();
+        if (!fallback) {
+            return 1;
+        }
+        if (wrap && typeof wrap.estimateLines === 'function') {
+            return wrap.estimateLines(fallback, colWidth);
+        }
+        return Math.max(1, fallback.split(/,\s*/).length);
+    }
+
+    function upsLinkTitle(item) {
+        var label = formatUpsItemLabel(item);
+        if (!label) {
+            return 'Открыть карточку ИБП';
+        }
+        return 'Открыть карточку ИБП: ' + label;
+    }
+
+    function renderUpsCell(params) {
+        var data = params.data;
+        if (!data) {
+            return '';
+        }
+        var lines = [];
+        var list = data.ups_list;
+        if (Array.isArray(list)) {
+            list.forEach(function(u) {
+                var label = formatUpsItemLabel(u);
+                if (!label) {
+                    return;
+                }
+                if (u && u.id) {
+                    lines.push(
+                        '<a href="' + getViewUrl(u.id) + '" class="arm-link-to-card arm-ups-link" title="' +
+                        escapeHtml(upsLinkTitle(u)) + '">' +
+                        escapeHtml(label) + '</a>'
+                    );
+                } else {
+                    lines.push(escapeHtml(label));
+                }
+            });
+        }
+        if (!lines.length) {
+            var fallback = String(data.ups || params.value || '').trim();
+            return fallback ? '<span class="arm-ups-fallback">' + escapeHtml(fallback) + '</span>' : '';
+        }
+        return '<div class="arm-ups-cell arm-cell-wrap">' + lines.join('<br>') + '</div>';
+    }
+
+    function countUpsDisplayLines(data, params) {
+        if (!data) {
+            return 1;
+        }
+        var list = data.ups_list;
+        var wrap = window.AgGridWrap;
+        var col = params && params.api && typeof params.api.getColumn === 'function'
+            ? params.api.getColumn('ups')
+            : null;
+        var colWidth = wrap && col ? wrap.getColumnWidth(col) : 120;
+
+        if (Array.isArray(list) && list.length) {
+            if (wrap && typeof wrap.estimateLines === 'function') {
+                var total = 0;
+                list.forEach(function(u) {
+                    var label = formatUpsItemLabel(u);
+                    if (label) {
+                        total += wrap.estimateLines(label, colWidth);
+                    }
+                });
+                return Math.max(1, total);
+            }
+            return Math.max(1, list.length);
+        }
+
+        var fallback = String(data.ups || '').trim();
         if (!fallback) {
             return 1;
         }
@@ -236,7 +316,7 @@
     }
 
     function getColumnDefs() {
-        return [
+        var defs = [
             {
                 headerName: 'Пользователь',
                 field: 'user_name',
@@ -324,6 +404,23 @@
                     return params.value || '';
                 },
             },
+            {
+                headerName: 'ИБП',
+                field: 'ups',
+                minWidth: 120,
+                filter: 'agTextColumnFilter',
+                cellRenderer: renderUpsCell,
+                tooltipValueGetter: function(params) {
+                    if (!params.data) {
+                        return '';
+                    }
+                    var list = params.data.ups_list;
+                    if (Array.isArray(list) && list.length) {
+                        return list.map(function(u) { return formatUpsItemLabel(u); }).filter(Boolean).join('\n');
+                    }
+                    return params.value || '';
+                },
+            },
             { headerName: 'Имя ПК', field: 'hostname', minWidth: 100, filter: 'agTextColumnFilter' },
             { headerName: 'IP адрес', field: 'ip', minWidth: 100, filter: 'agTextColumnFilter' },
             { headerName: 'ОС', field: 'os', minWidth: 90, filter: 'agTextColumnFilter' },
@@ -336,6 +433,7 @@
             },
             { headerName: 'Комментарий', field: 'other_tech', minWidth: 140, filter: 'agTextColumnFilter', tooltipField: 'other_tech' },
         ];
+        return defs;
     }
 
     function escapeHtml(str) {
@@ -374,11 +472,20 @@
         columns: 'Колонки', pivotMode: 'Режим сводной таблицы',
     };
 
+    var DEFAULT_GRID_SORT = [
+        { colId: 'location_name', sort: 'asc' },
+        { colId: 'user_name', sort: 'asc' },
+    ];
+
+    /** Сортировка по умолчанию только на сервере — без стрелок и цифр в заголовках до ручного клика. */
     function buildSortModelFromColumnState(api) {
         if (!api || typeof api.getColumnState !== 'function') {
-            return [];
+            return DEFAULT_GRID_SORT.slice();
         }
         var state = (api.getColumnState() || []).filter(function(c) { return c && c.sort; });
+        if (!state.length) {
+            return DEFAULT_GRID_SORT.slice();
+        }
         state.sort(function(a, b) {
             var ai = a.sortIndex != null ? a.sortIndex : 0;
             var bi = b.sortIndex != null ? b.sortIndex : 0;
@@ -450,9 +557,7 @@
                 var limit = Math.max(1, endRow - startRow);
                 var offset = Math.max(0, startRow);
 
-                var sortModel = (params.sortModel && params.sortModel.length)
-                    ? params.sortModel
-                    : buildSortModelFromColumnState(gridApi);
+                var sortModel = buildSortModelFromColumnState(gridApi);
                 fetch(getDataUrl(limit, offset, params.filterModel || {}, sortModel))
                     .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
                     .then(function(result) {
@@ -462,9 +567,7 @@
                         params.successCallback(result.data, Number(result.total || 0));
                         setTimeout(function() {
                             scheduleFitArmColumns();
-                            if (window.AgGridWrap && gridApi) {
-                                window.AgGridWrap.scheduleResetRowHeights(gridApi);
-                            }
+                            scheduleArmGridRowHeights();
                             syncSelectionChrome();
                         }, 0);
                     })
@@ -532,20 +635,103 @@
         return ARM_COLUMNS_STORAGE_PREFIX + normalized;
     }
 
+    function typeAllowsUpsColumn(typeId) {
+        return getPresetColumns(typeId).indexOf('ups') >= 0;
+    }
+
+    function typeAllowsCartridgeColumn(typeId) {
+        return getPresetColumns(typeId).indexOf('cartridge_procurement') >= 0;
+    }
+
     function getPresetColumns(typeId) {
-        var raw = (typeId || '').toString().toLowerCase();
-        if (!raw) return COLUMN_PRESETS.default;
-        if (raw.indexOf('монитор') >= 0) return COLUMN_PRESETS.monitor;
-        if (raw === 'арм' || raw.indexOf('систем') >= 0 || raw.indexOf('моноблок') >= 0 || raw.indexOf('ноут') >= 0 || raw === 'пк') {
-            return COLUMN_PRESETS.system;
+        var raw = (typeId || '').toString().trim().toLowerCase();
+        if (!raw) {
+            return COLUMN_PRESETS.all;
         }
-        if (raw.indexOf('ибп') >= 0 || raw.indexOf('ups') >= 0) return COLUMN_PRESETS.ups;
-        if (raw.indexOf('мфу') >= 0 || raw.indexOf('принтер') >= 0) return COLUMN_PRESETS.print;
-        return COLUMN_PRESETS.default;
+        if (raw.indexOf('монитор') >= 0) {
+            return COLUMN_PRESETS.monitor;
+        }
+        if (raw === 'арм' || raw === 'пк') {
+            return COLUMN_PRESETS.arm;
+        }
+        if (raw.indexOf('систем') >= 0 && raw.indexOf('блок') >= 0) {
+            return COLUMN_PRESETS.systemBlock;
+        }
+        if (raw.indexOf('ноут') >= 0 || raw.indexOf('моноблок') >= 0 || raw.indexOf('сервер') >= 0) {
+            return COLUMN_PRESETS.host;
+        }
+        if (raw.indexOf('ибп') >= 0 || raw === 'ups') {
+            return COLUMN_PRESETS.upsType;
+        }
+        if (raw.indexOf('скан') >= 0) {
+            return COLUMN_PRESETS.scanner;
+        }
+        if (raw.indexOf('мфу') >= 0 || raw.indexOf('принтер') >= 0) {
+            return COLUMN_PRESETS.print;
+        }
+        return COLUMN_PRESETS.generic;
+    }
+
+    function loadSavedColumnsByColId(typeId) {
+        if (typeof window.localStorage === 'undefined') {
+            return null;
+        }
+        try {
+            var raw = window.localStorage.getItem(getColumnsStorageKey(typeId));
+            if (!raw) {
+                return null;
+            }
+            var parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed) || parsed.length === 0) {
+                return null;
+            }
+            var map = {};
+            parsed.forEach(function(item) {
+                if (item && item.colId) {
+                    map[item.colId] = !!item.hide;
+                }
+            });
+            return Object.keys(map).length > 0 ? map : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function buildColumnVisibilityState(typeId, forcePreset) {
+        var allowed = getPresetColumns(typeId);
+        var upsAllowed = typeAllowsUpsColumn(typeId);
+        var cartridgeAllowed = typeAllowsCartridgeColumn(typeId);
+        var savedByColId = forcePreset ? null : loadSavedColumnsByColId(typeId);
+        var columns = gridApi.getColumns ? gridApi.getColumns() : [];
+        var state = [];
+        columns.forEach(function(col) {
+            if (!col || !col.getColId || !col.getColDef) {
+                return;
+            }
+            var def = col.getColDef() || {};
+            var colId = col.getColId();
+            if (!colId || !def.field) {
+                return;
+            }
+            var hide;
+            if (colId === 'ups' && !upsAllowed) {
+                hide = true;
+            } else if (colId === 'cartridge_procurement' && !cartridgeAllowed) {
+                hide = true;
+            } else if (savedByColId && Object.prototype.hasOwnProperty.call(savedByColId, colId)) {
+                hide = savedByColId[colId];
+            } else {
+                hide = allowed.indexOf(colId) === -1;
+            }
+            state.push({ colId: colId, hide: hide });
+        });
+        return state;
     }
 
     function saveCurrentColumnsStateForType(typeId) {
         if (!gridApi || typeof window.localStorage === 'undefined') return;
+        var upsAllowed = typeAllowsUpsColumn(typeId);
+        var cartridgeAllowed = typeAllowsCartridgeColumn(typeId);
         var columns = gridApi.getColumns ? gridApi.getColumns() : [];
         var state = [];
         columns.forEach(function(col) {
@@ -553,7 +739,14 @@
             var def = col.getColDef() || {};
             var colId = col.getColId();
             if (!colId || !def.field) return;
-            state.push({ colId: colId, hide: !(col.isVisible ? col.isVisible() : true) });
+            var visible = col.isVisible ? col.isVisible() : true;
+            if (colId === 'ups' && !upsAllowed) {
+                visible = false;
+            }
+            if (colId === 'cartridge_procurement' && !cartridgeAllowed) {
+                visible = false;
+            }
+            state.push({ colId: colId, hide: !visible });
         });
         window.localStorage.setItem(getColumnsStorageKey(typeId), JSON.stringify(state));
     }
@@ -561,40 +754,14 @@
     function applyColumnsForCurrentType(forcePreset) {
         if (!gridApi || !gridApi.applyColumnState) return;
         var typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
-        var savedState = null;
-        if (!forcePreset && typeof window.localStorage !== 'undefined') {
-            try {
-                var raw = window.localStorage.getItem(getColumnsStorageKey(typeId));
-                if (raw) {
-                    savedState = JSON.parse(raw);
-                }
-            } catch (e) {
-                savedState = null;
-            }
-        }
-        if (savedState && Array.isArray(savedState) && savedState.length > 0) {
-            var visibilityState = savedState.map(function(item) {
-                return {
-                    colId: item.colId,
-                    hide: !!item.hide,
-                };
-            });
-            gridApi.applyColumnState({ state: visibilityState, applyOrder: false });
-            scheduleFitArmColumns();
+        var state = buildColumnVisibilityState(typeId, !!forcePreset);
+        if (state.length === 0) {
             return;
         }
-        var allowed = getPresetColumns(typeId);
-        var columns = gridApi.getColumns ? gridApi.getColumns() : [];
-        var state = [];
-        columns.forEach(function(col) {
-            if (!col || !col.getColId || !col.getColDef) return;
-            var def = col.getColDef() || {};
-            var colId = col.getColId();
-            if (!colId || !def.field) return;
-            state.push({ colId: colId, hide: allowed.indexOf(colId) === -1 });
-        });
         gridApi.applyColumnState({ state: state, applyOrder: false });
-        scheduleFitArmColumns();
+        armSuppressFitUntil = 0;
+        scheduleFitArmColumns(true);
+        scheduleArmGridRowHeights();
     }
 
     function initActions() {
@@ -709,6 +876,9 @@
 
         function renderColumnsList() {
             if (!gridApi) return;
+            var typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
+            var upsAllowed = typeAllowsUpsColumn(typeId);
+            var cartridgeAllowed = typeAllowsCartridgeColumn(typeId);
             var cols = gridApi.getColumns ? gridApi.getColumns() : [];
             var html = '';
             cols.forEach(function(col) {
@@ -717,9 +887,15 @@
                 var label = (def && def.headerName != null ? String(def.headerName) : '').trim();
                 if (!colId || !def.field) return; // без поля — служебная колонка выбора
                 var checked = col.isVisible ? col.isVisible() : true;
+                var disabled = (colId === 'ups' && !upsAllowed)
+                    || (colId === 'cartridge_procurement' && !cartridgeAllowed);
+                if (disabled) {
+                    checked = false;
+                }
                 html += '<div class="form-check mb-1">';
-                html += '<input class="form-check-input arm-col-check" type="checkbox" id="arm-col-' + escapeHtml(colId) + '" data-col-id="' + escapeHtml(colId) + '"' + (checked ? ' checked' : '') + '>';
-                html += '<label class="form-check-label" for="arm-col-' + escapeHtml(colId) + '">' + escapeHtml(label) + '</label>';
+                html += '<input class="form-check-input arm-col-check" type="checkbox" id="arm-col-' + escapeHtml(colId) + '" data-col-id="' + escapeHtml(colId) + '"' +
+                    (checked ? ' checked' : '') + (disabled ? ' disabled' : '') + '>';
+                html += '<label class="form-check-label' + (disabled ? ' text-muted' : '') + '" for="arm-col-' + escapeHtml(colId) + '">' + escapeHtml(label) + '</label>';
                 html += '</div>';
             });
             listEl.innerHTML = html || '<div class="text-muted">Нет настраиваемых колонок</div>';
@@ -732,18 +908,27 @@
 
         applyBtn.addEventListener('click', function() {
             if (!gridApi) return;
+            var typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
+            var saved = loadSavedColumnsByColId(typeId) || {};
             var checks = listEl.querySelectorAll('.arm-col-check');
-            var state = [];
             checks.forEach(function(ch) {
-                state.push({
-                    colId: ch.getAttribute('data-col-id'),
-                    hide: !ch.checked
-                });
+                var colId = ch.getAttribute('data-col-id');
+                if (!colId) return;
+                saved[colId] = !ch.checked;
             });
-            if (gridApi.applyColumnState) {
-                gridApi.applyColumnState({ state: state, applyOrder: false });
+            if (!typeAllowsUpsColumn(typeId)) {
+                saved.ups = true;
             }
-            saveCurrentColumnsStateForType(window.agGridArmCurrentTypeId);
+            if (!typeAllowsCartridgeColumn(typeId)) {
+                saved.cartridge_procurement = true;
+            }
+            if (typeof window.localStorage !== 'undefined') {
+                var toStore = Object.keys(saved).map(function(colId) {
+                    return { colId: colId, hide: saved[colId] };
+                });
+                window.localStorage.setItem(getColumnsStorageKey(typeId), JSON.stringify(toStore));
+            }
+            applyColumnsForCurrentType(false);
             modal.hide();
         });
 
@@ -776,7 +961,18 @@
                     resizable: true,
                     autoHeight: false,
                 }, true)
-                : { sortable: true, filter: true, resizable: true, wrapText: true, autoHeight: false, cellClass: 'ag-cell-wrap-text' },
+                : {
+                    sortable: true,
+                    filter: true,
+                    resizable: true,
+                    wrapText: true,
+                    autoHeight: false,
+                    cellClass: 'ag-cell-wrap-text',
+                },
+            suppressHorizontalScroll: false,
+            alwaysShowHorizontalScroll: true,
+            alwaysShowVerticalScroll: true,
+            scrollbarWidth: 12,
             rowModelType: 'infinite',
             cacheBlockSize: currentPageSize,
             maxBlocksInCache: 5,
@@ -805,6 +1001,7 @@
             getRowHeight: function(params) {
                 var extraLines = Math.max(
                     countMonitorDisplayLines(params.data, params),
+                    countUpsDisplayLines(params.data, params),
                     countDiskDisplayLines(params.data, params)
                 );
                 if (window.AgGridWrap && typeof window.AgGridWrap.estimateRowHeight === 'function') {
@@ -814,10 +1011,10 @@
             },
             localeText: localeTextRu,
             sideBar: false,
+            onFirstDataRendered: scheduleFitArmColumns,
             onGridReady: function(params) {
                 gridApi = params.api;
                 window.armGridApi = params.api;
-                scheduleArmGridContainerHeight();
                 applyColumnsForCurrentType();
                 loadGridData(true);
                 initTabs();
@@ -841,39 +1038,29 @@
             onSortChanged: function() {
                 loadGridData(true);
             },
-            onDisplayedColumnsChanged: function() {
-                scheduleFitArmColumns();
-                if (window.AgGridWrap && gridApi) {
-                    window.AgGridWrap.scheduleResetRowHeights(gridApi);
-                }
+            onDisplayedColumnsChanged: scheduleArmGridRowHeights,
+            onColumnResized: function() {
+                markArmColumnUserResize();
+                scheduleArmGridRowHeights();
             },
             onGridSizeChanged: function() {
-                scheduleArmGridContainerHeight();
-                scheduleFitArmColumns();
-                if (window.AgGridWrap && gridApi) {
-                    window.AgGridWrap.scheduleResetRowHeights(gridApi);
+                if (shouldSkipFitArmColumns()) {
+                    return;
                 }
-            },
-            onColumnResized: function() {
-                if (window.AgGridWrap && gridApi) {
-                    window.AgGridWrap.scheduleResetRowHeights(gridApi);
+                var el = document.getElementById('agGridArmContainer');
+                if (el && el.clientWidth >= 80) {
+                    scheduleFitArmColumns();
                 }
             },
         };
         agGrid.createGrid(container, gridOpts);
-        scheduleArmGridContainerHeight();
-        if (typeof ResizeObserver !== 'undefined' && container) {
-            var armGridResizeObserver = new ResizeObserver(function() {
-                applyArmGridContainerHeight();
-                scheduleFitArmColumns();
-            });
-            armGridResizeObserver.observe(container);
-            var card = container.closest('.arm-grid-card');
-            if (card) {
-                armGridResizeObserver.observe(card);
-            }
-        }
-        window.addEventListener('resize', scheduleArmGridContainerHeight);
+        window.addEventListener('resize', function() {
+            armSuppressFitUntil = 0;
+            scheduleFitArmColumns(true);
+        });
+        requestAnimationFrame(function() {
+            requestAnimationFrame(scheduleFitArmColumns);
+        });
     }
 
     window.refreshArmGrid = function() {
