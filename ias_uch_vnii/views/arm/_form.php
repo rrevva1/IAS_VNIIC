@@ -14,6 +14,7 @@
  * @var string[] $osModels — известные ОС для подсказок
  * @var string[] $diskModels — известные накопители для подсказок
  * @var string[] $supplierNames — известные поставщики для подсказок
+ * @var string[] $ipAddresses — известные IP-адреса для подсказок
  */
 
 use app\assets\UserSelectAsset;
@@ -32,6 +33,7 @@ $ramModels = $ramModels ?? [];
 $osModels = $osModels ?? [];
 $diskModels = $diskModels ?? [];
 $supplierNames = $supplierNames ?? [];
+$ipAddresses = $ipAddresses ?? [];
 $currentSupplier = trim((string) ($model->supplier ?? ''));
 
 $orgTech = [
@@ -44,7 +46,7 @@ if (EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName())
 }
 
 $orgTechFields = [
-    ['name' => 'ip', 'label' => 'IP-адрес / подключение', 'part' => 'Принтер', 'char' => 'IP адрес'],
+    ['name' => 'ip', 'label' => 'IP-адрес / подключение', 'part' => 'Принтер', 'char' => 'IP адрес', 'widget' => 'ip-datalist'],
     [
         'name' => 'cartridge_procurement',
         'label' => 'Учёт для закупки картриджей',
@@ -102,6 +104,12 @@ $orgTechFields = [
             <datalist id="arm-disk-datalist">
                 <?php foreach ($diskModels as $diskModel): ?>
                     <option value="<?= Html::encode($diskModel) ?>"></option>
+                <?php endforeach; ?>
+            </datalist>
+
+            <datalist id="arm-ip-datalist">
+                <?php foreach ($ipAddresses as $ipAddress): ?>
+                    <option value="<?= Html::encode($ipAddress) ?>"></option>
                 <?php endforeach; ?>
             </datalist>
 
@@ -193,7 +201,7 @@ $pcFields = [
     ['name' => 'ram', 'label' => 'Оперативная память (ОЗУ)', 'part' => 'ОЗУ', 'char' => 'Объём', 'widget' => 'ram-datalist'],
     ['name' => 'disk', 'label' => 'Накопители (диски)', 'part' => 'Накопитель', 'char' => 'Модель', 'widget' => 'disk-datalist-multi'],
     ['name' => 'hostname', 'label' => 'Имя компьютера', 'part' => 'ПК', 'char' => 'Имя ПК'],
-    ['name' => 'ip', 'label' => 'IP-адрес', 'part' => 'ПК', 'char' => 'IP адрес'],
+    ['name' => 'ip', 'label' => 'IP-адрес', 'part' => 'ПК', 'char' => 'IP адрес', 'widget' => 'ip-datalist'],
     ['name' => 'os', 'label' => 'Операционная система', 'part' => 'ПК', 'char' => 'ОС', 'widget' => 'os-datalist'],
 ];
 $fieldTemplates = [
@@ -223,6 +231,7 @@ window.armFormCpuModels = ' . json_encode(array_values($cpuModels)) . ';
 window.armFormRamModels = ' . json_encode(array_values($ramModels)) . ';
 window.armFormOsModels = ' . json_encode(array_values($osModels)) . ';
 window.armFormDiskModels = ' . json_encode(array_values($diskModels)) . ';
+window.armFormIpAddresses = ' . json_encode(array_values($ipAddresses)) . ';
 ', \yii\web\View::POS_HEAD);
 $this->registerJsFile(Url::to('@web/js/arm/form-dynamic.js'), ['depends' => ['yii\web\JqueryAsset'], 'position' => \yii\web\View::POS_END]);
 $this->registerJsFile(Url::to('@web/js/arm/warranty-preview.js'), ['depends' => ['yii\web\JqueryAsset'], 'position' => \yii\web\View::POS_END]);

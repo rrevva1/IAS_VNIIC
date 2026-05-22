@@ -32,5 +32,6 @@ $this->params['breadcrumbs'][] = 'Редактирование';
         'osModels' => $osModels ?? [],
         'diskModels' => $diskModels ?? [],
         'supplierNames' => $supplierNames ?? [],
+        'ipAddresses' => $ipAddresses ?? [],
     ]) ?>
 </div>

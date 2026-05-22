@@ -33,6 +33,7 @@ $this->params['breadcrumbs'][] = $this->title;
         'osModels' => $osModels ?? [],
         'diskModels' => $diskModels ?? [],
         'supplierNames' => $supplierNames ?? [],
+        'ipAddresses' => $ipAddresses ?? [],
     ]) ?>
 </div>
 

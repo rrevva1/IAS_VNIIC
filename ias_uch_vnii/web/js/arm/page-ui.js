@@ -77,9 +77,15 @@
         var selectionReassign = document.getElementById('armSelectionReassign');
         if (selectionReassign) {
             selectionReassign.addEventListener('click', function() {
-                var btn = document.getElementById('btnReassignArm');
-                if (btn && !btn.disabled) {
-                    btn.click();
+                var api = window.armGridApi;
+                var rows = api && typeof api.getSelectedRows === 'function' ? api.getSelectedRows() : [];
+                if (rows.length === 0) {
+                    alert('Выберите одну или несколько единиц техники в таблице (отметьте чекбоксы слева от строк).');
+                    return;
+                }
+                var ids = rows.map(function(r) { return r.id; });
+                if (typeof window.openReassignModal === 'function') {
+                    window.openReassignModal(ids);
                 }
             });
         }

@@ -69,24 +69,21 @@ class ArmSearch extends Model
     {
         $query = Equipment::find()->with(['responsibleUser', 'location', 'equipmentStatus']);
 
-        $eqTable = Equipment::tableName();
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
             'pagination' => ['pageSize' => 20],
             'sort' => [
                 'defaultOrder' => ['id' => SORT_ASC],
-                'attributes' => array_merge(
-                    [
-                        'id',
-                        'name',
-                        'responsible_user_id',
-                        'location_id',
-                        'created_at',
-                        'inventory_number',
-                        'description',
-                    ],
-                    $this->buildLinkCountSortAttributes($eqTable)
-                ),
+                'attributes' => [
+                    'id',
+                    'name',
+                    'responsible_user_id',
+                    'location_id',
+                    'created_at',
+                    'inventory_number',
+                    'description',
+                    'purchase_date',
+                ],
             ],
         ]);
 
@@ -154,6 +151,7 @@ class ArmSearch extends Model
             'or',
             ['ilike', 'equipment.name', $q],
             ['ilike', 'equipment.inventory_number', $q],
+            ['ilike', new Expression('CAST(equipment.purchase_date AS TEXT)'), $q],
             ['ilike', 'equipment.description', $q],
             ['ilike', 'u.full_name', $q],
             ['ilike', 'u.email', $q],
@@ -266,33 +264,6 @@ class ArmSearch extends Model
         $query->andWhere(['not exists', $sub]);
     }
 
-    /**
-     * Атрибуты сортировки по количеству связей equipment_links (для AG Grid).
-     *
-     * @return array<string, array{asc: array<Expression, int>, desc: array<Expression, int>}>
-     */
-    private function buildLinkCountSortAttributes(string $eqTable): array
-    {
-        $countExpr = static function (string $linkType) use ($eqTable): string {
-            return "(SELECT COUNT(*) FROM equipment_links el WHERE el.parent_equipment_id = {$eqTable}.id AND el.link_type = '{$linkType}')";
-        };
-
-        return [
-            'monitor_count' => [
-                'asc' => [$countExpr(EquipmentLink::TYPE_MONITOR) => SORT_ASC],
-                'desc' => [$countExpr(EquipmentLink::TYPE_MONITOR) => SORT_DESC],
-            ],
-            'disk_count' => [
-                'asc' => [$countExpr(EquipmentLink::TYPE_DISK) => SORT_ASC],
-                'desc' => [$countExpr(EquipmentLink::TYPE_DISK) => SORT_DESC],
-            ],
-            'ups_count' => [
-                'asc' => [$countExpr(EquipmentLink::TYPE_UPS) => SORT_ASC],
-                'desc' => [$countExpr(EquipmentLink::TYPE_UPS) => SORT_DESC],
-            ],
-        ];
-    }
-
     private function applyAgGridFilterModel($query): void
     {
         $raw = trim((string) $this->ag_filter_model);
@@ -310,23 +281,15 @@ class ArmSearch extends Model
             'status_name' => ['column' => 'dstatus.status_name', 'join' => ['equipmentStatus dstatus']],
             'system_block' => ['column' => 'equipment.name'],
             'inventory_number' => ['column' => 'equipment.inventory_number'],
+            'purchase_date' => ['column' => new Expression('CAST(equipment.purchase_date AS TEXT)')],
             'other_tech' => ['column' => 'equipment.description'],
             'cartridge_procurement' => ['column' => 'equipment.description'],
         ];
 
         $partCharFields = ['cpu', 'ram', 'disk', 'monitor', 'hostname', 'ip', 'os'];
-        $linkCountMap = [
-            'monitor_count' => EquipmentLink::TYPE_MONITOR,
-            'disk_count' => EquipmentLink::TYPE_DISK,
-            'ups_count' => EquipmentLink::TYPE_UPS,
-        ];
 
         foreach ($model as $field => $cfg) {
             if (!is_array($cfg)) {
-                continue;
-            }
-            if (isset($linkCountMap[$field])) {
-                $this->applyEquipmentLinkCountFilter($query, $linkCountMap[$field], $cfg);
                 continue;
             }
             if (in_array($field, $partCharFields, true)) {
@@ -365,66 +328,6 @@ class ArmSearch extends Model
             $query->andWhere(['and', ['not', [$column => null]], ['<>', $column, '']]);
         } else {
             $query->andWhere(['ilike', $column, $value]);
-        }
-    }
-
-    /**
-     * Фильтр по числу дочерних связей (AG Grid number filter).
-     */
-    private function applyEquipmentLinkCountFilter($query, string $linkType, array $cfg): void
-    {
-        $countExpr = new Expression(
-            '(SELECT COUNT(*) FROM equipment_links el WHERE el.parent_equipment_id = equipment.id AND el.link_type = :lt)',
-            [':lt' => $linkType]
-        );
-        $type = (string) ($cfg['type'] ?? 'equals');
-        $filter = $cfg['filter'] ?? null;
-        $filterTo = $cfg['filterTo'] ?? null;
-
-        if ($type === 'blank') {
-            $query->andWhere(['=', $countExpr, 0]);
-            return;
-        }
-        if ($type === 'notBlank') {
-            $query->andWhere(['>', $countExpr, 0]);
-            return;
-        }
-
-        if ($filter === null || $filter === '') {
-            return;
-        }
-        $n = is_numeric($filter) ? 0 + $filter : null;
-        if ($n === null) {
-            return;
-        }
-
-        switch ($type) {
-            case 'equals':
-                $query->andWhere(['=', $countExpr, $n]);
-                break;
-            case 'notEqual':
-                $query->andWhere(['!=', $countExpr, $n]);
-                break;
-            case 'greaterThan':
-                $query->andWhere(['>', $countExpr, $n]);
-                break;
-            case 'greaterThanOrEqual':
-                $query->andWhere(['>=', $countExpr, $n]);
-                break;
-            case 'lessThan':
-                $query->andWhere(['<', $countExpr, $n]);
-                break;
-            case 'lessThanOrEqual':
-                $query->andWhere(['<=', $countExpr, $n]);
-                break;
-            case 'inRange':
-                if ($filterTo !== null && $filterTo !== '' && is_numeric($filterTo)) {
-                    $n2 = 0 + $filterTo;
-                    $query->andWhere(['and', ['>=', $countExpr, min($n, $n2)], ['<=', $countExpr, max($n, $n2)]]);
-                }
-                break;
-            default:
-                $query->andWhere(['=', $countExpr, $n]);
         }
     }
 
@@ -712,27 +615,160 @@ class ArmSearch extends Model
         }
     }
 
-    private function applyAgGridSortModel(ActiveDataProvider $dataProvider): void
+    /**
+     * Суффикс направления сортировки (для PostgreSQL — пустые значения в конец/начало).
+     */
+    private function gridSortDirectionSuffix(int $dir): string
     {
-        $query = $dataProvider->query;
-        $raw = trim((string) $this->ag_sort_model);
-        if ($raw === '') {
-            $query->joinWith(['responsibleUser u']);
-            $query->orderBy([
-                'u.full_name' => SORT_ASC,
-                'equipment.id' => SORT_ASC,
-            ]);
-            return;
+        $name = $dir === SORT_DESC ? 'DESC' : 'ASC';
+        if (Yii::$app->db->driverName === 'pgsql') {
+            $name .= $dir === SORT_DESC ? ' NULLS LAST' : ' NULLS FIRST';
         }
-        $sortModel = json_decode($raw, true);
-        if (!is_array($sortModel) || empty($sortModel)) {
-            $query->joinWith(['responsibleUser u']);
-            $query->orderBy([
-                'u.full_name' => SORT_ASC,
-                'equipment.id' => SORT_ASC,
-            ]);
-            return;
+
+        return $name;
+    }
+
+    /** Литерал для SQL (без плейсхолдеров — иначе Yii путает параметры ORDER BY с WHERE). */
+    private function quoteSqlValue(string $value): string
+    {
+        return Yii::$app->db->quoteValue($value);
+    }
+
+    private function sqlEquals(string $column, string $value): string
+    {
+        return $column . ' = ' . $this->quoteSqlValue($value);
+    }
+
+    private function sqlIlikeContains(string $column, string $value): string
+    {
+        return $column . ' ILIKE ' . $this->quoteSqlValue('%' . $value . '%');
+    }
+
+    /**
+     * Условие области part_char_values для сортировки (только литералы, без :param).
+     */
+    private function getPartCharScopeSql(string $gridField): string
+    {
+        switch ($gridField) {
+            case 'cpu':
+                return implode(' OR ', [
+                    '(' . $this->sqlEquals('sp.name', 'ЦП') . ' AND ' . $this->sqlEquals('sc.name', 'Модель') . ')',
+                    '(' . $this->sqlIlikeContains('sp.name', 'процессор') . ' AND (' . $this->sqlIlikeContains('sc.name', 'модель')
+                        . ' OR ' . $this->sqlIlikeContains('sc.name', 'частот') . '))',
+                    '(' . $this->sqlIlikeContains('sp.name', 'cpu') . ' AND ' . $this->sqlIlikeContains('sc.name', 'модель') . ')',
+                    '(' . $this->sqlEquals('sp.name', 'ЦПУ') . ' AND (' . $this->sqlIlikeContains('sc.name', 'модель')
+                        . ' OR ' . $this->sqlIlikeContains('sc.name', 'частот') . '))',
+                ]);
+            case 'ram':
+                return implode(' OR ', [
+                    '(' . $this->sqlEquals('sp.name', 'ОЗУ') . ' AND ' . $this->sqlEquals('sc.name', 'Объём') . ')',
+                    '(' . $this->sqlIlikeContains('sp.name', 'оператив') . ' AND ' . $this->sqlIlikeContains('sc.name', 'объём') . ')',
+                    '(' . $this->sqlIlikeContains('sp.name', 'оператив') . ' AND ' . $this->sqlIlikeContains('sc.name', 'объем') . ')',
+                    '(' . $this->sqlIlikeContains('sp.name', 'память') . ' AND (' . $this->sqlIlikeContains('sc.name', 'объём')
+                        . ' OR ' . $this->sqlIlikeContains('sc.name', 'объем') . '))',
+                    '(' . $this->sqlIlikeContains('sp.name', 'ram') . ' AND (' . $this->sqlIlikeContains('sc.name', 'объём')
+                        . ' OR ' . $this->sqlIlikeContains('sc.name', 'объем') . '))',
+                ]);
+            case 'disk':
+                return implode(' OR ', [
+                    $this->sqlEquals('sp.name', 'Накопитель'),
+                    $this->sqlIlikeContains('sp.name', 'диск'),
+                    $this->sqlIlikeContains('sp.name', 'накопител'),
+                    $this->sqlIlikeContains('sp.name', 'жестк'),
+                    $this->sqlIlikeContains('sp.name', 'hdd'),
+                    $this->sqlIlikeContains('sp.name', 'ssd'),
+                ]);
+            case 'monitor':
+                return implode(' OR ', [
+                    $this->sqlEquals('sp.name', 'Монитор'),
+                    $this->sqlIlikeContains('sp.name', 'монитор'),
+                ]);
+            case 'hostname':
+                return implode(' OR ', [
+                    '(' . $this->sqlEquals('sp.name', 'ПК') . ' AND ' . $this->sqlEquals('sc.name', 'Имя ПК') . ')',
+                    $this->sqlIlikeContains('sc.name', 'имя пк'),
+                ]);
+            case 'ip':
+                return implode(' OR ', [
+                    '(' . $this->sqlEquals('sp.name', 'ПК') . ' AND ' . $this->sqlEquals('sc.name', 'IP адрес') . ')',
+                    '(' . $this->sqlEquals('sp.name', 'ПК') . ' AND ' . $this->sqlIlikeContains('sc.name', 'ip') . ')',
+                ]);
+            case 'os':
+                return implode(' OR ', [
+                    '(' . $this->sqlEquals('sp.name', 'ПК') . ' AND ' . $this->sqlEquals('sc.name', 'ОС') . ')',
+                    $this->sqlIlikeContains('sc.name', 'операционн'),
+                ]);
+            default:
+                return '';
         }
+    }
+
+    /**
+     * @return array{sql: string}|null MIN значения характеристики для ORDER BY (без bound-параметров)
+     */
+    private function buildPartCharMinSortSubquery(string $gridField): ?array
+    {
+        $idCol = $this->getPartCharEquipmentFkColumn();
+        if ($idCol === null) {
+            return null;
+        }
+
+        $scopeSql = $this->getPartCharScopeSql($gridField);
+        if ($scopeSql === '') {
+            return null;
+        }
+
+        $eqTable = Equipment::tableName();
+        $valSql = Yii::$app->db->driverName === 'pgsql'
+            ? 'COALESCE(pcv.value_text, pcv.value_num::text)'
+            : 'COALESCE(pcv.value_text, CAST(pcv.value_num AS CHAR))';
+
+        $sql = '(SELECT MIN(' . $valSql . ') FROM part_char_values pcv'
+            . ' INNER JOIN spr_parts sp ON sp.id = pcv.part_id'
+            . ' INNER JOIN spr_chars sc ON sc.id = pcv.char_id'
+            . ' WHERE pcv.' . $idCol . ' = ' . $eqTable . '.id AND (' . $scopeSql . '))';
+
+        return ['sql' => $sql];
+    }
+
+    /**
+     * @return array{sql: string}|null MIN наименования связанного компонента для ORDER BY
+     */
+    private function buildLinkedChildMinSortSubquery(string $linkType): ?array
+    {
+        if (Yii::$app->db->getTableSchema('equipment_links', true) === null) {
+            return null;
+        }
+
+        $eqTable = Equipment::tableName();
+        $sql = '(SELECT MIN(COALESCE(child.name, child.inventory_number, ' . $this->quoteSqlValue('') . '))'
+            . ' FROM equipment_links el'
+            . ' INNER JOIN ' . $eqTable . ' child ON child.id = el.child_equipment_id'
+            . ' WHERE el.parent_equipment_id = ' . $eqTable . '.id'
+            . ' AND el.link_type = ' . $this->quoteSqlValue($linkType) . ')';
+
+        return ['sql' => $sql];
+    }
+
+    /**
+     * @param array{sql: string}[] $parts
+     */
+    private function buildCoalesceSortExpression(array $parts, int $dir): ?Expression
+    {
+        if ($parts === []) {
+            return null;
+        }
+
+        $sqlParts = array_map(static fn(array $part) => $part['sql'], $parts);
+
+        return new Expression(
+            'COALESCE(' . implode(', ', $sqlParts) . ", '') " . $this->gridSortDirectionSuffix($dir)
+        );
+    }
+
+    private function resolveGridSortExpression(string $col, int $dir, $query): ?Expression
+    {
+        $suffix = $this->gridSortDirectionSuffix($dir);
 
         $map = [
             'user_name' => ['column' => 'u.full_name', 'join' => ['responsibleUser u']],
@@ -740,39 +776,98 @@ class ArmSearch extends Model
             'status_name' => ['column' => 'dstatus.status_name', 'join' => ['equipmentStatus dstatus']],
             'system_block' => ['column' => 'equipment.name'],
             'inventory_number' => ['column' => 'equipment.inventory_number'],
+            'purchase_date' => ['column' => 'equipment.purchase_date'],
             'other_tech' => ['column' => 'equipment.description'],
             'cartridge_procurement' => ['column' => 'equipment.description'],
-            'monitor_count' => ['column' => "(SELECT COUNT(*) FROM equipment_links el WHERE el.parent_equipment_id = equipment.id AND el.link_type = '" . EquipmentLink::TYPE_MONITOR . "')"],
-            'disk_count' => ['column' => "(SELECT COUNT(*) FROM equipment_links el WHERE el.parent_equipment_id = equipment.id AND el.link_type = '" . EquipmentLink::TYPE_DISK . "')"],
-            'ups_count' => ['column' => "(SELECT COUNT(*) FROM equipment_links el WHERE el.parent_equipment_id = equipment.id AND el.link_type = '" . EquipmentLink::TYPE_UPS . "')"],
             'id' => ['column' => 'equipment.id'],
             'name' => ['column' => 'equipment.name'],
         ];
-        $order = [];
-        foreach ($sortModel as $sortEntry) {
-            if (!is_array($sortEntry)) {
-                continue;
-            }
-            $col = (string) ($sortEntry['colId'] ?? '');
-            $dir = strtolower((string) ($sortEntry['sort'] ?? 'asc')) === 'desc' ? SORT_DESC : SORT_ASC;
-            if (!isset($map[$col])) {
-                continue;
-            }
+
+        if (isset($map[$col])) {
             if (!empty($map[$col]['join'])) {
                 foreach ($map[$col]['join'] as $joinRel) {
                     $query->joinWith([$joinRel]);
                 }
             }
-            $order[$map[$col]['column']] = $dir;
+
+            return new Expression($map[$col]['column'] . ' ' . $suffix);
         }
-        if (!empty($order)) {
-            $query->orderBy($order);
+
+        $partCharFields = ['cpu', 'ram', 'hostname', 'ip', 'os'];
+        if (in_array($col, $partCharFields, true)) {
+            $sub = $this->buildPartCharMinSortSubquery($col);
+
+            return $sub !== null ? new Expression($sub['sql'] . ' ' . $suffix) : null;
+        }
+
+        if ($col === 'disk') {
+            $parts = array_values(array_filter([
+                $this->buildPartCharMinSortSubquery('disk'),
+                $this->buildLinkedChildMinSortSubquery(EquipmentLink::TYPE_DISK),
+            ]));
+
+            return $this->buildCoalesceSortExpression($parts, $dir);
+        }
+
+        if ($col === 'monitor') {
+            $parts = array_values(array_filter([
+                $this->buildPartCharMinSortSubquery('monitor'),
+                $this->buildLinkedChildMinSortSubquery(EquipmentLink::TYPE_MONITOR),
+            ]));
+
+            return $this->buildCoalesceSortExpression($parts, $dir);
+        }
+
+        return null;
+    }
+
+    private function applyDefaultGridSort($query): void
+    {
+        $query->joinWith(['responsibleUser u']);
+        $query->orderBy([
+            'u.full_name' => SORT_ASC,
+            'equipment.id' => SORT_ASC,
+        ]);
+    }
+
+    private function applyAgGridSortModel(ActiveDataProvider $dataProvider): void
+    {
+        $query = $dataProvider->query;
+        $raw = trim((string) $this->ag_sort_model);
+        if ($raw === '') {
+            $this->applyDefaultGridSort($query);
+
+            return;
+        }
+        $sortModel = json_decode($raw, true);
+        if (!is_array($sortModel) || empty($sortModel)) {
+            $this->applyDefaultGridSort($query);
+
+            return;
+        }
+
+        $applied = false;
+        foreach ($sortModel as $sortEntry) {
+            if (!is_array($sortEntry)) {
+                continue;
+            }
+            $col = (string) ($sortEntry['colId'] ?? $sortEntry['field'] ?? '');
+            if ($col === '') {
+                continue;
+            }
+            $dir = strtolower((string) ($sortEntry['sort'] ?? 'asc')) === 'desc' ? SORT_DESC : SORT_ASC;
+            $expr = $this->resolveGridSortExpression($col, $dir, $query);
+            if ($expr === null) {
+                continue;
+            }
+            $query->addOrderBy($expr);
+            $applied = true;
+        }
+
+        if ($applied) {
+            $query->addOrderBy(['equipment.id' => SORT_ASC]);
         } else {
-            $query->joinWith(['responsibleUser u']);
-            $query->orderBy([
-                'u.full_name' => SORT_ASC,
-                'equipment.id' => SORT_ASC,
-            ]);
+            $this->applyDefaultGridSort($query);
         }
     }
 }

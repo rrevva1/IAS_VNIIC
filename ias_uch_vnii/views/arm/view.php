@@ -276,16 +276,30 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
 
     <?php if (!empty($history)): ?>
     <section class="arm-view-section" aria-labelledby="arm-view-history-title">
-        <h2 id="arm-view-history-title" class="arm-view-section__title">История изменений</h2>
+        <h2 id="arm-view-history-title" class="arm-view-section__title">История перемещений и изменений</h2>
+        <p class="arm-view-section__hint text-muted small mb-3">Когда, куда перемещалась техника и кому назначалась.</p>
         <ul class="arm-view-timeline">
             <?php foreach ($history as $h): ?>
+            <?php
+                $details = trim($h->getFormattedDetails());
+                $commentLabel = $h->getCommentLabel();
+                $actorName = $h->changedByUser
+                    ? trim((string) ($h->changedByUser->full_name ?: $h->changedByUser->email ?: ''))
+                    : '';
+            ?>
             <li class="arm-view-timeline__item">
                 <div class="arm-view-timeline__date"><?= Html::encode($formatDateTime($h->changed_at)) ?></div>
                 <div class="arm-view-timeline__event">
                     <?= Html::encode($eventTypeLabels[$h->event_type] ?? $h->event_type) ?>
                 </div>
-                <?php if (trim((string) $h->comment) !== ''): ?>
-                    <div class="arm-view-timeline__comment"><?= Html::encode($h->comment) ?></div>
+                <?php if ($details !== ''): ?>
+                    <div class="arm-view-timeline__detail"><?= Html::encode($details) ?></div>
+                <?php endif; ?>
+                <?php if ($actorName !== ''): ?>
+                    <div class="arm-view-timeline__actor">Выполнил: <?= Html::encode($actorName) ?></div>
+                <?php endif; ?>
+                <?php if ($commentLabel !== null): ?>
+                    <div class="arm-view-timeline__comment"><?= Html::encode($commentLabel) ?></div>
                 <?php endif; ?>
             </li>
             <?php endforeach; ?>

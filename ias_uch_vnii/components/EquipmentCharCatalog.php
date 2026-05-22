@@ -125,6 +125,21 @@ class EquipmentCharCatalog
     }
 
     /**
+     * Известные IP-адреса (ПК и принтеры/МФУ: «IP адрес» и синонимы).
+     *
+     * @return string[]
+     */
+    public static function getDistinctIpAddresses(): array
+    {
+        return self::fetchDistinctCharValues([
+            ['and', ['sp.name' => 'ПК'], ['sc.name' => 'IP адрес']],
+            ['and', ['sp.name' => 'ПК'], ['ilike', 'sc.name', 'ip', false]],
+            ['and', ['sp.name' => 'Принтер'], ['sc.name' => 'IP адрес']],
+            ['ilike', 'sc.name', 'ip адрес', false],
+        ], __METHOD__);
+    }
+
+    /**
      * @param array<int, array|string> $partCharConditions
      * @return string[]
      */

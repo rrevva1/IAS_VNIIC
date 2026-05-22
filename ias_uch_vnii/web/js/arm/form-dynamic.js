@@ -49,6 +49,11 @@
             listId: 'arm-os-datalist',
             placeholder: 'Выберите ОС из списка или введите вручную',
             hint: 'Можно выбрать известную систему или указать новую — она сохранится в учёте.'
+        },
+        'ip-datalist': {
+            listId: 'arm-ip-datalist',
+            placeholder: 'Выберите IP из списка или введите вручную',
+            hint: 'Можно выбрать известный адрес или указать новый — он сохранится в учёте.'
         }
     };
 
@@ -67,6 +72,9 @@
         }
         if (field.name === 'os') {
             return DATALIST_WIDGETS['os-datalist'];
+        }
+        if (field.name === 'ip') {
+            return DATALIST_WIDGETS['ip-datalist'];
         }
         return null;
     }

@@ -21,6 +21,8 @@ class ArmGridAsset extends AssetBundle
 
     public $js = [
         'ag-grid-community/dist/ag-grid-community.min.js',
+        'js/ag-grid-wrap-utils.js',
+        'js/ag-grid-theme-config.js',
         'js/arm/ag-grid.js',
         'js/arm/page-ui.js',
     ];

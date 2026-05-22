@@ -21,20 +21,6 @@ $isAdmin = $isAdmin ?? false;
         <div class="arm-page__heading">
             <h1 class="arm-page__title"><?= Html::encode($this->title) ?></h1>
         </div>
-        <?php if ($isAdmin): ?>
-        <div class="arm-page__primary-actions">
-            <?= Html::a('<i class="fas fa-plus" aria-hidden="true"></i><span>Добавить</span>', ['create'], [
-                'class' => 'btn btn-primary arm-btn-primary',
-                'title' => 'Создать новую запись техники',
-            ]) ?>
-            <?= Html::button('<i class="fas fa-user-pen" aria-hidden="true"></i><span>Переназначить</span>', [
-                'class' => 'btn btn-outline-primary arm-btn-primary',
-                'id' => 'btnReassignArm',
-                'title' => 'Отметьте строки чекбоксом слева в таблице',
-                'disabled' => true,
-            ]) ?>
-        </div>
-        <?php endif; ?>
     </header>
 
     <div class="arm-command-bar" role="region" aria-label="Фильтры и действия с таблицей">
@@ -60,6 +46,12 @@ $isAdmin = $isAdmin ?? false;
         </div>
 
         <div class="arm-command-bar__tools">
+            <?php if ($isAdmin): ?>
+            <?= Html::a('<i class="fas fa-plus" aria-hidden="true"></i><span class="arm-btn-label">Добавить</span>', ['create'], [
+                'class' => 'btn btn-primary arm-tool-btn',
+                'title' => 'Создать новую запись техники',
+            ]) ?>
+            <?php endif; ?>
             <?= Html::button('<i class="fas fa-arrows-rotate" aria-hidden="true"></i><span class="arm-btn-label">Обновить</span>', [
                 'class' => 'btn btn-outline-secondary arm-tool-btn',
                 'onclick' => 'refreshArmGrid()',
@@ -111,28 +103,27 @@ $isAdmin = $isAdmin ?? false;
         </span>
     </div>
 
-    <?php if ($isAdmin): ?>
-    <div id="armSelectionBar" class="arm-selection-bar" aria-live="polite">
-        <p class="arm-selection-bar__text">
-            Выбрано: <strong id="armSelectionCount">0</strong>
-            <span class="arm-selection-bar__hint">— можно переназначить пользователя или помещение</span>
-        </p>
-        <div class="arm-selection-bar__actions">
-            <?= Html::button('<i class="fas fa-user-pen" aria-hidden="true"></i> Переназначить', [
-                'class' => 'btn btn-primary btn-sm',
-                'id' => 'armSelectionReassign',
-                'type' => 'button',
-            ]) ?>
-            <?= Html::button('Снять выбор', [
-                'class' => 'btn btn-outline-secondary btn-sm',
-                'id' => 'armSelectionClear',
-                'type' => 'button',
-            ]) ?>
-        </div>
-    </div>
-    <?php endif; ?>
-
     <div class="arm-grid-card">
+        <?php if ($isAdmin): ?>
+        <div id="armSelectionBar" class="arm-selection-bar" aria-live="polite">
+            <p class="arm-selection-bar__text">
+                Выбрано: <strong id="armSelectionCount">0</strong>
+                <span class="arm-selection-bar__hint">— переназначить пользователя или помещение</span>
+            </p>
+            <div class="arm-selection-bar__actions">
+                <?= Html::button('<i class="fas fa-user-pen" aria-hidden="true"></i> Переназначить', [
+                    'class' => 'btn btn-primary btn-sm',
+                    'id' => 'armSelectionReassign',
+                    'type' => 'button',
+                ]) ?>
+                <?= Html::button('Снять выбор', [
+                    'class' => 'btn btn-outline-secondary btn-sm',
+                    'id' => 'armSelectionClear',
+                    'type' => 'button',
+                ]) ?>
+            </div>
+        </div>
+        <?php endif; ?>
         <div id="agGridArmContainer" class="ag-theme-quartz arm-grid-loading">
             <div class="arm-grid-loading__inner">
                 <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
@@ -329,10 +320,6 @@ $isAdmin = $isAdmin ?? false;
     border-radius: 4px;
     padding: 12px;
 }
-.status-dot { font-weight: 700; margin-right: 4px; }
-.status-green { color: #1f9d3a; }
-.status-yellow { color: #d8a800; }
-.status-red { color: #d12b2b; }
 </style>
 <?php
 $this->registerJs(

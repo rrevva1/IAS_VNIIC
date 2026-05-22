@@ -177,27 +177,27 @@ class ArmController extends Controller
                     $linked['disk']
                 );
                 $statusName = $model->equipmentStatus ? (string) $model->equipmentStatus->status_name : '';
+                $statusCode = $model->equipmentStatus ? (string) $model->equipmentStatus->status_code : '';
                 $data[] = [
                     'id' => $model->id,
                     'user_name' => $model->responsibleUser ? $model->responsibleUser->getDisplayName() : '',
                     'location_name' => $model->location ? $model->location->name : '',
                     'status_id' => (int) $model->status_id,
                     'status_name' => $statusName,
-                    'status_color' => $this->resolveStatusColor($statusName),
+                    'status_code' => $statusCode,
+                    'status_color' => $this->resolveStatusColor($statusCode, $statusName),
                     'cpu' => $chars['cpu'] ?? '',
                     'ram' => $chars['ram'] ?? '',
                     'disk' => $diskLines !== [] ? implode("\n", $diskLines) : '',
                     'disk_lines' => $diskLines,
                     'system_block' => $model->name ?? '',
                     'inventory_number' => $model->inventory_number ?? '',
+                    'purchase_date' => $this->formatPurchaseDateForGrid($model),
                     'monitor' => EquipmentCharCatalog::formatMonitorColumnValue(
                         (string) ($chars['monitor'] ?? ''),
                         $linked['monitor']
                     ),
                     'monitor_char' => (string) ($chars['monitor'] ?? ''),
-                    'monitor_count' => count($linked['monitor']),
-                    'disk_count' => count($linked['disk']),
-                    'ups_count' => count($linked['ups']),
                     'monitor_list' => $linked['monitor'],
                     'disk_list' => $linked['disk'],
                     'ups_list' => $linked['ups'],
@@ -349,8 +349,23 @@ class ArmController extends Controller
         return $out;
     }
 
-    private function resolveStatusColor(string $statusName): string
+    /**
+     * Тон подсветки статуса в гриде: green | yellow | red | gray.
+     */
+    private function resolveStatusColor(string $statusCode, string $statusName): string
     {
+        $code = mb_strtolower(trim($statusCode), 'UTF-8');
+        $byCode = [
+            'in_use' => 'green',
+            'in_repair' => 'yellow',
+            'writeoff' => 'red',
+            'in_stock' => 'gray',
+            'archived' => 'gray',
+        ];
+        if ($code !== '' && isset($byCode[$code])) {
+            return $byCode[$code];
+        }
+
         $s = mb_strtolower(trim($statusName), 'UTF-8');
         if (strpos($s, 'эксплуатац') !== false) {
             return 'green';
@@ -361,6 +376,10 @@ class ArmController extends Controller
         if (strpos($s, 'списан') !== false) {
             return 'red';
         }
+        if (strpos($s, 'склад') !== false || strpos($s, 'резерв') !== false) {
+            return 'gray';
+        }
+
         return 'gray';
     }
 
@@ -459,6 +478,7 @@ class ArmController extends Controller
             'osModels' => EquipmentCharCatalog::getDistinctOsValues(),
             'diskModels' => EquipmentCharCatalog::getDistinctDiskModels(),
             'supplierNames' => EquipmentCharCatalog::getDistinctSuppliers(),
+            'ipAddresses' => EquipmentCharCatalog::getDistinctIpAddresses(),
         ]);
     }
 
@@ -472,8 +492,9 @@ class ArmController extends Controller
         $chars = $this->loadPartCharValuesByEquipment([$model->id]);
         $history = EquipHistory::find()
             ->where(['equipment_id' => $model->id])
+            ->with('changedByUser')
             ->orderBy(['changed_at' => SORT_DESC])
-            ->limit(20)
+            ->limit(50)
             ->all();
         return $this->render('view', [
             'model' => $model,
@@ -506,21 +527,23 @@ class ArmController extends Controller
             if ($model->save()) {
                 $this->savePartCharValuesFromPost($model->id, Yii::$app->request->post('PartChar', []));
                 $eventType = 'update';
-                if ($oldLocation !== $model->location_id) {
+                if (!EquipHistory::idsEqual($oldLocation, $model->location_id)) {
                     EquipHistory::log($model->id, 'move', ['location_id' => $oldLocation], ['location_id' => $model->location_id]);
                     UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
                 }
-                if ($oldResponsible !== $model->responsible_user_id) {
+                if (!EquipHistory::idsEqual($oldResponsible, $model->responsible_user_id)) {
                     EquipHistory::log($model->id, $model->responsible_user_id ? 'assign' : 'unassign', ['responsible_user_id' => $oldResponsible], ['responsible_user_id' => $model->responsible_user_id]);
                     UserEquipmentCardService::invalidateByUserId((int) $oldResponsible);
                     UserEquipmentCardService::ensureCardForUser((int) $oldResponsible);
                     UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
                     UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
                 }
-                if ($oldStatus !== $model->status_id) {
+                if (!EquipHistory::idsEqual($oldStatus, $model->status_id)) {
                     EquipHistory::log($model->id, 'status_change', ['status_id' => $oldStatus], ['status_id' => $model->status_id]);
                 }
-                if ($oldStatus === $model->status_id && $oldLocation === $model->location_id && $oldResponsible === $model->responsible_user_id) {
+                if (EquipHistory::idsEqual($oldStatus, $model->status_id)
+                    && EquipHistory::idsEqual($oldLocation, $model->location_id)
+                    && EquipHistory::idsEqual($oldResponsible, $model->responsible_user_id)) {
                     EquipHistory::log($model->id, 'update', null, ['inventory_number' => $model->inventory_number, 'name' => $model->name]);
                 }
                 AuditLog::log('equipment.update', 'equipment', $model->id, 'success');
@@ -540,6 +563,7 @@ class ArmController extends Controller
             'osModels' => EquipmentCharCatalog::getDistinctOsValues(),
             'diskModels' => EquipmentCharCatalog::getDistinctDiskModels(),
             'supplierNames' => EquipmentCharCatalog::getDistinctSuppliers(),
+            'ipAddresses' => EquipmentCharCatalog::getDistinctIpAddresses(),
         ]);
     }
 
@@ -817,7 +841,7 @@ class ArmController extends Controller
                 } else {
                     if ($responsibleUserId !== null && $responsibleUserId !== '') {
                         $newUser = ($responsibleUserId === '' || $responsibleUserId === '0') ? null : (int) $responsibleUserId;
-                        if ($model->responsible_user_id !== $newUser) {
+                        if (!EquipHistory::idsEqual($model->responsible_user_id, $newUser)) {
                             $model->responsible_user_id = $newUser;
                             EquipHistory::log($model->id, $model->responsible_user_id ? 'assign' : 'unassign', ['responsible_user_id' => $oldResponsible], ['responsible_user_id' => $model->responsible_user_id]);
                             $changed = true;
@@ -826,7 +850,7 @@ class ArmController extends Controller
                     }
                     if ($locationId !== null && $locationId !== '') {
                         $newLoc = (int) $locationId;
-                        if ($model->location_id != $newLoc) {
+                        if (!EquipHistory::idsEqual($model->location_id, $newLoc)) {
                             $oldLoc = $model->location_id;
                             $model->location_id = $newLoc;
                             EquipHistory::log($model->id, 'move', ['location_id' => $oldLoc], ['location_id' => $model->location_id]);
@@ -836,7 +860,7 @@ class ArmController extends Controller
                     }
                     if ($statusId !== null && $statusId !== '') {
                         $newStatus = (int) $statusId;
-                        if ($model->status_id != $newStatus) {
+                        if (!EquipHistory::idsEqual($model->status_id, $newStatus)) {
                             $oldStatus = $model->status_id;
                             $model->status_id = $newStatus;
                             EquipHistory::log($model->id, 'status_change', ['status_id' => $oldStatus], ['status_id' => $model->status_id]);
@@ -999,6 +1023,22 @@ class ArmController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Дата закупки для грида и экспорта (дд.мм.гггг).
+     */
+    private function formatPurchaseDateForGrid(Equipment $equipment): string
+    {
+        $raw = $equipment->purchase_date;
+        if ($raw === null || trim((string) $raw) === '') {
+            return '';
+        }
+        try {
+            return (new \DateTimeImmutable(trim((string) $raw)))->format('d.m.Y');
+        } catch (\Exception $e) {
+            return trim((string) $raw);
+        }
     }
 
     /**
@@ -1223,13 +1263,11 @@ class ArmController extends Controller
             )],
             'system_block' => ['Системный блок', static fn($m, $chars, $links) => $m->name ?? ''],
             'inventory_number' => ['Инв. №', static fn($m, $chars, $links) => $m->inventory_number ?? ''],
+            'purchase_date' => ['Дата закупки', fn($m, $chars, $links) => $this->formatPurchaseDateForGrid($m)],
             'monitor' => ['Монитор', static fn($m, $chars, $links) => EquipmentCharCatalog::formatMonitorColumnValue(
                 (string) ($chars['monitor'] ?? ''),
                 $links['monitor'] ?? []
             )],
-            'monitor_count' => ['Мониторы (шт)', static fn($m, $chars, $links) => count($links['monitor'] ?? [])],
-            'disk_count' => ['Диски (шт)', static fn($m, $chars, $links) => count($links['disk'] ?? [])],
-            'ups_count' => ['ИБП (шт)', static fn($m, $chars, $links) => count($links['ups'] ?? [])],
             'hostname' => ['Имя ПК', static fn($m, $chars, $links) => $chars['hostname'] ?? ''],
             'ip' => ['IP адрес', static fn($m, $chars, $links) => $chars['ip'] ?? ''],
             'os' => ['ОС', static fn($m, $chars, $links) => $chars['os'] ?? ''],
@@ -1237,7 +1275,7 @@ class ArmController extends Controller
             'other_tech' => ['Комментарий', fn($m, $chars, $links) => $this->formatOtherTechForGrid($m)],
         ];
 
-        $defaultCols = ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'monitor', 'hostname', 'ip', 'os', 'other_tech'];
+        $defaultCols = ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os', 'other_tech'];
         $scope = trim((string)($params['export_scope'] ?? 'all'));
         $colsParam = trim((string)($params['cols'] ?? ''));
         $selectedCols = $defaultCols;

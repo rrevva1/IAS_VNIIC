@@ -237,10 +237,24 @@
     color: #212529;
 }
 
+.arm-view-timeline__detail {
+    font-size: 0.9rem;
+    color: #334155;
+    margin-top: 0.2rem;
+    line-height: 1.4;
+}
+
+.arm-view-timeline__actor {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.15rem;
+}
+
 .arm-view-timeline__comment {
     font-size: 0.875rem;
     color: #495057;
     margin-top: 0.15rem;
+    font-style: italic;
 }
 
 .arm-view-service {

@@ -6,13 +6,24 @@
     --arm-accent: #2563eb;
     --arm-accent-soft: #eff6ff;
     --arm-border: #e2e8f0;
+    --arm-text: #334155;
     --arm-text-muted: #64748b;
     --arm-radius: 12px;
+    /* Единая типографика страницы (14px база) */
+    --arm-font-base: 0.875rem;
+    --arm-font-title: 1.125rem;
+    --arm-font-control: 0.875rem;
+    --arm-line: 1.45;
+    --arm-line-grid: 1.4;
+    --arm-control-height: 38px;
     max-width: 100%;
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
+    font-size: var(--arm-font-base);
+    line-height: var(--arm-line);
+    color: var(--arm-text);
 }
 
 .main-content:has(.arm-page) {
@@ -30,10 +41,18 @@
     box-sizing: border-box;
 }
 
+/* То же без :has() — для Firefox и старых браузеров */
+.content-wrapper .arm-page {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+}
+
 .arm-page__header,
 .arm-command-bar,
-.arm-filter-chips,
-.arm-selection-bar {
+.arm-filter-chips {
     flex-shrink: 0;
 }
 
@@ -49,37 +68,6 @@
 
 .arm-page__heading {
     min-width: 0;
-}
-
-.arm-page__primary-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.arm-btn-primary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    font-weight: 500;
-    border-radius: 8px;
-    padding: 0.45rem 0.85rem;
-    line-height: 1.25;
-}
-
-.arm-btn-primary i {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    font-size: 0.95em;
-}
-
-.arm-btn-primary span {
-    white-space: nowrap;
-    line-height: 1.25;
 }
 
 .arm-toolbar--header {
@@ -149,8 +137,9 @@
 
 .arm-page__title {
     flex: 0 0 auto;
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: var(--arm-font-title);
+    font-weight: 600;
+    line-height: 1.3;
     margin: 0;
     color: #0f172a;
 }
@@ -247,7 +236,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 40px;
+    height: var(--arm-control-height);
     padding-top: 0;
     padding-bottom: 0;
     box-sizing: border-box;
@@ -273,11 +262,11 @@
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
-    min-height: 40px;
-    font-size: 1rem;
+    min-height: var(--arm-control-height);
+    font-size: var(--arm-font-control);
     font-weight: 500;
     line-height: 1.25;
-    padding: 0.45rem 0.9rem;
+    padding: 0.4rem 0.85rem;
     border-radius: 8px;
     white-space: nowrap;
 }
@@ -286,12 +275,12 @@
     font-size: 0.95em;
 }
 
-.arm-files-dropdown .dropdown-menu {
-    font-size: 0.875rem;
+.arm-files-dropdown .dropdown-menu,
+.arm-files-dropdown .dropdown-item {
+    font-size: var(--arm-font-base);
 }
 
 .arm-files-dropdown .dropdown-item {
-    font-size: 0.875rem;
     padding: 0.45rem 1rem;
 }
 
@@ -314,7 +303,7 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.25rem 0.5rem 0.25rem 0.65rem;
-    font-size: 0.8125rem;
+    font-size: var(--arm-font-base);
     color: #1e40af;
     background: var(--arm-accent-soft);
     border: 1px solid #bfdbfe;
@@ -376,7 +365,9 @@
     padding-left: 2.25rem;
     border-radius: 10px;
     border-color: var(--arm-border);
-    height: 40px;
+    height: var(--arm-control-height);
+    font-size: var(--arm-font-control);
+    line-height: 1.25;
 }
 
 .arm-search__input:focus {
@@ -410,10 +401,12 @@
     border: 1px solid var(--arm-border);
     border-radius: 999px;
     color: #475569;
-    font-size: 0.875rem;
-    padding: 0.4rem 1rem;
+    font-size: var(--arm-font-control);
+    font-weight: 500;
+    padding: 0.35rem 0.9rem;
     white-space: nowrap;
     background: #fff;
+    line-height: 1.25;
 }
 
 .arm-type-tabs .nav-link:hover {
@@ -428,18 +421,25 @@
     font-weight: 600;
 }
 
-/* Панель выбора */
+/* Панель выбора — поверх таблицы, без сдвига грида */
 .arm-selection-bar {
     display: none;
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 56px; /* над панелью пагинации AG Grid */
+    z-index: 12;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 0.75rem;
-    padding: 0.65rem 1rem;
-    margin-bottom: 0.75rem;
-    background: var(--arm-accent-soft);
-    border: 1px solid #bfdbfe;
+    gap: 0.5rem 0.75rem;
+    padding: 0.5rem 0.85rem;
+    margin: 0;
+    background: #fff;
+    border: 1px solid #93c5fd;
     border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+    pointer-events: auto;
 }
 
 .arm-selection-bar.is-visible {
@@ -448,20 +448,25 @@
 
 .arm-selection-bar__text {
     margin: 0;
-    font-size: 0.9375rem;
+    font-size: var(--arm-font-base);
     color: #1e40af;
 }
 
 .arm-selection-bar__text strong {
-    font-weight: 700;
+    font-weight: 600;
+}
+
+.arm-selection-bar .btn {
+    font-size: var(--arm-font-control);
 }
 
 /* Карточка таблицы — растягивается на оставшуюся высоту окна */
 .arm-grid-card {
+    position: relative;
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    min-height: 320px;
     background: #fff;
     border: 1px solid var(--arm-border);
     border-radius: var(--arm-radius);
@@ -476,8 +481,22 @@
 .arm-page #agGridArmContainer {
     flex: 1 1 auto;
     width: 100%;
-    height: 100% !important;
-    min-height: 280px;
+    min-height: 300px;
+    /* height: 100% в flex-раскладке ломает тело грида в Firefox */
+    height: auto;
+}
+
+/* AG Grid: внутренние обёртки заполняют контейнер */
+#agGridArmContainer.ag-theme-quartz .ag-root-wrapper,
+#agGridArmContainer.ag-theme-quartz .ag-root-wrapper-body,
+#agGridArmContainer.ag-theme-quartz .ag-root {
+    height: 100%;
+    min-height: 300px;
+}
+
+#agGridArmContainer.ag-theme-quartz .ag-body-viewport,
+#agGridArmContainer.ag-theme-quartz .ag-center-cols-viewport {
+    min-height: 120px;
 }
 
 #agGridArmContainer:not(.arm-grid-loading) .arm-grid-loading__inner {
@@ -493,6 +512,7 @@
 
 .arm-grid-loading__inner {
     text-align: center;
+    font-size: var(--arm-font-base);
     color: var(--arm-text-muted);
 }
 
@@ -503,20 +523,30 @@
 }
 
 /* ===== Таблица AG Grid (Учёт ТС) ===== */
-#agGridArmContainer.arm-grid.ag-theme-quartz {
-    --ag-font-size: 13px;
+#agGridArmContainer.ag-theme-quartz {
+    --ag-font-size: 14px;
     --ag-font-family: inherit;
-    --ag-row-height: 56px;
+    --ag-row-height: 74px;
     --ag-header-height: 48px;
-    --ag-border-color: #cbd5e1;
-    --ag-row-border-color: #e2e8f0;
+    --ag-grid-line-color: #cbd5e1;
+    --ag-border-color: var(--ag-grid-line-color);
+    --ag-row-border-color: var(--ag-grid-line-color);
+    --ag-row-border-width: 1px;
+    --ag-row-border-style: solid;
     --ag-header-background-color: #e8eef4;
     --ag-header-foreground-color: #1e293b;
-    --ag-odd-row-background-color: #f8fafc;
-    --ag-background-color: #fff;
-    --ag-row-hover-color: #eff6ff;
-    --ag-selected-row-background-color: #dbeafe;
-    --ag-cell-horizontal-border: solid #e2e8f0;
+    --ag-background-color: #ffffff;
+    --ag-odd-row-background-color: var(--ag-background-color);
+    --ag-row-hover-color: #f1f5f9;
+    --ag-selected-row-background-color: #edf5ff;
+    --ag-active-color: #2563eb;
+    --ag-checkbox-checked-color: #2563eb;
+    --ag-checkbox-unchecked-color: #64748b;
+    --ag-checkbox-background-color: #ffffff;
+    --ag-input-focus-box-shadow: none;
+    --arm-row-selected-border: #93c5fd;
+    --arm-row-selected-accent: #2563eb;
+    --ag-cell-horizontal-border: solid transparent;
     /* Разделитель колонок — border-right; перетаскивание — .ag-header-cell-resize */
     --ag-header-column-separator-display: none;
     --ag-header-column-resize-handle-display: block;
@@ -525,9 +555,9 @@
     --ag-header-column-resize-handle-color: transparent;
 }
 
-/* Шапка */
+/* Шапка — те же линии, что у ячеек тела */
 #agGridArmContainer .ag-header {
-    border-bottom: 2px solid #cbd5e1;
+    border-bottom: none;
 }
 
 #agGridArmContainer .ag-header-row {
@@ -539,13 +569,11 @@
     padding: 0 12px !important;
     height: 100% !important;
     box-sizing: border-box !important;
-    border-right: 1px solid #cbd5e1 !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: 1px solid var(--ag-grid-line-color) !important;
+    border-bottom: 1px solid var(--ag-grid-line-color) !important;
     background: var(--ag-header-background-color);
-}
-
-#agGridArmContainer .ag-header-cell:last-child,
-#agGridArmContainer .ag-header-group-cell:last-child {
-    border-right: 0 !important;
 }
 
 /* Убрать только укороченный псевдо-разделитель AG Grid (::before) */
@@ -583,8 +611,8 @@
 
 #agGridArmContainer .ag-header-cell-text {
     font-weight: 600;
-    font-size: 0.8125rem;
-    line-height: 1.3;
+    font-size: var(--ag-font-size);
+    line-height: var(--arm-line-grid);
     color: #1e293b;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -595,18 +623,30 @@
  * Перенос текста: не менять display/position ячейки (AG Grid — absolute + inline-block).
  * Класс ag-cell-wrap-text обязателен (wrapText + cellClass в JS).
  */
-#agGridArmContainer .ag-row {
-    border-bottom: 1px solid #e2e8f0 !important;
+#agGridArmContainer .ag-row:not(.ag-full-width-row):not(.ag-row-selected):not(.ag-row-hover) .ag-cell {
+    background-color: var(--ag-background-color) !important;
+}
+
+#agGridArmContainer .ag-row.ag-row-hover:not(.ag-row-selected):not(.ag-full-width-row) .ag-cell {
+    background-color: var(--ag-row-hover-color) !important;
+}
+
+/* Выделение строк — фон и акцент слева; границы между строками как у обычных */
+#agGridArmContainer .ag-row.ag-row-selected:not(.ag-full-width-row) .ag-cell {
+    background-color: var(--ag-selected-row-background-color) !important;
+}
+
+#agGridArmContainer .ag-row.ag-row-selected.ag-row-hover:not(.ag-full-width-row) .ag-cell {
+    background-color: #dbeafe !important;
 }
 
 #agGridArmContainer .ag-cell,
 #agGridArmContainer .ag-ltr .ag-cell:not(.ag-cell-inline-editing) {
-    padding: 8px 12px !important;
-    line-height: 1.4 !important;
-    color: #334155;
-    border-right: 1px solid #e2e8f0 !important;
+    padding: 12px !important;
+    font-size: var(--ag-font-size);
+    line-height: var(--arm-line-grid) !important;
+    color: var(--arm-text);
     overflow: hidden !important;
-    box-sizing: border-box !important;
 }
 
 #agGridArmContainer .ag-cell.ag-cell-wrap-text,
@@ -614,7 +654,7 @@
     white-space: normal !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
-    line-height: 1.4 !important;
+    line-height: var(--arm-line-grid) !important;
 }
 
 #agGridArmContainer .ag-cell.ag-cell-wrap-text:not(.ag-cell-auto-height) .ag-cell-wrapper {
@@ -634,12 +674,13 @@
     overflow-wrap: break-word !important;
     text-align: left !important;
     text-overflow: clip !important;
-    line-height: 1.4 !important;
+    line-height: var(--arm-line-grid) !important;
     width: 100% !important;
     max-width: 100% !important;
     display: block !important;
 }
 
+#agGridArmContainer .ag-cell-value,
 #agGridArmContainer .ag-cell-value .arm-cell-wrap,
 #agGridArmContainer .ag-cell-value a.arm-link-to-card,
 #agGridArmContainer .ag-cell-value span.arm-cell-wrap,
@@ -649,7 +690,8 @@
     word-break: break-word !important;
     overflow-wrap: break-word !important;
     max-width: 100% !important;
-    line-height: 1.4 !important;
+    line-height: var(--arm-line-grid) !important;
+    font-size: inherit;
 }
 
 #agGridArmContainer .ag-cell-value a.arm-link-to-card {
@@ -665,6 +707,14 @@
 #agGridArmContainer .ag-cell.arm-cell-disks .ag-cell-value {
     max-height: none !important;
     overflow: visible !important;
+}
+
+#agGridArmContainer .arm-monitor-cell,
+#agGridArmContainer .arm-disk-cell,
+#agGridArmContainer .arm-monitor-fallback {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
 }
 
 #agGridArmContainer .arm-link-to-card {
@@ -692,49 +742,131 @@
 #agGridArmContainer .arm-monitor-item,
 #agGridArmContainer .arm-disk-item {
     display: block;
-    line-height: 1.4;
-    font-size: 13px;
+    line-height: var(--arm-line-grid);
+    font-size: inherit;
     padding: 0;
     white-space: normal;
     word-break: break-word;
 }
 
-/* Колонка выбора */
+/* Колонка выбора (чекбоксы не обрезать overflow: hidden у ячейки) */
 #agGridArmContainer .ag-cell.ag-cell-first-right-pinned,
 #agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] {
     justify-content: center !important;
     align-items: center !important;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    overflow: visible !important;
 }
 
-#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-cell-wrapper,
+#agGridArmContainer .ag-row.ag-row-selected:not(.ag-full-width-row) .ag-cell[col-id="ag-Grid-SelectionColumn"] {
+    border-left: 3px solid var(--arm-row-selected-accent) !important;
+    background-color: var(--ag-selected-row-background-color) !important;
+}
+
+#agGridArmContainer .ag-row.ag-row-selected.ag-row-hover:not(.ag-full-width-row) .ag-cell[col-id="ag-Grid-SelectionColumn"] {
+    background-color: #dbeafe !important;
+}
+
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-cell-wrapper {
+    overflow: visible !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Чекбоксы выбора строк — без «ореола» focus и без двойной отрисовки */
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper,
+#agGridArmContainer .ag-header-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper {
+    position: relative !important;
+    flex-shrink: 0;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    min-height: 18px !important;
+    margin: 0 auto !important;
+    border: 1.5px solid #94a3b8 !important;
+    border-radius: 4px !important;
+    background-color: #fff !important;
+    box-shadow: none !important;
+    outline: none !important;
+    overflow: hidden !important;
+}
+
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper:focus-within,
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper:active,
+#agGridArmContainer .ag-header-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper:focus-within,
+#agGridArmContainer .ag-header-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper:active {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper::before,
+#agGridArmContainer .ag-header-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper::before {
+    display: none !important;
+    content: none !important;
+    background: none !important;
+}
+
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper:not(.ag-checked)::after,
+#agGridArmContainer .ag-header-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper:not(.ag-checked)::after {
+    display: none !important;
+    content: none !important;
+}
+
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper.ag-checked,
+#agGridArmContainer .ag-header-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper.ag-checked {
+    background-color: var(--ag-checkbox-checked-color) !important;
+    border-color: var(--ag-checkbox-checked-color) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.2 6.5 11.2 12.5 5'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
+    background-size: 13px 13px !important;
+}
+
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper.ag-checked::after,
+#agGridArmContainer .ag-header-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox-input-wrapper.ag-checked::after {
+    display: none !important;
+    content: none !important;
+}
+
 #agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-selection-checkbox,
-#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox,
-#agGridArmContainer .ag-selection-checkbox,
-#agGridArmContainer .ag-checkbox {
+#agGridArmContainer .ag-cell[col-id="ag-Grid-SelectionColumn"] .ag-checkbox {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     height: 100% !important;
-    margin: 0 auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    overflow: visible !important;
 }
 
 /* Пагинация */
 #agGridArmContainer .ag-paging-panel {
     border-top: 1px solid var(--arm-border);
     padding: 8px 12px;
-    font-size: 0.875rem;
+    font-size: var(--ag-font-size);
     color: #475569;
     background: #f8fafc;
 }
 
+#agGridArmContainer .ag-paging-panel .ag-picker-field-wrapper,
+#agGridArmContainer .ag-paging-panel input,
+#agGridArmContainer .ag-paging-panel select,
+#agGridArmContainer .ag-paging-panel button {
+    font-size: var(--ag-font-size);
+}
+
 /* Статус */
+#agGridArmContainer .arm-status-badge,
 .arm-status-badge {
     display: inline-block;
-    padding: 0.2em 0.65em;
-    font-size: 0.75rem;
+    padding: 0.15em 0.55em;
+    font-size: inherit;
     font-weight: 600;
+    line-height: 1.35;
     border-radius: 999px;
     white-space: nowrap;
     max-width: 100%;
@@ -785,13 +917,14 @@
 }
 
 .equipment-item-header {
+    font-size: var(--arm-font-base);
     font-weight: 600;
-    color: #334155;
+    color: var(--arm-text);
     margin-bottom: 6px;
 }
 
 .equipment-item-detail {
-    font-size: 0.875rem;
+    font-size: var(--arm-font-base);
     color: var(--arm-text-muted);
     margin: 2px 0;
 }
@@ -805,9 +938,25 @@
 
 .reassign-user-sync-hint {
     display: block;
-    font-size: 0.8125rem;
+    font-size: var(--arm-font-base);
     color: var(--arm-text-muted);
     margin-top: 0.25rem;
+}
+
+/* Модальные окна страницы «Учёт ТС» */
+#armColumnsModal .modal-title,
+#reassignArmModal .modal-title {
+    font-size: var(--arm-font-title);
+    font-weight: 600;
+}
+
+#armColumnsModal .modal-body,
+#armColumnsModal .form-check-label,
+#reassignArmModal .modal-body,
+#reassignArmModal label,
+#reassignArmModal .form-control,
+#reassignArmModal .form-select {
+    font-size: var(--arm-font-base);
 }
 
 @media (max-width: 1100px) {
@@ -829,15 +978,6 @@
     .arm-page__header {
         flex-direction: column;
         align-items: stretch;
-    }
-
-    .arm-page__primary-actions {
-        width: 100%;
-    }
-
-    .arm-page__primary-actions .arm-btn-primary {
-        flex: 1 1 auto;
-        justify-content: center;
     }
 
     .arm-toolbar {

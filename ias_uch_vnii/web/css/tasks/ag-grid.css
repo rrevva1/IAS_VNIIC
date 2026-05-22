@@ -39,8 +39,11 @@
 #agGridArmContainer .arm-monitor-cell,
 #agGridArmContainer .arm-disk-cell {
     display: block;
-    line-height: 1.35;
+    line-height: 1.25;
     padding: 2px 0;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 #agGridArmContainer .arm-monitor-link {
     display: inline-block;
@@ -49,19 +52,21 @@
 
 /* Учёт ТС: вертикальные линии между ячейками в теле таблицы (не в шапке) */
 #agGridArmContainer.ag-theme-quartz {
-    --ag-border-color: #e2e8f0;
-    --ag-cell-horizontal-border: solid #e2e8f0;
+    --ag-grid-line-color: #cbd5e1;
+    --ag-row-border-color: var(--ag-grid-line-color);
+    --ag-border-color: var(--ag-grid-line-color);
+    /* Свои border на .ag-cell; иначе дублируются с темой AG Grid */
+    --ag-cell-horizontal-border: solid transparent;
     --ag-header-column-separator-display: none;
     --ag-font-size: 14px;
 }
 
 #agGridArmContainer .ag-header {
-    border-bottom: 2px solid #cbd5e1;
+    border-bottom: 1px solid var(--ag-grid-line-color);
 }
 
 #agGridArmContainer .ag-header-cell,
 #agGridArmContainer .ag-header-group-cell {
-    border-right: none !important;
     font-size: var(--ag-font-size) !important;
     line-height: 1.5;
 }
@@ -80,18 +85,6 @@
     content: none !important;
 }
 
-#agGridArmContainer .ag-body .ag-cell,
-#agGridArmContainer .ag-floating-top .ag-cell,
-#agGridArmContainer .ag-floating-bottom .ag-cell {
-    border-right: 1px solid #e2e8f0 !important;
-    box-sizing: border-box !important;
-}
-
-#agGridArmContainer .ag-cell[col-id="user_name"] .ag-cell-value {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
 
 /* Прокрутка списка техники в раскрытой строке пользователя */
 #agGridUsersContainer .equipment-detail-container {
@@ -154,16 +147,70 @@
 
 /* Переопределение CSS-переменных темы Quartz */
 .ag-theme-quartz {
+    --ag-grid-line-color: #cbd5e1;
+    --ag-row-border-color: var(--ag-grid-line-color);
+    /* Свои border на .ag-cell; иначе дублируются с темой AG Grid */
+    --ag-cell-horizontal-border: solid transparent;
     --ag-border-color: #e9ecef;
     --ag-header-background-color: #f8f9fa;
     --ag-header-foreground-color: #495057;
-    --ag-odd-row-background-color: #ffffff;
+    --ag-background-color: #ffffff;
+    --ag-odd-row-background-color: var(--ag-background-color);
     --ag-row-hover-color: #e3f2fd;
     --ag-selected-row-background-color: #cce7ff;
     --ag-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --ag-font-size: 14px;
     --ag-row-height: 55px;
     --ag-header-height: 55px;
+}
+
+/* Единый фон строк (без чередования) */
+.ag-theme-quartz .ag-row:not(.ag-full-width-row):not(.ag-row-selected):not(.ag-row-hover) .ag-cell {
+    background-color: var(--ag-background-color);
+}
+
+.ag-theme-quartz .ag-row.ag-row-hover:not(.ag-full-width-row) .ag-cell {
+    background-color: var(--ag-row-hover-color) !important;
+}
+
+.ag-theme-quartz .ag-row.ag-row-selected:not(.ag-full-width-row) .ag-cell {
+    background-color: var(--ag-selected-row-background-color) !important;
+}
+
+/*
+ * Сетка: только border у ячеек (справа + снизу). Линии строки дают разрывы на стыках.
+ */
+.ag-theme-quartz .ag-row:not(.ag-full-width-row) {
+    border-bottom: none !important;
+    background-color: transparent !important;
+}
+
+.ag-theme-quartz .ag-body .ag-cell,
+.ag-theme-quartz .ag-floating-top .ag-cell,
+.ag-theme-quartz .ag-floating-bottom .ag-cell,
+.ag-theme-quartz .ag-pinned-left-cols-container .ag-cell,
+.ag-theme-quartz .ag-pinned-right-cols-container .ag-cell,
+.ag-theme-quartz .ag-center-cols-container .ag-cell {
+    border-top: none !important;
+    border-left: none !important;
+    border-right: 1px solid var(--ag-grid-line-color) !important;
+    border-bottom: 1px solid var(--ag-grid-line-color) !important;
+    box-shadow: none !important;
+    background-clip: padding-box;
+    box-sizing: border-box !important;
+}
+
+.ag-theme-quartz .ag-header {
+    border-bottom: none;
+}
+
+.ag-theme-quartz .ag-header-cell,
+.ag-theme-quartz .ag-header-group-cell {
+    box-sizing: border-box;
+    border-top: none;
+    border-left: none;
+    border-right: 1px solid var(--ag-grid-line-color);
+    border-bottom: 1px solid var(--ag-grid-line-color);
 }
 
 /* Заголовки колонок */
