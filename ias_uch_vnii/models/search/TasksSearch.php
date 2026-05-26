@@ -2,6 +2,7 @@
 
 namespace app\models\search;
 
+use app\models\dictionaries\DicTaskStatus;
 use app\models\entities\Tasks;
 use Yii;
 use yii\base\Model;
@@ -16,12 +17,14 @@ class TasksSearch extends Tasks
     public $date_to;
     public $user_name;
     public $executor_name;
+    /** Код статуса из dic_task_status (фильтр вкладок). */
+    public $status_code;
 
     public function rules()
     {
         return [
             [['id', 'status_id', 'requester_id', 'executor_id'], 'integer'],
-            [['description', 'comment', 'created_at', 'updated_at'], 'safe'],
+            [['description', 'comment', 'created_at', 'updated_at', 'status_code'], 'safe'],
             [['date_from', 'date_to'], 'date', 'format' => 'yyyy-MM-dd'],
             [['user_name', 'executor_name'], 'string'],
         ];
@@ -70,7 +73,9 @@ class TasksSearch extends Tasks
             'pagination' => ['pageSize' => 10],
         ]);
 
-        $this->load($params);
+        $this->load($params, '');
+
+        $this->applyStatusCodeFilter($query);
 
         if (!$this->validate()) {
             return $dataProvider;
@@ -100,6 +105,19 @@ class TasksSearch extends Tasks
         }
 
         return $dataProvider;
+    }
+
+    private function applyStatusCodeFilter($query): void
+    {
+        $statusCode = trim((string) $this->status_code);
+        if ($statusCode === '') {
+            return;
+        }
+
+        $statusIds = DicTaskStatus::resolveIdsForIndexTabFilter($statusCode);
+        if ($statusIds !== []) {
+            $query->andWhere(['tasks.status_id' => $statusIds]);
+        }
     }
 
     public function attributeLabels()

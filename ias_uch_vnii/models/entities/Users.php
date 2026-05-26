@@ -58,9 +58,10 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
             'id' => 'ID',
             'username' => 'Логин',
             'full_name' => 'ФИО',
-            'email' => 'Email',
+            'email' => 'Электронная почта',
             'password_hash' => 'Пароль (хэш)',
-            'password_plain' => 'Пароль',
+            'password_plain' => 'Новый пароль',
+            'role_id' => 'Роль',
             'position' => 'Должность',
             'department' => 'Отдел',
             'phone' => 'Телефон',
@@ -122,6 +123,32 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
     public function isOperator(): bool
     {
         return $this->hasRoleCode('operator');
+    }
+
+    /**
+     * Доступ к разделу «Задачи»: руководитель (admin) или сотрудник техподдержки (operator).
+     */
+    public function isSupportStaff(): bool
+    {
+        return $this->isAdministrator() || $this->isOperator();
+    }
+
+    /**
+     * Доступ к разделу «Учёт ТС» (ARM): администратор и сотрудник техподдержки.
+     */
+    public function canAccessArm(): bool
+    {
+        return $this->isAdministrator() || $this->isOperator();
+    }
+
+    /**
+     * Домашняя страница после входа.
+     *
+     * @return array<int, string>
+     */
+    public function getHomeUrl(): array
+    {
+        return $this->canAccessArm() ? ['/arm/index'] : ['/tasks/index'];
     }
 
     private function hasRoleCode(string $code): bool
@@ -264,13 +291,52 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
         return \yii\helpers\ArrayHelper::map(Roles::find()->all(), 'id', 'role_name');
     }
 
+    /**
+     * Сотрудники техподдержки для назначения исполнителем заявки (admin, operator).
+     *
+     * @return array<int, string> id => full_name
+     */
+    public static function getSupportStaffList(): array
+    {
+        return static::find()
+            ->alias('u')
+            ->distinct()
+            ->innerJoin(
+                'user_roles ur',
+                'ur.user_id = u.id AND ur.is_active = true AND ur.revoked_at IS NULL'
+            )
+            ->innerJoin('roles r', 'r.id = ur.role_id')
+            ->where(['u.is_deleted' => false, 'u.is_active' => true])
+            ->andWhere(['r.role_code' => ['operator', 'admin']])
+            ->orderBy(['u.full_name' => SORT_ASC])
+            ->select(['u.full_name', 'u.id'])
+            ->indexBy('id')
+            ->column();
+    }
+
+    /**
+     * Может ли пользователь быть исполнителем заявки.
+     */
+    public static function canBeTaskExecutor(int $userId): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return array_key_exists($userId, static::getSupportStaffList());
+    }
+
     public function getRoleDisplayName()
     {
         $role = $this->role;
         if (!$role) {
             return 'Не назначена';
         }
-        $map = ['admin' => 'Администратор', 'user' => 'Пользователь', 'operator' => 'Оператор'];
+        $map = [
+            'admin' => 'Администратор',
+            'user' => 'Пользователь',
+            'operator' => 'Сотрудник техподдержки',
+        ];
         return $map[$role->role_code] ?? $role->role_name;
     }
 

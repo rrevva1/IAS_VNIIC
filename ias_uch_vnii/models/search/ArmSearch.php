@@ -286,7 +286,7 @@ class ArmSearch extends Model
             'cartridge_procurement' => ['column' => 'equipment.description'],
         ];
 
-        $partCharFields = ['cpu', 'ram', 'disk', 'monitor', 'hostname', 'ip', 'os'];
+        $partCharFields = ['cpu', 'ram', 'disk', 'monitor', 'screen_diagonal', 'hostname', 'ip', 'os'];
 
         foreach ($model as $field => $cfg) {
             if (!is_array($cfg)) {
@@ -606,6 +606,13 @@ class ArmSearch extends Model
                     ['sp.name' => 'Монитор'],
                     ['ilike', 'sp.name', 'монитор', false],
                 ]);
+                $q->andWhere(['not ilike', 'sc.name', 'диагональ', false]);
+                break;
+            case 'screen_diagonal':
+                $q->andWhere(['or',
+                    ['and', ['sp.name' => 'Монитор'], ['sc.name' => 'Диагональ экрана']],
+                    ['and', ['ilike', 'sp.name', 'монитор', false], ['ilike', 'sc.name', 'диагональ', false]],
+                ]);
                 break;
             case 'hostname':
                 $q->andWhere(['or',
@@ -692,9 +699,14 @@ class ArmSearch extends Model
                     $this->sqlIlikeContains('sp.name', 'ssd'),
                 ]);
             case 'monitor':
-                return implode(' OR ', [
+                return '(' . implode(' OR ', [
                     $this->sqlEquals('sp.name', 'Монитор'),
                     $this->sqlIlikeContains('sp.name', 'монитор'),
+                ]) . ') AND NOT ' . $this->sqlIlikeContains('sc.name', 'диагональ');
+            case 'screen_diagonal':
+                return implode(' OR ', [
+                    '(' . $this->sqlEquals('sp.name', 'Монитор') . ' AND ' . $this->sqlEquals('sc.name', 'Диагональ экрана') . ')',
+                    '(' . $this->sqlIlikeContains('sp.name', 'монитор') . ' AND ' . $this->sqlIlikeContains('sc.name', 'диагональ') . ')',
                 ]);
             case 'hostname':
                 return implode(' OR ', [
@@ -806,7 +818,7 @@ class ArmSearch extends Model
             return new Expression($map[$col]['column'] . ' ' . $suffix);
         }
 
-        $partCharFields = ['cpu', 'ram', 'hostname', 'ip', 'os'];
+        $partCharFields = ['cpu', 'ram', 'screen_diagonal', 'hostname', 'ip', 'os'];
         if (in_array($col, $partCharFields, true)) {
             $sub = $this->buildPartCharMinSortSubquery($col);
 

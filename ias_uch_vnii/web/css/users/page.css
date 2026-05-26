@@ -1,0 +1,323 @@
+/**
+ * Раздел «Пользователи» — интерфейс в стиле «Учёт ТС».
+ */
+
+.users-page {
+    --users-accent: #2563eb;
+    --users-accent-soft: #eff6ff;
+    --users-border: #e2e8f0;
+    --users-text: #334155;
+    --users-text-muted: #64748b;
+    --users-radius: 12px;
+    --users-font-base: 0.875rem;
+    --users-font-title: 1.125rem;
+    --users-control-height: 38px;
+    max-width: 100%;
+    font-size: var(--users-font-base);
+    line-height: 1.45;
+    color: var(--users-text);
+}
+
+.users-page--grid {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+body.app-body:has(.users-page--grid) {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+}
+
+body.app-body.modal-open:has(.users-page--grid) {
+    padding-right: 0 !important;
+    overflow: hidden;
+}
+
+.main-content:has(.users-page--grid) {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.content-wrapper:has(.users-page--grid) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    padding: 1rem !important;
+    min-height: 0 !important;
+    max-height: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.content-wrapper .users-page--grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+.users-page__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+}
+
+.users-page__title {
+    margin: 0;
+    font-size: var(--users-font-title);
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.users-page__subtitle {
+    margin: 0.25rem 0 0;
+    font-size: var(--users-font-base);
+    color: var(--users-text-muted);
+}
+
+.users-command-bar {
+    display: grid;
+    grid-template-columns: minmax(200px, 280px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem 0.85rem;
+    margin-bottom: 0.65rem;
+    padding: 0.65rem 0.75rem;
+    background: #f8fafc;
+    border: 1px solid var(--users-border);
+    border-radius: var(--users-radius);
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+.users-search {
+    position: relative;
+    min-width: 0;
+}
+
+.users-search__icon {
+    position: absolute;
+    left: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 0.875rem;
+    pointer-events: none;
+}
+
+.users-search__input {
+    padding-left: 2.1rem;
+    padding-right: 2rem;
+    height: var(--users-control-height);
+    font-size: var(--users-font-base);
+    border-radius: 8px;
+    border-color: var(--users-border);
+}
+
+.users-search__clear {
+    position: absolute;
+    right: 0.35rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 1.25rem;
+    line-height: 1;
+    padding: 0 0.35rem;
+    cursor: pointer;
+}
+
+.users-command-bar__tabs {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+.users-role-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0.1rem 0;
+    border-bottom: none;
+    list-style: none;
+}
+
+.users-role-tabs .nav-link {
+    margin-bottom: 0;
+    border: 1px solid var(--users-border);
+    border-radius: 999px;
+    color: #475569;
+    font-size: var(--users-font-base);
+    font-weight: 500;
+    padding: 0 0.85rem;
+    min-height: var(--users-control-height);
+    display: inline-flex;
+    align-items: center;
+    background: #fff;
+    white-space: nowrap;
+}
+
+.users-role-tabs .nav-link:hover {
+    background: #f1f5f9;
+}
+
+.users-role-tabs .nav-link.active {
+    background: var(--users-accent);
+    border-color: var(--users-accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+.users-command-bar__tools {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.users-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: var(--users-control-height);
+    padding: 0.35rem 0.75rem;
+    font-size: var(--users-font-base);
+    white-space: nowrap;
+}
+
+.users-grid-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid var(--users-border);
+    border-radius: var(--users-radius);
+    overflow: hidden;
+}
+
+#agGridUsersContainer {
+    flex: 1 1 auto;
+    min-height: 280px;
+    width: 100%;
+}
+
+.users-grid-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    color: var(--users-text-muted);
+}
+
+.users-grid-loading i {
+    font-size: 1.5rem;
+    color: var(--users-accent);
+}
+
+#agGridUsersContainer .ag-actions {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+#agGridUsersContainer .ag-actions .btn {
+    padding: 0.2rem 0.45rem;
+    line-height: 1;
+}
+
+/* Модальное окно создания */
+.users-create-modal .modal-content {
+    border: none;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+}
+
+.users-create-modal__header {
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1.1rem 1.35rem;
+}
+
+.users-create-modal__lead {
+    margin: 0.35rem 0 0;
+    font-size: 0.8125rem;
+    color: #64748b;
+}
+
+.users-create-modal__body {
+    padding: 1.25rem 1.35rem;
+}
+
+.users-create-form__section {
+    margin-bottom: 1rem;
+}
+
+.users-create-form__label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 0.4rem;
+}
+
+.users-create-form__label i {
+    color: var(--users-accent);
+}
+
+.users-create-form__hint {
+    margin: 0.35rem 0 0;
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.users-create-form__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 1100px) {
+    .users-command-bar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .users-command-bar__tools {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    .users-tool-btn span {
+        display: none;
+    }
+}

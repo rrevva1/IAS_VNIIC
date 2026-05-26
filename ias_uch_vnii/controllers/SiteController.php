@@ -69,7 +69,7 @@ class SiteController extends Controller
             return $this->redirect(['login']);
         }
 
-        return $this->redirect(['/arm/index']);
+        return $this->redirect($this->resolveHomeUrl());
     }
 
     /**
@@ -96,7 +96,7 @@ class SiteController extends Controller
             
             if ($model->login()) {
                 Yii::debug('Login successful');
-                return $this->redirect(['/arm/index']);
+                return $this->redirect($this->resolveHomeUrl());
             } else {
                 Yii::debug('Login failed. Errors: ' . print_r($model->errors, true));
             }
@@ -167,5 +167,17 @@ class SiteController extends Controller
         return $this->render('test-auth', [
             'user' => $user,
         ]);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveHomeUrl(): array
+    {
+        $identity = Yii::$app->user->identity;
+
+        return $identity instanceof \app\models\entities\Users
+            ? $identity->getHomeUrl()
+            : ['/tasks/index'];
     }
 }

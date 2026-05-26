@@ -46,8 +46,13 @@ $mainClass = 'main-content d-flex flex-column';
         <?php if (!empty($this->params['breadcrumbs'])): ?>
             <?php
             $breadcrumbHome = false;
-            if (!Yii::$app->user->isGuest) {
-                $breadcrumbHome = ['label' => 'Учет ТС', 'url' => ['/arm/index']];
+            if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
+                $identity = Yii::$app->user->identity;
+                if ($identity->canAccessArm()) {
+                    $breadcrumbHome = ['label' => 'Учет ТС', 'url' => ['/arm/index']];
+                } else {
+                    $breadcrumbHome = ['label' => 'Заявки', 'url' => ['/tasks/index']];
+                }
             }
             ?>
             <?= Breadcrumbs::widget([

@@ -1,10 +1,16 @@
 <?php
+
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
 use app\models\dictionaries\Roles;
 
-// ВАЖНО: получаем пары [id => role_name] для дропдауна
+/** @var yii\web\View $this */
+/** @var app\models\entities\Users $model */
+
 $roleItems = Roles::getList();
+$isOwnProfile = Yii::$app->user->identity
+    && (int) Yii::$app->user->identity->id === (int) $model->id
+    && !Yii::$app->user->identity->isAdmin();
 ?>
 
 <div class="users-form">
@@ -12,23 +18,28 @@ $roleItems = Roles::getList();
 
     <?= $form->field($model, 'full_name')->textInput(['maxlength' => true]) ?>
 
-    <?= $form->field($model, 'email')->textInput(['maxlength' => true]) ?>
+    <?= $form->field($model, 'email')->textInput(['maxlength' => true, 'type' => 'email']) ?>
 
-    <?= $form->field($model, 'role_id')->dropDownList(
-        $roleItems,
-        ['prompt' => 'Выберите роль']
-    ) ?>
+    <?= $form->field($model, 'phone')->textInput(['maxlength' => true]) ?>
 
-    <?= $form->field($model, 'password_plain')->passwordInput(['maxlength' => true]) ?>
-
-    <div class="form-group">
-        <?= Html::submitButton(
-            $model->isNewRecord ? 'Создать' : 'Сохранить',
-            [
-                'class' => 'btn btn-success',
-                'title' => $model->isNewRecord ? 'Создать пользователя и сохранить в БД' : 'Сохранить изменения в БД',
-            ]
+    <?php if (!$isOwnProfile): ?>
+        <?= $form->field($model, 'role_id')->dropDownList(
+            $roleItems,
+            ['prompt' => 'Выберите роль']
         ) ?>
+    <?php endif; ?>
+
+    <?= $form->field($model, 'password_plain')->passwordInput([
+        'maxlength' => true,
+        'placeholder' => $isOwnProfile ? 'Оставьте пустым, если не меняете' : '',
+    ])->hint($isOwnProfile ? 'Заполните только при смене пароля' : 'Заполните для установки нового пароля') ?>
+
+    <div class="form-group mt-3">
+        <?= Html::submitButton(
+            $model->isNewRecord ? 'Создать' : 'Сохранить изменения',
+            ['class' => 'btn btn-primary']
+        ) ?>
+        <?= Html::a('Отмена', ['view', 'id' => $model->id], ['class' => 'btn btn-outline-secondary ms-2']) ?>
     </div>
 
     <?php ActiveForm::end(); ?>

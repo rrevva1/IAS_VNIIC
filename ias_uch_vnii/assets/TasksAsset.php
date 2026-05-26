@@ -16,6 +16,7 @@ class TasksAsset extends AssetBundle
     public $baseUrl = '@web';
     
     public $css = [
+        'css/tasks/page.css',
         'css/tasks/view.css',
         'css/tasks/form.css',
     ];

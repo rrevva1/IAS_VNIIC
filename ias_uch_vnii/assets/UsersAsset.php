@@ -14,6 +14,7 @@ class UsersAsset extends AssetBundle
     
     public $css = [
         'css/users/index.css',
+        'css/users/profile.css',
     ];
     
     public $js = [

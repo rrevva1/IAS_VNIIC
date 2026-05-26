@@ -21,13 +21,6 @@ $this->title = 'Управление пользователями';
 
     <h1><?= Html::encode($this->title) ?></h1>
 
-    <?php if (!Yii::$app->user->isGuest && Yii::$app->user->identity): ?>
-        <div class="alert alert-info">
-            <strong>Добро пожаловать, <?= Html::encode(Yii::$app->user->identity->full_name ?: Yii::$app->user->identity->email) ?>!</strong>
-            <br>Вы вошли как администратор системы.
-        </div>
-    <?php endif; ?>
-
     <div class="row mb-3">
         <div class="col-md-6">
             <?= Html::a('Добавить пользователя', ['create'], ['class' => 'btn btn-success']) ?>

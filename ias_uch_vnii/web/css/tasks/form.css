@@ -1,214 +1,93 @@
 /**
- * CSS стили для форм создания и редактирования заявок
+ * Формы заявок (дополнения к page.css).
  */
 
-/* Основные стили для форм */
-.tasks-form {
-    padding: 20px 0;
+.tasks-form-card .tasks-form,
+.tasks-form-card .modal-form {
+    padding: 0;
 }
 
-.tasks-form h1 {
-    color: #333;
-    margin-bottom: 30px;
-    border-bottom: 2px solid #007bff;
-    padding-bottom: 10px;
-}
-
-/* Стили для формы */
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
+.tasks-form-card .form-group label,
+.tasks-form-card .form-label {
     font-weight: 600;
-    color: #495057;
-    margin-bottom: 8px;
+    color: #475569;
+    font-size: 0.875rem;
+    margin-bottom: 0.35rem;
 }
 
-.form-control {
-    border-radius: 4px;
-    border: 1px solid #ced4da;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    padding: 10px 12px;
+.tasks-form-card .form-control,
+.tasks-form-card .form-select {
+    border-radius: 8px;
+    border-color: #e2e8f0;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
 }
 
-.form-control:focus {
-    border-color: #80bdff;
-    outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+.tasks-form-card .form-control:focus,
+.tasks-form-card .form-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-textarea.form-control {
+.tasks-form-card textarea.form-control {
     min-height: 120px;
     resize: vertical;
 }
 
-/* Стили для загрузки файлов */
-.file-upload-area {
-    border: 2px dashed #dee2e6;
+.tasks-form-card .btn-primary {
+    background: #2563eb;
+    border-color: #2563eb;
     border-radius: 8px;
-    padding: 30px;
+    font-weight: 500;
+}
+
+.tasks-form-card .btn-primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.tasks-form-card .btn-outline-secondary {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.tasks-form-card .file-upload-area {
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 1.5rem;
     text-align: center;
-    background-color: #f8f9fa;
-    transition: all 0.3s ease;
+    background: #f8fafc;
+    transition: border-color 0.15s ease, background 0.15s ease;
     cursor: pointer;
 }
 
-.file-upload-area:hover {
-    border-color: #007bff;
-    background-color: #e3f2fd;
+.tasks-form-card .file-upload-area:hover {
+    border-color: #2563eb;
+    background: #eff6ff;
 }
 
-.file-upload-area.dragover {
-    border-color: #007bff;
-    background-color: #e3f2fd;
-    transform: scale(1.02);
+.tasks-form-card .form-section {
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
 }
 
-.file-upload-icon {
-    font-size: 48px;
-    color: #6c757d;
-    margin-bottom: 15px;
+.tasks-form-card .form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
 }
 
-.file-upload-text {
-    color: #6c757d;
-    font-size: 16px;
-    margin-bottom: 10px;
-}
-
-.file-upload-hint {
-    color: #adb5bd;
-    font-size: 14px;
-}
-
-/* Стили для списка загруженных файлов */
-.uploaded-files {
-    margin-top: 20px;
-}
-
-.uploaded-file-item {
+.tasks-form-card .section-header {
     display: flex;
     align-items: center;
-    padding: 10px;
-    background: #fff;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    margin-bottom: 8px;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    color: #0f172a;
+    font-weight: 600;
+    font-size: 0.9375rem;
 }
 
-.uploaded-file-icon {
-    margin-right: 10px;
-    color: #6c757d;
-}
-
-.uploaded-file-name {
-    flex: 1;
-    color: #333;
-    font-weight: 500;
-}
-
-.uploaded-file-size {
-    color: #6c757d;
-    font-size: 12px;
-    margin-right: 10px;
-}
-
-.uploaded-file-remove {
-    color: #dc3545;
-    cursor: pointer;
-    padding: 5px;
-    border-radius: 3px;
-    transition: background-color 0.2s;
-}
-
-.uploaded-file-remove:hover {
-    background-color: #f8d7da;
-}
-
-/* Стили для кнопок */
-.btn {
-    border-radius: 4px;
-    padding: 10px 20px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.btn-primary {
-    background-color: #007bff;
-    border-color: #007bff;
-}
-
-.btn-primary:hover {
-    background-color: #0056b3;
-    border-color: #0056b3;
-    transform: translateY(-1px);
-}
-
-.btn-secondary {
-    background-color: #6c757d;
-    border-color: #6c757d;
-}
-
-.btn-secondary:hover {
-    background-color: #545b62;
-    border-color: #545b62;
-}
-
-/* Стили для валидации */
-.has-error .form-control {
-    border-color: #dc3545;
-}
-
-.has-error .help-block {
-    color: #dc3545;
-    font-size: 12px;
-    margin-top: 5px;
-}
-
-/* Стили для прогресс-бара загрузки */
-.upload-progress {
-    margin-top: 10px;
-    display: none;
-}
-
-.progress {
-    height: 8px;
-    border-radius: 4px;
-    background-color: #e9ecef;
-}
-
-.progress-bar {
-    background-color: #007bff;
-    border-radius: 4px;
-    transition: width 0.3s ease;
-}
-
-/* Адаптивность */
-@media (max-width: 768px) {
-    .tasks-form {
-        padding: 15px 0;
-    }
-    
-    .file-upload-area {
-        padding: 20px 15px;
-    }
-    
-    .file-upload-icon {
-        font-size: 36px;
-    }
-    
-    .uploaded-file-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .uploaded-file-name {
-        margin-bottom: 5px;
-    }
-    
-    .btn {
-        width: 100%;
-        margin-bottom: 10px;
-    }
+.tasks-form-card .section-header i {
+    color: #2563eb;
 }

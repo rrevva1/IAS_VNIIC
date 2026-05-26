@@ -4,6 +4,7 @@ use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\widgets\DetailView;
 use app\assets\TasksAsset;
+use app\models\entities\Users;
 
 /* @var $this yii\web\View */
 /* @var $model app\models\Tasks */
@@ -18,25 +19,49 @@ TasksAsset::register($this);
 // Передача URL для AJAX запросов в JavaScript
 $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => $model->id]) . "'; var executorChangeUrl = '" . Url::to(['assign-executor', 'id' => $model->id]) . "';", \yii\web\View::POS_HEAD);
 
+$statusBadgeMap = [
+    'new' => 'bg-success',
+    'executor_assigned' => 'bg-primary',
+    'in_progress' => 'bg-warning text-dark',
+    'on_hold' => 'bg-secondary',
+    'resolved' => 'bg-info text-dark',
+    'closed' => 'bg-info text-dark',
+    'cancelled' => 'bg-danger',
+];
 ?>
-<div class="tasks-view">
+<div class="tasks-page tasks-page--detail tasks-view">
 
-    <h1><?= Html::encode($this->title) ?></h1>
+    <header class="tasks-page__header">
+        <div class="tasks-page__heading">
+            <h1 class="tasks-page__title"><?= Html::encode($this->title) ?></h1>
+            <p class="tasks-page__subtitle">
+                Создана <?= Yii::$app->formatter->asDatetime($model->created_at, 'php:d.m.Y, H:i') ?>
+                <?php if ($model->status): ?>
+                    · <span class="tasks-status-badge <?= $statusBadgeMap[$model->status->status_code] ?? 'bg-secondary' ?>">
+                        <?= Html::encode($model->status->status_name) ?>
+                    </span>
+                <?php endif; ?>
+            </p>
+        </div>
+    </header>
 
-    <!-- Кнопки действий -->
-    <p>
-        <?= Html::a('Редактировать', ['update', 'id' => $model->id], ['class' => 'btn btn-primary']) ?>
-        <?= Html::a('Удалить', ['delete', 'id' => $model->id], [
-            'class' => 'btn btn-danger',
+    <div class="tasks-page__actions">
+        <?= Html::a('<i class="fas fa-pen" aria-hidden="true"></i> Редактировать', ['update', 'id' => $model->id], [
+            'class' => 'btn btn-primary tasks-tool-btn',
+        ]) ?>
+        <?= Html::a('<i class="fas fa-trash" aria-hidden="true"></i> Удалить', ['delete', 'id' => $model->id], [
+            'class' => 'btn btn-danger tasks-tool-btn',
             'data' => [
                 'confirm' => 'Вы уверены, что хотите удалить эту заявку?',
                 'method' => 'post',
             ],
         ]) ?>
-        <?= Html::a('К списку заявок', ['index'], ['class' => 'btn btn-secondary']) ?>
-    </p>
+        <?= Html::a('<i class="fas fa-list" aria-hidden="true"></i> К списку', ['index'], [
+            'class' => 'btn btn-outline-secondary tasks-tool-btn',
+        ]) ?>
+    </div>
 
-    <!-- Основная информация -->
+    <div class="tasks-detail-card">
     <?= DetailView::widget([
         'model' => $model,
         'attributes' => [
@@ -46,13 +71,13 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
                 'label' => 'Статус',
                 'format' => 'raw',
                 'value' => function ($model) {
-                    $statusClass = 'default';
-                    if ($model->status && $model->status->status_code) {
-                        $map = ['new' => 'success', 'in_progress' => 'warning', 'resolved' => 'info', 'closed' => 'info', 'cancelled' => 'danger'];
-                        $statusClass = $map[$model->status->status_code] ?? 'default';
+                    if (!$model->status) {
+                        return '—';
                     }
-                    return Html::tag('span', $model->status ? $model->status->status_name : '—', [
-                        'class' => 'label label-' . $statusClass
+                    $badge = $statusBadgeMap[$model->status->status_code] ?? 'bg-secondary';
+
+                    return Html::tag('span', $model->status->status_name, [
+                        'class' => 'tasks-status-badge ' . $badge,
                     ]);
                 },
             ],
@@ -60,6 +85,22 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
                 'attribute' => 'description',
                 'format' => 'raw',
                 'value' => nl2br(Html::encode($model->description)),
+            ],
+            [
+                'attribute' => 'contact_phone',
+                'label' => 'Телефон для обратной связи',
+                'format' => 'raw',
+                'value' => function ($model) {
+                    if (empty($model->contact_phone)) {
+                        return '<span class="text-muted">Не указан</span>';
+                    }
+                    $phone = Html::encode($model->contact_phone);
+                    $tel = preg_replace('/[^\d+]/', '', $model->contact_phone);
+
+                    return $tel !== ''
+                        ? Html::a($phone, 'tel:' . $tel, ['class' => 'tasks-contact-phone-link'])
+                        : $phone;
+                },
             ],
             [
                 'attribute' => 'requester_id',
@@ -89,6 +130,7 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
             ],
         ],
     ]) ?>
+    </div>
 
     <?php
     $taskHistory = \app\models\entities\TaskHistory::find()
@@ -99,8 +141,9 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
         ->all();
     if (!empty($taskHistory)):
     ?>
-    <h4>История изменений</h4>
-    <table class="table table-bordered table-striped">
+    <div class="tasks-panel">
+    <h4 class="tasks-panel__title"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i> История изменений</h4>
+    <table class="table table-bordered table-striped mb-0">
         <thead><tr><th>Дата</th><th>Поле</th><th>Было</th><th>Стало</th><th>Кто</th></tr></thead>
         <tbody>
             <?php foreach ($taskHistory as $h): ?>
@@ -114,26 +157,35 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
     <?php endif; ?>
 
     <?php
     $equipments = $model->getEquipments()->all();
     if (!empty($equipments)):
     ?>
-    <h4>Связанные активы</h4>
+    <div class="tasks-panel">
+    <h4 class="tasks-panel__title"><i class="fas fa-desktop" aria-hidden="true"></i> Связанные активы</h4>
     <ul class="list-group">
         <?php foreach ($equipments as $eq): ?>
         <li class="list-group-item">
-            <?= Html::a(Html::encode($eq->inventory_number . ' — ' . ($eq->name ?: '')), ['/arm/view', 'id' => $eq->id], ['target' => '_blank']) ?>
+            <?php
+            $eqLabel = Html::encode($eq->inventory_number . ' — ' . ($eq->name ?: ''));
+            $canOpenArm = Yii::$app->user->identity && Yii::$app->user->identity->canAccessArm();
+            ?>
+            <?= $canOpenArm
+                ? Html::a($eqLabel, ['/arm/view', 'id' => $eq->id], ['target' => '_blank'])
+                : $eqLabel ?>
         </li>
         <?php endforeach; ?>
     </ul>
+    </div>
     <?php endif; ?>
 
-    <!-- Быстрое управление -->
-    <div class="row mt-4">
+    <div class="tasks-panel">
+    <div class="row g-3">
         <div class="col-md-6">
-            <h4>Изменить статус</h4>
+            <h4 class="tasks-panel__title"><i class="fas fa-flag" aria-hidden="true"></i> Изменить статус</h4>
             <?= Html::dropDownList('status_change', $model->status_id, 
                 \app\models\dictionaries\DicTaskStatus::getStatusList(), [
                 'class' => 'form-control',
@@ -142,20 +194,39 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
             ]) ?>
         </div>
         <div class="col-md-6">
-            <h4>Назначить исполнителя</h4>
-            <?= Html::dropDownList('executor_change', $model->executor_id, 
-                \app\models\entities\Users::find()->select(['full_name', 'id'])->indexBy('id')->column(), [
-                'class' => 'form-control js-user-select-search',
-                'id' => 'executor-change',
-                'prompt' => 'Выберите исполнителя...',
-                'data-placeholder' => 'Выберите исполнителя...',
-            ]) ?>
+            <h4 class="tasks-panel__title"><i class="fas fa-user-check" aria-hidden="true"></i> Исполнитель</h4>
+            <?php
+            $canAssignExecutor = !Yii::$app->user->isGuest
+                && Yii::$app->user->identity
+                && Yii::$app->user->identity->isAdministrator()
+                && !$model->hasAssignedExecutor();
+            if ($canAssignExecutor):
+                $executorList = Users::getSupportStaffList();
+            ?>
+                <?= Html::dropDownList('executor_change', null, $executorList, [
+                    'class' => 'form-control js-user-select-search',
+                    'id' => 'executor-change',
+                    'prompt' => 'Выберите исполнителя...',
+                    'data-placeholder' => 'Выберите исполнителя...',
+                ]) ?>
+                <p class="tasks-panel__hint text-muted small mt-2 mb-0">
+                    Назначить исполнителя может только руководитель отдела. После назначения изменение — в разделе «Задачи».
+                </p>
+            <?php elseif ($model->hasAssignedExecutor() && $model->executor): ?>
+                <p class="mb-1"><?= Html::encode($model->executor->full_name) ?></p>
+                <p class="tasks-panel__hint text-muted small mb-0">
+                    Исполнитель зафиксирован. Чтобы сменить его, откройте связанную задачу в разделе «Задачи».
+                </p>
+            <?php else: ?>
+                <p class="text-muted mb-0">Не назначен</p>
+            <?php endif; ?>
         </div>
     </div>
-    <!-- Вложения -->
+    </div>
+
     <?php if (!empty($model->getAllAttachments())): ?>
-    <div class="mt-4">
-        <h4>Вложения (<?= count($model->getAllAttachments()) ?>)</h4>
+    <div class="tasks-panel">
+        <h4 class="tasks-panel__title"><i class="fas fa-paperclip" aria-hidden="true"></i> Вложения (<?= count($model->getAllAttachments()) ?>)</h4>
         <div class="row">
             <?php foreach ($model->getAllAttachments() as $attachment): ?>
             <div class="col-md-3 col-sm-4 col-xs-6 mb-3">
@@ -183,7 +254,7 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
                         </p>
                         
                         <div class="btn-group btn-group-sm">
-                            <?= Html::a('<i class="glyphicon glyphicon-download-alt"></i>', 
+                            <?= Html::a('<i class="fas fa-download" aria-hidden="true"></i>', 
                                 ['download-attachment', 'attachmentId' => $attachment->id], [
                                 'class' => 'btn btn-outline-primary',
                                 'title' => 'Скачать'
@@ -196,10 +267,10 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
                                         data-image-src="<?= \yii\helpers\Url::to(['view-attachment', 'attachmentId' => $attachment->id]) ?>"
                                         data-image-name="<?= Html::encode($attachment->original_name) ?>"
                                         title="Просмотр">
-                                    <i class="glyphicon glyphicon-eye-open"></i>
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
                                 </button>
                             <?php endif; ?>
-                            <?= Html::a('<i class="glyphicon glyphicon-trash"></i>', 
+                            <?= Html::a('<i class="fas fa-trash" aria-hidden="true"></i>', 
                                 ['delete-attachment', 'taskId' => $model->id, 'attachmentId' => $attachment->id], [
                                 'class' => 'btn btn-outline-danger',
                                 'title' => 'Удалить',
@@ -221,21 +292,21 @@ $this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => 
 
 
 <!-- Модальное окно для просмотра изображений -->
-<div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel">
-    <div class="modal-dialog modal-lg" role="document">
+<div class="modal fade tasks-modal" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="modal-title" id="imageModalLabel">Просмотр изображения</h4>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-image" aria-hidden="true"></i> Просмотр изображения</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body text-center">
-                <img id="modalImage" src="" alt="" class="img-responsive">
-                <p id="modalImageName" class="text-muted"></p>
+                <img id="modalImage" src="" alt="" class="img-fluid">
+                <p id="modalImageName" class="text-muted mt-2 mb-0"></p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
                 <a id="modalDownloadBtn" href="#" class="btn btn-primary">
-                    <i class="glyphicon glyphicon-download-alt"></i> Скачать
+                    <i class="fas fa-download" aria-hidden="true"></i> Скачать
                 </a>
             </div>
         </div>

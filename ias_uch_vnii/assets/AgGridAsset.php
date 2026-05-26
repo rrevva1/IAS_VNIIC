@@ -18,12 +18,16 @@ class AgGridAsset extends AssetBundle
     public $css = [
         'ag-grid-community/styles/ag-theme-quartz.css',
         'css/tasks/ag-grid.css',
+        'css/tasks/page.css',
+        'css/tasks/form-modal.css',
     ];
     
     public $js = [
         'ag-grid-community/dist/ag-grid-community.min.js',
         'js/ag-grid-wrap-utils.js',
         'js/ag-grid-theme-config.js',
+        'js/tasks/page-ui.js',
+        'js/tasks/form-modal.js',
         'js/tasks/ag-grid.js',
     ];
     

@@ -25,18 +25,19 @@ class UsersSearch extends Users
         return Model::scenarios();
     }
 
-    public function search($params, $formName = null)
+    public function search($params)
     {
-        $query = Users::find();
+        $query = Users::find()->andWhere(['users.is_deleted' => false]);
         if (!Yii::$app->user->identity->isAdministrator()) {
-            $query->where(['users.id' => Yii::$app->user->id]);
+            $query->andWhere(['users.id' => Yii::$app->user->id]);
         }
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
         ]);
 
-        $this->load($params, $formName);
+        // Пустой formName — параметры role_id и др. из query string (AG Grid, вкладки).
+        $this->load($params, '');
 
         if (!$this->validate()) {
             return $dataProvider;
@@ -48,12 +49,15 @@ class UsersSearch extends Users
             $query->innerJoin('user_roles', 'user_roles.user_id = users.id')
                 ->andWhere(['user_roles.role_id' => $this->role_id])
                 ->andWhere(['user_roles.is_active' => true])
-                ->andWhere(['user_roles.revoked_at' => null]);
+                ->andWhere(['user_roles.revoked_at' => null])
+                ->distinct();
         }
 
         $query->andFilterWhere(['ilike', 'users.full_name', $this->full_name])
             ->andFilterWhere(['ilike', 'users.email', $this->email])
             ->andFilterWhere(['ilike', 'users.username', $this->username]);
+
+        $query->orderBy(['users.full_name' => SORT_ASC]);
 
         return $dataProvider;
     }

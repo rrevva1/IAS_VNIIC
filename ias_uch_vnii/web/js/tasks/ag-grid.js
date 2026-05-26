@@ -1,5 +1,5 @@
 /**
- * AG Grid конфигурация для таблицы заявок
+ * AG Grid: таблица заявок (список, выбор, массовое удаление).
  */
 
 // Глобальные переменные
@@ -174,7 +174,7 @@ function initializeAgGrid() {
     
     // Проверяем, является ли пользователь администратором
     isAdmin = window.isUserAdmin || false;
-    allUsers = window.allUsersList || {};
+    allUsers = window.taskExecutorsList || window.allUsersList || {};
     allStatuses = window.allStatusList || {};
     
     const gridDiv = document.querySelector('#agGridTasksContainer');
@@ -198,8 +198,26 @@ function initializeAgGrid() {
             editable: false,
             floatingFilter: false, // только полное меню фильтра по клику на иконку (как на Учет ТС)
         },
-        // Без чекбоксов: выбор строки по клику (как в Пользователях)
-        rowSelection: { mode: 'singleRow' },
+        rowSelection: isAdmin ? {
+            mode: 'multiRow',
+            checkboxes: true,
+            headerCheckbox: true,
+            enableClickSelection: false,
+        } : {
+            mode: 'singleRow',
+            enableClickSelection: false,
+        },
+        selectionColumnDef: isAdmin ? {
+            pinned: 'left',
+            width: 48,
+            minWidth: 48,
+            maxWidth: 48,
+            resizable: false,
+            sortable: false,
+            filter: false,
+            suppressHeaderMenuButton: true,
+            headerTooltip: 'Выбор заявок для удаления',
+        } : undefined,
         pagination: true,
         paginationPageSize: 20,
         paginationPageSizeSelector: [10, 20, 50, 100],
@@ -214,54 +232,40 @@ function initializeAgGrid() {
             last: 'Последняя',
             first: 'Первая',
             previous: 'Предыдущая',
-            loadingOoo: 'Загрузка...',
-            noRowsToShow: 'Нет данных для отображения',
-            filterOoo: 'Фильтр...',
-            pageSizeSelectorLabel: 'Размер страницы:',
+            loadingOoo: 'Загрузка…',
+            noRowsToShow: 'Заявок пока нет. Нажмите «Создать заявку», чтобы добавить первую.',
+            filterOoo: 'Фильтр…',
+            pageSizeSelectorLabel: 'Строк на странице:',
         },
         
         // Обработчики событий
         onGridReady: onGridReady,
+        onFirstDataRendered: function() {
+            fitTasksGridColumns();
+        },
         onModelUpdated: initExecutorUserSelectsInGrid,
         onCellValueChanged: onCellValueChanged,
         // Добавляем обработчик изменения размера страницы для автоматической подстройки высоты
         onPaginationChanged: onPaginationChanged,
-        
-        // Full Width Row для выезжающей панели с техникой (работает в Community Edition)
-        isFullWidthRow: function(params) {
-            return params.rowNode.data && params.rowNode.data.isDetailRow;
-        },
-        fullWidthCellRenderer: EquipmentDetailRenderer,
-        
-        // Высота строки: для обычных — по длине описания (перенос), для детальной панели — по контенту
+        onSelectionChanged: isAdmin ? function() {
+            syncTasksDeleteButton();
+        } : undefined,
+
+        // Высота строки: увеличить при длинном описании (перенос текста)
         getRowHeight: function(params) {
             if (!params.node.data) {
                 return undefined;
             }
-            // Детальная панель (техника)
-            if (params.node.data.isDetailRow) {
-                const equipmentData = params.node.data.equipmentData || [];
-                if (equipmentData.length === 0) {
-                    return 120;
-                }
-                const headerHeight = 60;
-                const tableHeaderHeight = 45;
-                const rowHeight = 45;
-                const padding = 40;
-                const totalHeight = headerHeight + tableHeaderHeight + (equipmentData.length * rowHeight) + padding;
-                return Math.min(totalHeight, 600);
-            }
-            // Обычная строка: увеличить высоту при длинном описании (перенос текста)
             const desc = params.node.data.description;
             if (desc && typeof desc === 'string' && desc.length > 0) {
                 const lineHeight = 20;
-                const charsPerLine = 55; // приблизительно при типичной ширине колонки
-                const lines = Math.min(Math.ceil(desc.length / charsPerLine), 6); // не более 6 строк
+                const charsPerLine = 55;
+                const lines = Math.min(Math.ceil(desc.length / charsPerLine), 6);
                 if (lines > 1) {
                     return Math.max(40, 12 + lines * lineHeight);
                 }
             }
-            return undefined; // стандартная высота
+            return undefined;
         },
     };
     
@@ -269,6 +273,7 @@ function initializeAgGrid() {
     try {
         console.log('AG Grid: Создание таблицы с опциями:', gridOptions);
         gridApi = agGrid.createGrid(gridDiv, gridOptions);
+        window.tasksGridApi = gridApi;
         console.log('AG Grid: Таблица создана успешно, gridApi:', gridApi);
         
         // Помечаем как инициализированную
@@ -351,202 +356,126 @@ function compareDatesByDay(filterDateAtMidnight, cellValue) {
     return diff < 0 ? -1 : 1;
 }
 
-/**
- * Переключение отображения техники работника
- * @param {number} taskId - ID заявки
- * @param {number} userId - ID пользователя
- */
-function toggleEquipmentDetail(taskId, userId) {
-    if (!gridApi) return;
-    
-    // Находим строку заявки
-    let taskRowNode = null;
-    gridApi.forEachNode(function(node) {
-        if (node.data && node.data.id == taskId && !node.data.isDetailRow) {
-            taskRowNode = node;
+/** Бейдж статуса заявки в таблице */
+function renderTaskStatusBadge(statusCode, statusName) {
+    const code = statusCode || '';
+    const name = statusName || '—';
+    const map = {
+        new: 'tasks-status-pill--new',
+        executor_assigned: 'tasks-status-pill--assigned',
+        in_progress: 'tasks-status-pill--progress',
+        on_hold: 'tasks-status-pill--hold',
+        resolved: 'tasks-status-pill--done',
+        closed: 'tasks-status-pill--done',
+        cancelled: 'tasks-status-pill--cancelled',
+    };
+    const cls = map[code] || 'tasks-status-pill--default';
+    return '<span class="tasks-status-pill ' + cls + '">' + escapeHtml(name) + '</span>';
+}
+
+function escapeHtml(text) {
+    if (text == null) {
+        return '';
+    }
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function getTaskViewUrl(id) {
+    return '/index.php?r=tasks/view&id=' + encodeURIComponent(id);
+}
+
+function renderTaskIdLink(id) {
+    return '<a class="tasks-grid-link" href="' + getTaskViewUrl(id) + '">#' + id + '</a>';
+}
+
+function renderTaskDescriptionLink(id, text) {
+    const value = text != null ? String(text) : '';
+    if (!id) {
+        return escapeHtml(value);
+    }
+    return '<a class="tasks-grid-link tasks-grid-link--description" href="' + getTaskViewUrl(id) + '"'
+        + ' title="Открыть заявку">' + escapeHtml(value) + '</a>';
+}
+
+/** Ячейка «Исполнитель»: выбор только руководителем, пока исполнитель не назначен. */
+function renderExecutorCell(params) {
+    if (!params.data) {
+        return '';
+    }
+
+    const executorId = params.data.executor_id;
+    const executorName = params.data.executor_name || '';
+    const canAssign = (window.canAssignTaskExecutor === true || window.canAssignTaskExecutor === 'true')
+        && !executorId;
+
+    if (!canAssign) {
+        if (executorName) {
+            return '<span class="tasks-executor-readonly" title="Изменение — в разделе «Задачи»">'
+                + escapeHtml(executorName) + '</span>';
         }
+
+        return '<span class="tasks-grid-empty">Не назначен</span>';
+    }
+
+    return '<select class="form-select form-select-sm executor-change-ag js-user-select-search"'
+        + ' data-task-id="' + params.data.id + '"'
+        + ' data-placeholder="Не назначен">'
+        + buildExecutorOptionsHtml('', '')
+        + '</select>';
+}
+
+/** HTML опций исполнителя (только техподдержка + текущий, если уже назначен). */
+function buildExecutorOptionsHtml(selectedId, currentName) {
+    let html = '<option value="">Не назначен</option>';
+    const selected = selectedId ? String(selectedId) : '';
+
+    if (selected && !allUsers[selected] && currentName) {
+        html += '<option value="' + escapeHtml(selected) + '" selected>'
+            + escapeHtml(currentName) + '</option>';
+    }
+
+    Object.entries(allUsers).forEach(function(entry) {
+        const id = entry[0];
+        const name = entry[1];
+        const isSelected = selected && id === selected;
+        html += '<option value="' + escapeHtml(id) + '"' + (isSelected ? ' selected' : '') + '>'
+            + escapeHtml(name) + '</option>';
     });
-    
-    if (!taskRowNode) {
-        console.error('Строка заявки не найдена:', taskId);
+
+    return html;
+}
+
+/** Подбор ширины столбцов по содержимому (кроме flex-колонок). */
+function fitTasksGridColumns() {
+    if (!gridApi || typeof gridApi.getColumns !== 'function') {
         return;
     }
-    
-    const isExpanded = taskRowNode.data._equipmentExpanded || false;
-    
-    if (isExpanded) {
-        // Скрыть панель
-        hideEquipmentDetail(taskId);
-    } else {
-        // Показать панель
-        showEquipmentDetail(taskId, userId, taskRowNode);
-    }
-}
 
-/**
- * Показать технику работника (выезжающая панель)
- */
-function showEquipmentDetail(taskId, userId, taskRowNode) {
-    console.log('Загружаю технику для пользователя:', userId);
-    
-    // Загружаем данные о технике через AJAX
-    fetch(`/index.php?r=tasks/get-user-equipment&userId=${userId}`)
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                // Помечаем строку как раскрытую
-                taskRowNode.data._equipmentExpanded = true;
-                taskRowNode.data._equipmentData = result.data;
-                
-                // Обновляем кнопку (плюс → минус)
-                gridApi.refreshCells({ rowNodes: [taskRowNode], force: true });
-                
-                // Создаем новый массив данных с detail row
-                const rowData = [];
-                gridApi.forEachNode(node => {
-                    if (node.data && !node.data.isDetailRow) {
-                        rowData.push(node.data);
-                        
-                        // После нужной строки добавляем detail row
-                        if (node.data.id == taskId) {
-                            rowData.push({
-                                isDetailRow: true,
-                                parentTaskId: taskId,
-                                equipmentData: result.data,
-                                totalCount: result.total || result.data.length
-                            });
-                        }
-                    }
-                });
-                
-                // Обновляем данные таблицы
-                gridApi.setGridOption('rowData', rowData);
-                
-                // Запускаем пересчёт высоты строк для детальной панели
-                setTimeout(() => {
-                    gridApi.onRowHeightChanged();
-                }, 100);
-                
-                console.log('✅ Техника загружена:', result.data.length, 'записей');
-            } else {
-                alert('Ошибка: ' + (result.message || 'Не удалось загрузить данные'));
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка загрузки техники:', error);
-            alert('Ошибка соединения с сервером');
-        });
-}
+    const flexFields = ['description', 'comment'];
+    const colIds = [];
 
-/**
- * Скрыть технику работника (свернуть панель)
- */
-function hideEquipmentDetail(taskId) {
-    // Помечаем строку как свернутую
-    let taskRowNode = null;
-    gridApi.forEachNode(function(node) {
-        if (node.data && node.data.id == taskId && !node.data.isDetailRow) {
-            taskRowNode = node;
+    gridApi.getColumns().forEach(function(col) {
+        const def = col.getColDef();
+        const field = def.field || col.getColId();
+        if (def.flex || flexFields.indexOf(field) >= 0) {
+            return;
         }
+        colIds.push(col.getColId());
     });
-    
-    if (taskRowNode) {
-        taskRowNode.data._equipmentExpanded = false;
-        delete taskRowNode.data._equipmentData;
-    }
-    
-    // Удаляем detail row из таблицы
-    const rowData = [];
-    gridApi.forEachNode(node => {
-        if (node.data) {
-            // Пропускаем detail row для этой заявки
-            if (node.data.isDetailRow && node.data.parentTaskId == taskId) {
-                return; // skip
-            }
-            rowData.push(node.data);
-        }
-    });
-    
-    // Обновляем таблицу
-    gridApi.setGridOption('rowData', rowData);
-    
-    // Запускаем пересчёт высоты строк
-    setTimeout(() => {
-        gridApi.onRowHeightChanged();
-    }, 100);
-    
-    console.log('✅ Панель техники скрыта');
-}
 
-/**
- * Рендерер для Full Width Row (выезжающая панель с техникой)
- */
-function EquipmentDetailRenderer(params) {
-    if (!params.data || !params.data.isDetailRow) {
-        return document.createElement('div');
+    if (!colIds.length) {
+        return;
     }
-    
-    const equipmentData = params.data.equipmentData || [];
-    const totalCount = params.data.totalCount || 0;
-    
-    const container = document.createElement('div');
-    container.className = 'equipment-detail-container';
-    container.style.cssText = 'background-color: #f8f9fa; padding: 20px; border-left: 4px solid #667eea; animation: slideDown 0.3s ease-out;';
-    
-    if (equipmentData.length === 0) {
-        // Нет техники
-        container.innerHTML = `
-            <div style="text-align: center; padding: 30px; color: #6c757d;">
-                <i class="glyphicon glyphicon-info-sign" style="font-size: 32px; margin-bottom: 15px; color: #adb5bd;"></i>
-                <p style="font-size: 16px; margin: 0;">У работника нет закрепленной техники</p>
-            </div>
-        `;
-    } else {
-        // Есть техника - строим таблицу
-        let html = `
-            <div style="margin-bottom: 15px;">
-                <span style="font-size: 16px; font-weight: 600; color: #495057;">
-                    🖥️ Техника работника
-                </span>
-                <span style="margin-left: 10px; padding: 3px 10px; background: #667eea; color: white; border-radius: 12px; font-size: 13px;">
-                    ${totalCount} ${totalCount === 1 ? 'единица' : totalCount < 5 ? 'единицы' : 'единиц'}
-                </span>
-            </div>
-            <table class="table table-bordered table-hover" style="margin: 0; background: white; border-radius: 6px; overflow: hidden;">
-                <thead style="background-color: #667eea; color: white;">
-                    <tr>
-                        <th style="padding: 12px;">ID</th>
-                        <th style="padding: 12px;">Название техники</th>
-                        <th style="padding: 12px;">Местоположение</th>
-                        <th style="padding: 12px;">Описание</th>
-                        <th style="padding: 12px;">Дата добавления</th>
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        equipmentData.forEach((item, index) => {
-            const rowStyle = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8f9fa;';
-            html += `
-                <tr style="${rowStyle}">
-                    <td style="padding: 10px; text-align: center;"><strong>${item.id}</strong></td>
-                    <td style="padding: 10px;"><strong style="color: #495057;">${item.name}</strong></td>
-                    <td style="padding: 10px;">${item.location}</td>
-                    <td style="padding: 10px; color: #6c757d;">${item.description}</td>
-                    <td style="padding: 10px; font-size: 13px;">${item.created_at}</td>
-                </tr>
-            `;
-        });
-        
-        html += `
-                </tbody>
-            </table>
-        `;
-        
-        container.innerHTML = html;
+
+    if (typeof gridApi.autoSizeColumns === 'function') {
+        gridApi.autoSizeColumns(colIds, false);
+    } else if (typeof gridApi.autoSizeAllColumns === 'function') {
+        gridApi.autoSizeAllColumns(false);
     }
-    
-    return container;
 }
 
 /**
@@ -554,58 +483,37 @@ function EquipmentDetailRenderer(params) {
  */
 function getColumnDefinitions() {
     const columns = [];
-    
-    // Порядок как в Пользователях: первый столбец — кнопка «+» (техника), затем ID
-    if (isAdmin) {
-        // 1) Плюсик в первом столбце (как в Пользователях)
-        columns.push({
-            colId: 'equipment_toggle',
-            headerName: '',
-            field: 'equipment_toggle',
-            width: 56,
-            minWidth: 48,
-            pinned: 'left',
-            filter: false,
-            floatingFilter: false,
-            sortable: false,
-            cellRenderer: function(params) {
-                if (params.data && params.data.isDetailRow) {
-                    return '';
-                }
-                const taskId = params.data.id;
-                const userId = params.data.user_id;
-                const isExpanded = params.node.data._equipmentExpanded || false;
-                const title = isExpanded ? 'Скрыть технику' : 'Показать технику работника';
-                const btnClass = isExpanded ? 'equipment-toggle-btn equipment-toggle-btn--expanded' : 'equipment-toggle-btn';
-                const symbol = isExpanded ? '−' : '+';
-                return '<button class="' + btnClass + '" data-task-id="' + taskId + '" data-user-id="' + userId + '" aria-label="' + title + '" title="' + title + '"><span class="toggle-icon">' + symbol + '</span></button>';
-            }
-        });
 
-        // 2) ID заявки (с фильтром)
+    if (isAdmin) {
         columns.push({
             headerName: 'ID',
             field: 'id',
-            width: 80,
+            minWidth: 64,
+            maxWidth: 96,
             pinned: 'left',
             filter: 'agNumberColumnFilter',
             cellRenderer: function(params) {
-                return '<a href="/index.php?r=tasks/view&id=' + params.value + '">' + params.value + '</a>';
-            }
+                if (!params.data || !params.data.id) {
+                    return '';
+                }
+                return renderTaskIdLink(params.data.id);
+            },
         });
     }
-    
-    // Описание — перенос по словам для объёмного текста
+
     columns.push({
         headerName: 'Описание',
         field: 'description',
-        flex: 2,
-        minWidth: 250,
+        flex: 1,
+        minWidth: 200,
         filter: 'agTextColumnFilter',
         wrapText: true,
         cellClass: 'ag-cell-description-wrap',
         cellRenderer: function(params) {
-            return params.value != null ? String(params.value) : '';
+            if (!params.data || !params.data.id) {
+                return params.value != null ? escapeHtml(String(params.value)) : '';
+            }
+            return renderTaskDescriptionLink(params.data.id, params.value);
         },
         tooltipField: 'description',
     });
@@ -615,25 +523,18 @@ function getColumnDefinitions() {
         columns.push({
             headerName: 'Статус',
             field: 'status_name',
-            width: 150,
+            minWidth: 130,
+            maxWidth: 220,
             filter: 'agTextColumnFilter',
             cellRenderer: function(params) {
                 const statusId = params.data.status_id;
-                const statusColors = {
-                    1: { bg: '#28a74520', text: '#28a745' },
-                    2: { bg: '#ffc10720', text: '#856404' },
-                    3: { bg: '#dc354520', text: '#721c24' },
-                    4: { bg: '#17a2b820', text: '#0c5460' },
-                };
-                const colorScheme = statusColors[statusId] || { bg: '#f8f9fa', text: '#495057' };
-                
-                return `<select class="form-control status-change-ag" 
+                const code = params.data.status_code || '';
+
+                return `<select class="form-select form-select-sm status-change-ag tasks-grid-select" 
                     data-task-id="${params.data.id}" 
-                    style="font-size: 13px; padding: 4px; background-color: ${colorScheme.bg}; 
-                    color: ${colorScheme.text}; border: 1px solid ${colorScheme.text}40; 
-                    border-radius: 4px; font-weight: 500; width: 100%;">
+                    data-status-code="${escapeHtml(code)}">
                     ${Object.entries(allStatuses).map(([id, name]) => 
-                        `<option value="${id}" ${id == statusId ? 'selected' : ''}>${name}</option>`
+                        `<option value="${id}" ${id == statusId ? 'selected' : ''}>${escapeHtml(name)}</option>`
                     ).join('')}
                 </select>`;
             }
@@ -642,8 +543,12 @@ function getColumnDefinitions() {
         columns.push({
             headerName: 'Статус',
             field: 'status_name',
-            width: 150,
+            minWidth: 120,
+            maxWidth: 200,
             filter: 'agTextColumnFilter',
+            cellRenderer: function(params) {
+                return renderTaskStatusBadge(params.data.status_code, params.value);
+            },
         });
     }
     
@@ -651,7 +556,8 @@ function getColumnDefinitions() {
     columns.push({
         headerName: 'Автор',
         field: 'user_name',
-        width: 150,
+        minWidth: 100,
+        maxWidth: 220,
         filter: 'agTextColumnFilter',
     });
     
@@ -660,26 +566,17 @@ function getColumnDefinitions() {
         columns.push({
             headerName: 'Исполнитель',
             field: 'executor_name',
-            width: 180,
+            minWidth: 150,
+            maxWidth: 260,
             filter: 'agTextColumnFilter',
-            cellRenderer: function(params) {
-                const executorId = params.data.executor_id || '';
-                return `<select class="form-control executor-change-ag js-user-select-search" 
-                    data-task-id="${params.data.id}" 
-                    data-placeholder="Не назначен"
-                    style="font-size: 13px; padding: 4px; width: 100%; border-radius: 4px;">
-                    <option value="">Не назначен</option>
-                    ${Object.entries(allUsers).map(([id, name]) => 
-                        `<option value="${id}" ${id == executorId ? 'selected' : ''}>${name}</option>`
-                    ).join('')}
-                </select>`;
-            }
+            cellRenderer: renderExecutorCell,
         });
     } else {
         columns.push({
             headerName: 'Исполнитель',
             field: 'executor_name',
-            width: 180,
+            minWidth: 100,
+            maxWidth: 220,
             filter: 'agTextColumnFilter',
         });
     }
@@ -688,7 +585,8 @@ function getColumnDefinitions() {
     columns.push({
         headerName: 'Создана',
         field: 'date',
-        width: 150,
+        minWidth: 128,
+        maxWidth: 150,
         valueGetter: function(params) {
             return parseRuDateTime(params.data && params.data.date);
         },
@@ -706,7 +604,8 @@ function getColumnDefinitions() {
     columns.push({
         headerName: 'Обновлена',
         field: 'last_time_update',
-        width: 150,
+        minWidth: 128,
+        maxWidth: 150,
         valueGetter: function(params) {
             return parseRuDateTime(params.data && params.data.last_time_update);
         },
@@ -724,7 +623,8 @@ function getColumnDefinitions() {
     columns.push({
         headerName: 'Вложения',
         field: 'attachments',
-        width: 120,
+        minWidth: 88,
+        maxWidth: 110,
         filter: false,
         valueFormatter: function(params) {
             const attachments = params.value || [];
@@ -733,26 +633,26 @@ function getColumnDefinitions() {
         cellRenderer: function(params) {
             const attachments = params.value || [];
             if (attachments.length === 0) {
-                return '<span class="text-muted">-</span>';
+                return '<span class="tasks-grid-empty">—</span>';
             }
             
-            let html = '<div class="attachments-container-ag">';
+            let html = '<div class="tasks-attachments-cell">';
             attachments.forEach(attachment => {
                 const iconClass = attachment.icon;
                 if (attachment.is_previewable) {
                     html += `<a href="javascript:void(0);" 
-                        class="attachment-link-ag preview-link" 
-                        title="${attachment.name}" 
+                        class="tasks-attachment-chip tasks-attachment-chip--preview" 
+                        title="${escapeHtml(attachment.name)}" 
                         data-ag-attachment-id="${attachment.id}"
-                        data-ag-filename="${attachment.name}"
+                        data-ag-filename="${escapeHtml(attachment.name)}"
                         data-ag-preview-url="${attachment.preview_url}">
-                        <i class="fa ${iconClass}"></i>
+                        <i class="fa ${iconClass}" aria-hidden="true"></i>
                     </a>`;
                 } else {
                     html += `<a href="${attachment.download_url}" 
-                        class="attachment-link-ag download-link" 
-                        title="${attachment.name}">
-                        <i class="fa ${iconClass}"></i>
+                        class="tasks-attachment-chip tasks-attachment-chip--file" 
+                        title="${escapeHtml(attachment.name)}">
+                        <i class="fa ${iconClass}" aria-hidden="true"></i>
                     </a>`;
                 }
             });
@@ -767,7 +667,8 @@ function getColumnDefinitions() {
             headerName: 'Комментарий',
             field: 'comment',
             flex: 1,
-            minWidth: 200,
+            minWidth: 140,
+            maxWidth: 320,
             filter: 'agTextColumnFilter',
             editable: true,
             cellEditor: 'agLargeTextCellEditor',
@@ -782,8 +683,8 @@ function getColumnDefinitions() {
         columns.push({
             headerName: 'Комментарий',
             field: 'comment',
-            flex: 1,
-            minWidth: 200,
+            minWidth: 120,
+            maxWidth: 280,
             filter: 'agTextColumnFilter',
             cellRenderer: function(params) {
                 const text = params.value || '';
@@ -812,8 +713,8 @@ function initExecutorUserSelectsInGrid() {
 function onGridReady(params) {
     loadGridData();
     setupEventHandlers();
-    // Устанавливаем начальную высоту контейнера под текущий размер страницы
     adjustGridHeight();
+    syncTasksDeleteButton();
 }
 
 /**
@@ -888,9 +789,11 @@ function loadGridData() {
         return;
     }
     
-    const dataUrl = window.agGridDataUrl || '/index.php?r=tasks/get-grid-data';
+    const dataUrl = typeof window.buildTasksDataUrl === 'function'
+        ? window.buildTasksDataUrl()
+        : (window.agGridDataUrl || '/index.php?r=tasks/get-grid-data');
     console.log('AG Grid: Загрузка данных из:', dataUrl);
-    
+
     fetch(dataUrl)
         .then(response => {
             console.log('AG Grid: Ответ получен, статус:', response.status);
@@ -904,6 +807,8 @@ function loadGridData() {
             if (result.success) {
                 console.log('AG Grid: Загрузка', result.data.length, 'записей в таблицу');
                 gridApi.setGridOption('rowData', result.data);
+                syncTasksDeleteButton();
+                setTimeout(fitTasksGridColumns, 0);
             } else {
                 console.error('AG Grid: Ошибка в ответе сервера:', result.error || 'Неизвестная ошибка');
             }
@@ -939,22 +844,10 @@ function setupEventHandlers() {
         if (e.target.classList.contains('executor-change-ag')) {
             const taskId = e.target.dataset.taskId;
             const executorId = e.target.value;
+            if (!executorId) {
+                return;
+            }
             assignExecutor(taskId, executorId);
-        }
-    });
-    
-    // Обработчик кликов на кнопку техники
-    document.addEventListener('click', function(e) {
-        const toggleBtn = e.target.closest('.equipment-toggle-btn');
-        if (toggleBtn) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const userId = toggleBtn.dataset.userId;
-            const taskId = toggleBtn.dataset.taskId;
-            
-            console.log('Клик на кнопку техники. TaskID:', taskId, 'UserID:', userId);
-            toggleEquipmentDetail(taskId, userId);
         }
     });
     
@@ -1026,20 +919,33 @@ function assignExecutor(taskId, executorId) {
     const formData = new FormData();
     formData.append('executor_id', executorId);
     formData.append('_csrf', getCsrfToken());
-    
+
     const url = `/index.php?r=tasks/assign-executor&id=${taskId}`;
     fetch(url, {
         method: 'POST',
-        body: formData
+        body: formData,
     })
-    .then(response => response.json())
-    .then(data => {
-        loadGridData();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        loadGridData();
-    });
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data && data.success) {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('success', data.message || 'Исполнитель назначен.');
+                }
+                loadGridData();
+            } else {
+                const msg = (data && data.message) || 'Не удалось назначить исполнителя.';
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('error', msg);
+                } else {
+                    alert(msg);
+                }
+                loadGridData();
+            }
+        })
+        .catch(function(error) {
+            console.error('Error:', error);
+            loadGridData();
+        });
 }
 
 /**
@@ -1085,6 +991,93 @@ function refreshGrid() {
     loadGridData();
 }
 
+window.loadGridData = loadGridData;
+
+const TASKS_MIN_SELECTED_FOR_DELETE = window.tasksMinSelectedForDelete || 1;
+
+function getSelectedTaskRows() {
+    if (!gridApi || typeof gridApi.getSelectedRows !== 'function') {
+        return [];
+    }
+    return gridApi.getSelectedRows().filter(function(row) {
+        return row && row.id;
+    });
+}
+
+function syncTasksDeleteButton() {
+    const btn = document.getElementById('btnTasksBulkDelete');
+    if (!btn) {
+        return;
+    }
+    const count = getSelectedTaskRows().length;
+    const enabled = count >= TASKS_MIN_SELECTED_FOR_DELETE;
+    btn.disabled = !enabled;
+    const label = btn.querySelector('span');
+    if (label) {
+        label.textContent = enabled ? ('Удалить (' + count + ')') : 'Удалить';
+    }
+    btn.title = enabled
+        ? 'Удалить выбранные заявки (' + count + ')'
+        : 'Отметьте заявки чекбоксами';
+}
+
+function bulkDeleteSelectedTasks() {
+    const rows = getSelectedTaskRows();
+    if (rows.length < TASKS_MIN_SELECTED_FOR_DELETE) {
+        return;
+    }
+
+    const countLabel = rows.length === 1 ? '1 заявку' : rows.length + ' заявок';
+    if (!confirm('Удалить ' + countLabel + '? Это действие нельзя отменить.')) {
+        return;
+    }
+
+    const btn = document.getElementById('btnTasksBulkDelete');
+    if (btn) {
+        btn.disabled = true;
+    }
+
+    const formData = new FormData();
+    rows.forEach(function(row) {
+        formData.append('ids[]', row.id);
+    });
+    formData.append('_csrf', getCsrfToken());
+
+    const url = window.tasksBulkDeleteUrl || '/index.php?r=tasks/bulk-delete';
+    fetch(url, { method: 'POST', body: formData })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data && data.success) {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('success', data.message || 'Заявки удалены.');
+                } else {
+                    alert(data.message || 'Заявки удалены.');
+                }
+                if (gridApi && typeof gridApi.deselectAll === 'function') {
+                    gridApi.deselectAll();
+                }
+                loadGridData();
+            } else {
+                const msg = (data && data.message) || 'Не удалось удалить заявки.';
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('error', msg);
+                } else {
+                    alert(msg);
+                }
+            }
+        })
+        .catch(function(error) {
+            console.error('Ошибка массового удаления:', error);
+            alert('Ошибка соединения с сервером');
+        })
+        .finally(function() {
+            syncTasksDeleteButton();
+        });
+}
+
+window.bulkDeleteSelectedTasks = bulkDeleteSelectedTasks;
+window.syncTasksDeleteButton = syncTasksDeleteButton;
+
 function selectAllRows() {
     if (gridApi) {
         gridApi.selectAll();
@@ -1129,12 +1122,15 @@ function openCreateTaskModal() {
         type: 'GET',
         success: function(response) {
             $('#createTaskModalBody').html(response);
+            if (typeof window.tasksCreateFormInit === 'function') {
+                window.tasksCreateFormInit();
+            }
             initTaskFormSubmit();
         },
         error: function(xhr, status, error) {
             $('#createTaskModalBody').html(
                 '<div class="alert alert-danger">' +
-                '<i class="glyphicon glyphicon-exclamation-sign"></i> ' +
+                '<i class="fas fa-circle-exclamation"></i> ' +
                 'Ошибка загрузки формы: ' + error +
                 '</div>'
             );
@@ -1155,7 +1151,7 @@ function initTaskFormSubmit() {
         
         var $submitBtn = $form.find('#submit-task-btn');
         var originalBtnText = $submitBtn.html();
-        $submitBtn.html('<i class="glyphicon glyphicon-refresh glyphicon-spin"></i> Создание...');
+        $submitBtn.html('<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Отправка…');
         $submitBtn.prop('disabled', true);
         
         $.ajax({
@@ -1222,16 +1218,18 @@ function displayFormErrors(errors) {
  */
 function showNotification(type, message) {
     var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-    var iconClass = type === 'success' ? 'glyphicon-ok-sign' : 'glyphicon-exclamation-sign';
+    var iconClass = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
     
-    var notification = $('<div class="alert ' + alertClass + ' alert-dismissible" role="alert">' +
-        '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-        '<span aria-hidden="true">&times;</span>' +
-        '</button>' +
-        '<i class="glyphicon ' + iconClass + '"></i> ' + message +
+    var notification = $('<div class="alert ' + alertClass + ' alert-dismissible fade show" role="alert">' +
+        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>' +
+        '<i class="fas ' + iconClass + ' me-2"></i>' + message +
         '</div>');
     
-    $('.tasks-index-ag').prepend(notification);
+    var $host = $('.tasks-page--grid').first();
+    if (!$host.length) {
+        $host = $('.content-wrapper').first();
+    }
+    $host.prepend(notification);
     
     setTimeout(function() {
         notification.fadeOut(function() {
@@ -1247,9 +1245,9 @@ const modalElement = document.getElementById('createTaskModal');
 if (modalElement) {
     modalElement.addEventListener('hidden.bs.modal', function () {
         $('#createTaskModalBody').html(
-            '<div class="text-center" style="padding: 50px;">' +
-            '<i class="glyphicon glyphicon-refresh glyphicon-spin" style="font-size: 32px; color: #667eea;"></i>' +
-            '<p style="margin-top: 15px;">Загрузка формы...</p>' +
+            '<div class="tasks-create-modal__loading">' +
+            '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>' +
+            '<p>Загрузка формы…</p>' +
             '</div>'
         );
     });

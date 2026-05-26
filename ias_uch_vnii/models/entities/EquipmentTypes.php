@@ -29,6 +29,26 @@ class EquipmentTypes
         'Сервер' => 'Серверы',
     ];
 
+    /** Порядок вкладок на странице «Учёт ТС». */
+    private const PREFERRED_TAB_TYPES = [
+        'АРМ',
+        'Системный блок',
+        'Ноутбук',
+        'Моноблок',
+        'Монитор',
+        'ИБП',
+        'Принтер',
+        'МФУ',
+        'Сканер',
+        'Сервер',
+    ];
+
+    /** Вкладки, которые показываются всегда (отдельная таблица по типу). */
+    private const ALWAYS_VISIBLE_TAB_TYPES = [
+        'Ноутбук',
+        'Моноблок',
+    ];
+
     /**
      * Кеш для ускорения resolveNameById() при afterFind().
      * Формат: [equipment_type_id => name]
@@ -106,14 +126,37 @@ class EquipmentTypes
      */
     public static function getListForTabs(): array
     {
-        $types = self::getNames();
+        $fromDb = self::getNames();
+        $seen = [];
+        $ordered = [];
+
+        foreach (self::PREFERRED_TAB_TYPES as $name) {
+            $inDb = in_array($name, $fromDb, true);
+            $forced = in_array($name, self::ALWAYS_VISIBLE_TAB_TYPES, true);
+            if (!$inDb && !$forced) {
+                continue;
+            }
+            if (!isset($seen[$name])) {
+                $ordered[] = $name;
+                $seen[$name] = true;
+            }
+        }
+
+        foreach ($fromDb as $name) {
+            if (!isset($seen[$name])) {
+                $ordered[] = $name;
+                $seen[$name] = true;
+            }
+        }
+
         $result = [];
-        foreach ($types as $name) {
+        foreach ($ordered as $name) {
             $result[] = [
                 'id' => $name,
                 'name' => self::getTabLabel($name),
             ];
         }
+
         return $result;
     }
 

@@ -3,10 +3,13 @@
 namespace app\controllers;
 
 use app\models\entities\Users;
+use app\models\entities\Tasks;
 use app\models\entities\Equipment;
+use app\models\dictionaries\DicTaskStatus;
 use app\models\entities\Location;
 use app\models\entities\AuditEvent;
 use app\models\dictionaries\DicEquipmentStatus;
+use app\models\dictionaries\Roles;
 use app\models\search\UsersSearch;
 use yii\web\Controller;
 use yii\web\Response;
@@ -44,7 +47,7 @@ class UsersController extends Controller
                             },
                         ],
                         [
-                            'actions' => ['index', 'create', 'update', 'delete', 'arm-create', 'get-grid-data'],
+                            'actions' => ['index', 'create', 'create-modal', 'update', 'delete', 'arm-create', 'get-grid-data'],
                             'allow' => true,
                             'roles' => ['@'],
                         ],
@@ -81,16 +84,67 @@ class UsersController extends Controller
             return $this->redirect(['view', 'id' => Yii::$app->user->id]);
         }
 
-        if ($this->request->isAjax) {
-            $searchModel = new UsersSearch();
-            $dataProvider = $searchModel->search($this->request->queryParams);
-            return $this->renderAjax('index_ajax', [
-                'searchModel' => $searchModel,
-                'dataProvider' => $dataProvider,
-            ]);
+        $roles = Roles::find()
+            ->where(['is_archived' => false])
+            ->orderBy(['role_name' => SORT_ASC])
+            ->all();
+
+        return $this->render('index', [
+            'roles' => $roles,
+        ]);
+    }
+
+    /**
+     * Форма создания пользователя в модальном окне (GET — HTML, POST — JSON).
+     */
+    public function actionCreateModal()
+    {
+        if (!Yii::$app->user->identity->isAdmin()) {
+            throw new \yii\web\ForbiddenHttpException('Доступ разрешен только администраторам.');
         }
 
-        return $this->render('index');
+        $model = new Users();
+        $model->setScenario('create');
+
+        if ($this->request->isPost) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+
+            if ($model->load($this->request->post())) {
+                if (empty($model->username) && !empty($model->email)) {
+                    $model->username = $model->email;
+                }
+                if ($model->is_active === null) {
+                    $model->is_active = true;
+                }
+
+                if ($model->save()) {
+                    AuditLog::log('user.create', 'user', $model->id, 'success');
+
+                    return [
+                        'success' => true,
+                        'message' => 'Пользователь «' . $model->full_name . '» создан.',
+                        'user_id' => (int) $model->id,
+                    ];
+                }
+            }
+
+            $errors = $model->getFirstErrors();
+
+            return [
+                'success' => false,
+                'errors' => $model->errors,
+                'message' => 'Не удалось создать пользователя'
+                    . ($errors ? ': ' . implode(' ', $errors) : ''),
+            ];
+        }
+
+        $model->loadDefaultValues();
+        $model->is_active = true;
+
+        return $this->renderAjax('_form_modal', [
+            'model' => $model,
+            'roleItems' => Roles::getList(),
+        ]);
     }
 
     /**
@@ -146,29 +200,40 @@ class UsersController extends Controller
         }
 
         $model = $this->findModel($id);
+        $isOwnProfile = (int) Yii::$app->user->id === (int) $model->id;
+        $isAdminViewer = Yii::$app->user->identity->isAdmin();
+
         $equipment = Equipment::find()
             ->where(['responsible_user_id' => $model->id, 'is_archived' => false])
             ->with('location')
             ->orderBy(['inventory_number' => SORT_ASC])
             ->limit(10)
             ->all();
+
+        $taskStats = $this->buildProfileTaskStats((int) $model->id);
+
         $recentActions = [];
-        try {
-            if (class_exists(AuditEvent::class)) {
-                $recentActions = AuditEvent::find()
-                    ->where(['actor_id' => $model->id])
-                    ->orderBy(['event_time' => SORT_DESC])
-                    ->limit(10)
-                    ->all();
+        if ($isAdminViewer && !$isOwnProfile) {
+            try {
+                if (class_exists(AuditEvent::class)) {
+                    $recentActions = AuditEvent::find()
+                        ->where(['actor_id' => $model->id])
+                        ->orderBy(['event_time' => SORT_DESC])
+                        ->limit(10)
+                        ->all();
+                }
+            } catch (\Throwable $e) {
+                // audit_events может отсутствовать
             }
-        } catch (\Throwable $e) {
-            // audit_events может отсутствовать
         }
 
         return $this->render('view', [
             'model' => $model,
             'equipment' => $equipment,
             'recentActions' => $recentActions,
+            'isOwnProfile' => $isOwnProfile,
+            'isAdminViewer' => $isAdminViewer,
+            'taskStats' => $taskStats,
         ]);
     }
 
@@ -179,23 +244,9 @@ class UsersController extends Controller
      */
     public function actionCreate()
     {
-        $model = new Users();
-        $model->setScenario('create');
+        Yii::$app->session->setFlash('info', 'Создание пользователя выполняется в модальном окне на странице списка.');
 
-        if ($this->request->isPost) {
-            if ($model->load($this->request->post()) && $model->save()) {
-                Yii::$app->session->setFlash('success', 'Пользователь успешно создан.');
-                return $this->redirect(['view', 'id' => $model->id]);
-            }
-            $errors = $model->getFirstErrors();
-            Yii::$app->session->setFlash('error', 'Не удалось создать пользователя: ' . implode(' ', $errors ?: ['проверьте введённые данные']));
-        } else {
-            $model->loadDefaultValues();
-        }
-
-        return $this->render('create', [
-            'model' => $model,
-        ]);
+        return $this->redirect(['index']);
     }
 
     /**
@@ -351,6 +402,28 @@ class UsersController extends Controller
     public function actionIndex2()
     {
         throw new \yii\web\ForbiddenHttpException('Доступ запрещён.');
+    }
+
+    /**
+     * Сводка по заявкам пользователя для страницы профиля.
+     *
+     * @return array{total: int, open: int}
+     */
+    private function buildProfileTaskStats(int $userId): array
+    {
+        $baseQuery = Tasks::find()->where(['requester_id' => $userId]);
+        $total = (int) (clone $baseQuery)->count();
+
+        $completedIds = DicTaskStatus::getCompletedStatusIds();
+        $openQuery = Tasks::find()->where(['requester_id' => $userId]);
+        if ($completedIds !== []) {
+            $openQuery->andWhere(['not in', 'status_id', $completedIds]);
+        }
+
+        return [
+            'total' => $total,
+            'open' => (int) $openQuery->count(),
+        ];
     }
 }
 

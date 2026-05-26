@@ -209,13 +209,16 @@ $fieldTemplates = [
     'Системный блок' => $pcFields,
     'Ноутбук' => array_merge($pcFields, [
         ['name' => 'monitor', 'label' => 'Встроенный монитор (модель)', 'part' => 'Монитор', 'char' => 'Модель'],
+        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
     ]),
     'Моноблок' => array_merge($pcFields, [
         ['name' => 'monitor', 'label' => 'Встроенный монитор (модель)', 'part' => 'Монитор', 'char' => 'Модель'],
+        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
     ]),
     'Монитор' => [
         ['name' => 'monitor', 'label' => 'Модель монитора', 'part' => 'Монитор', 'char' => 'Модель'],
-        ['name' => 'diagonal', 'label' => 'Диагональ / инв. № монитора', 'part' => 'Монитор', 'char' => '№ монитора'],
+        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
+        ['name' => 'monitor_inv', 'label' => '№ монитора (инв.)', 'part' => 'Монитор', 'char' => '№ монитора'],
     ],
     'Принтер' => $orgTechFields,
     'МФУ' => $orgTechFields,

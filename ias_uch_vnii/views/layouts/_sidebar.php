@@ -51,16 +51,28 @@ $renderSection = static function (string $title): string {
         . '<div class="sidebar-nav__divider" role="separator" aria-hidden="true"></div>';
 };
 
-$isAdmin = !Yii::$app->user->isGuest
-    && Yii::$app->user->identity
-    && Yii::$app->user->identity->isAdministrator();
 $isGuest = Yii::$app->user->isGuest;
 $userId = !$isGuest ? (int) Yii::$app->user->id : null;
+$isAdmin = !$isGuest
+    && Yii::$app->user->identity
+    && Yii::$app->user->identity->isAdministrator();
+$isOperator = !$isGuest
+    && Yii::$app->user->identity
+    && Yii::$app->user->identity->isOperator();
+$isSupportStaff = !$isGuest
+    && Yii::$app->user->identity
+    && Yii::$app->user->identity->isSupportStaff();
+$canAccessArm = !$isGuest
+    && Yii::$app->user->identity
+    && Yii::$app->user->identity->canAccessArm();
+$homeUrl = !$isGuest && Yii::$app->user->identity
+    ? Yii::$app->user->identity->getHomeUrl()
+    : ['/site/login'];
 ?>
 
 <nav class="<?= $sidebarExpanded ? 'sidebar expanded' : 'sidebar' ?> bg-dark text-white d-flex flex-column" id="sidebar" aria-label="Основное меню">
     <div class="sidebar-header">
-        <a href="<?= Url::to(['/arm/index']) ?>" class="sidebar-brand" title="<?= Html::encode(Yii::$app->name) ?>">
+        <a href="<?= Url::to($homeUrl) ?>" class="sidebar-brand" title="<?= Html::encode(Yii::$app->name) ?>">
             <span class="sidebar-brand__icon" aria-hidden="true"><i class="fas fa-desktop"></i></span>
             <span class="sidebar-brand__text">
                 <span class="sidebar-brand__title">ИАС УТС</span>
@@ -91,15 +103,29 @@ $userId = !$isGuest ? (int) Yii::$app->user->id : null;
         <ul class="sidebar-nav list-unstyled mb-0">
             <?php if (!$isGuest): ?>
                 <?= $renderSection('Учёт') ?>
+                <?php if ($canAccessArm): ?>
                 <li class="sidebar-nav__item">
                     <?= $renderLink('fas fa-desktop', 'Учет ТС', ['/arm/index'], ['arm/index', 'arm/view', 'arm/create', 'arm/update']) ?>
                 </li>
+                <?php endif; ?>
                 <li class="sidebar-nav__item">
                     <?= $renderLink('fas fa-clipboard-list', 'Заявки', ['/tasks/index'], ['tasks/index', 'tasks/view', 'tasks/create', 'tasks/update']) ?>
                 </li>
+                <?php if ($isSupportStaff): ?>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink(
+                        'fas fa-list-check',
+                        'Задачи',
+                        ['/work-tasks/index'],
+                        ['work-tasks/index', 'work-tasks/view', 'work-tasks/create', 'work-tasks/assign', 'work-tasks/transition', 'work-tasks/add-comment', 'work-tasks/delete']
+                    ) ?>
+                </li>
+                <?php endif; ?>
+                <?php if ($canAccessArm): ?>
                 <li class="sidebar-nav__item">
                     <?= $renderLink('fas fa-chart-column', 'Статистика', ['/tasks/statistics'], ['tasks/statistics']) ?>
                 </li>
+                <?php endif; ?>
 
                 <?php if ($isAdmin): ?>
                     <?= $renderSection('Администрирование') ?>

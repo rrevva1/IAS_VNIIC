@@ -52,9 +52,16 @@ $(document).ready(function() {
     
     // Обработчик изменения исполнителя
     function initExecutorChange() {
-        $('#executor-change').on('change', function() {
+        var $select = $('#executor-change');
+        if (!$select.length) {
+            return;
+        }
+
+        $select.on('change', function() {
             var executorId = $(this).val();
-            var $select = $(this);
+            if (!executorId) {
+                return;
+            }
             
             // Показываем индикатор загрузки
             $select.prop('disabled', true);
@@ -183,13 +190,4 @@ $(document).ready(function() {
             $notification.alert('close');
         }, 5000);
     }
-    
-    // Обработчик подтверждения удаления
-    $('a[data-confirm]').on('click', function(e) {
-        var message = $(this).data('confirm');
-        if (!confirm(message)) {
-            e.preventDefault();
-            return false;
-        }
-    });
 });

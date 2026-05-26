@@ -13,13 +13,13 @@ class StatisticsAsset extends AssetBundle
     public $baseUrl = '@web';
 
     public $css = [
+        'css/tasks/page.css',
         'css/tasks/statistics.css',
         'ag-grid-community/styles/ag-theme-quartz.css',
         'css/tasks/ag-grid.css',
     ];
 
     public $js = [
-        'js/tasks/statistics.js',
         'ag-grid-community/dist/ag-grid-community.min.js',
         'js/ag-grid-theme-config.js',
         'js/tasks/statistics-ag-grid.js',

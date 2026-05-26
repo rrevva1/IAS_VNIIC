@@ -275,6 +275,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     due_at TIMESTAMPTZ,
     closed_at TIMESTAMPTZ,
     comment TEXT,
+    contact_phone VARCHAR(50),
     attachments_legacy JSONB,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     deleted_at TIMESTAMPTZ,
@@ -465,9 +466,10 @@ ON CONFLICT (role_code) DO NOTHING;
 INSERT INTO dic_task_status (status_code, status_name, sort_order, is_final)
 VALUES
     ('new', 'Новая', 10, FALSE),
+    ('executor_assigned', 'Назначен исполнитель', 15, FALSE),
     ('in_progress', 'В работе', 20, FALSE),
     ('on_hold', 'На паузе', 30, FALSE),
-    ('resolved', 'Решена', 40, TRUE),
+    ('resolved', 'Выполнена', 40, TRUE),
     ('closed', 'Закрыта', 50, TRUE),
     ('cancelled', 'Отменена', 60, TRUE)
 ON CONFLICT (status_code) DO NOTHING;

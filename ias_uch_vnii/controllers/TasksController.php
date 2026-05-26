@@ -12,6 +12,8 @@ use app\models\entities\DeskAttachments;
 use app\models\entities\TaskAttachments;
 use app\models\entities\TaskHistory;
 use app\components\AuditLog;
+use app\components\TaskStatisticsService;
+use app\components\WorkTaskService;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
@@ -41,6 +43,7 @@ class TasksController extends Controller
                     'class' => VerbFilter::class,
                     'actions' => [
                         'delete' => ['POST'],
+                        'bulk-delete' => ['POST'],
                         'delete-attachment' => ['POST'],
                         'change-status' => ['POST'],
                         'assign-executor' => ['POST'],
@@ -51,12 +54,35 @@ class TasksController extends Controller
                     'class' => \yii\filters\AccessControl::class,
                     'rules' => [
                         [
+                            'actions' => [
+                                'statistics',
+                                'statistics-get-grid-data',
+                                'export-user-stats',
+                                'export-executor-stats',
+                                'export-user-stats-html',
+                                'export-user-stats-pdf',
+                                'export-executor-stats-html',
+                                'export-executor-stats-pdf',
+                            ],
+                            'allow' => true,
+                            'roles' => ['@'],
+                            'matchCallback' => static function () {
+                                $user = Yii::$app->user->identity;
+
+                                return $user && $user->canAccessArm();
+                            },
+                        ],
+                        [
                             'allow' => true,
                             'roles' => ['@'],
                         ],
                     ],
-                    
-                    
+                    'denyCallback' => static function () {
+                        if (Yii::$app->user->isGuest) {
+                            return Yii::$app->user->loginRequired();
+                        }
+                        throw new \yii\web\ForbiddenHttpException('Доступ запрещён.');
+                    },
                 ],
             ]
         );
@@ -69,7 +95,11 @@ class TasksController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
+        $taskStatuses = \app\models\dictionaries\DicTaskStatus::getIndexTabStatuses();
+
+        return $this->render('index', [
+            'taskStatuses' => $taskStatuses,
+        ]);
     }
 
     /**
@@ -121,6 +151,7 @@ class TasksController extends Controller
                 
                 if ($model->save()) {
                     $model->uploadFiles();
+                    $this->ensureLinkedWorkTask($model);
                     AuditLog::log('task.create', 'task', $model->id, 'success');
                     Yii::$app->session->setFlash('success', 'Заявка успешно создана.');
                     
@@ -135,6 +166,7 @@ class TasksController extends Controller
             }
         } else {
             $model->loadDefaultValues();
+            $this->prefillTaskContactPhone($model);
         }
 
         return $this->render('create', [
@@ -154,6 +186,20 @@ class TasksController extends Controller
             $list[$e->id] = $e->inventory_number . ' — ' . ($e->name ?: 'Без названия');
         }
         return $list;
+    }
+
+    /**
+     * Подставляет телефон из профиля пользователя в форму новой заявки.
+     */
+    private function prefillTaskContactPhone(Tasks $model): void
+    {
+        if (!empty($model->contact_phone)) {
+            return;
+        }
+        $user = Yii::$app->user->identity;
+        if ($user && !empty($user->phone)) {
+            $model->contact_phone = $user->phone;
+        }
     }
 
     /**
@@ -195,7 +241,9 @@ class TasksController extends Controller
                     /** Загружаем файлы после сохранения задачи */
                     $uploadResult = $model->uploadFiles();
                     Yii::info("Результат загрузки файлов: " . ($uploadResult ? 'успешно' : 'ошибка'), 'tasks');
-                    
+
+                    $this->ensureLinkedWorkTask($model);
+
                     /** Возвращаем JSON ответ об успехе */
                     Yii::$app->response->format = \yii\web\Response::FORMAT_JSON;
                     return [
@@ -222,11 +270,11 @@ class TasksController extends Controller
         } else {
             /** Если это GET запрос - загружаем значения по умолчанию */
             $model->loadDefaultValues();
+            $this->prefillTaskContactPhone($model);
         }
 
         return $this->renderAjax('_form', [
             'model' => $model,
-            'equipmentList' => $this->getEquipmentList(),
         ]);
     }
 
@@ -268,19 +316,113 @@ class TasksController extends Controller
      */
     public function actionDelete($id)
     {
-        $model = $this->findModel($id);
         if (!Yii::$app->user->identity || !Yii::$app->user->identity->isAdministrator()) {
             throw new \yii\web\ForbiddenHttpException('Удаление заявки разрешено только администратору.');
         }
-        $taskId = $model->id;
-        $attachments = $model->getAllAttachments();
-        foreach ($attachments as $attachment) {
-            $attachment->delete();
+
+        $taskId = (int) $id;
+        try {
+            $this->deleteTaskById($taskId);
+        } catch (\Throwable $e) {
+            Yii::error('Ошибка удаления заявки #' . $taskId . ': ' . $e->getMessage(), 'tasks');
+            Yii::$app->session->setFlash('error', 'Не удалось удалить заявку. Повторите попытку или обратитесь к администратору.');
+            return $this->redirect(['view', 'id' => $taskId]);
         }
-        $model->delete();
-        AuditLog::log('task.delete', 'task', $taskId, 'success');
+
         Yii::$app->session->setFlash('success', 'Заявка успешно удалена.');
         return $this->redirect(['index']);
+    }
+
+    /**
+     * Массовое удаление заявок (только администратор, JSON).
+     *
+     * @return array
+     */
+    public function actionBulkDelete()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        if (!Yii::$app->user->identity || !Yii::$app->user->identity->isAdministrator()) {
+            throw new \yii\web\ForbiddenHttpException('Удаление заявок разрешено только администратору.');
+        }
+
+        $ids = Yii::$app->request->post('ids', []);
+        if (!is_array($ids)) {
+            $ids = [];
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static function ($id) {
+            return $id > 0;
+        })));
+
+        if (count($ids) < 1) {
+            return [
+                'success' => false,
+                'message' => 'Выберите хотя бы одну заявку для удаления.',
+            ];
+        }
+
+        $deleted = 0;
+        $failed = [];
+
+        foreach ($ids as $taskId) {
+            try {
+                $this->deleteTaskById($taskId);
+                $deleted++;
+            } catch (\Throwable $e) {
+                Yii::error('Ошибка массового удаления заявки #' . $taskId . ': ' . $e->getMessage(), 'tasks');
+                $failed[] = $taskId;
+            }
+        }
+
+        if ($deleted === 0) {
+            return [
+                'success' => false,
+                'message' => 'Не удалось удалить выбранные заявки.',
+                'failed' => $failed,
+            ];
+        }
+
+        $message = $deleted === 1
+            ? 'Удалена 1 заявка.'
+            : 'Удалено заявок: ' . $deleted . '.';
+
+        if ($failed !== []) {
+            $message .= ' Не удалось удалить: ' . implode(', ', $failed) . '.';
+        }
+
+        return [
+            'success' => true,
+            'deleted' => $deleted,
+            'failed' => $failed,
+            'message' => $message,
+        ];
+    }
+
+    /**
+     * Удаляет заявку с вложениями и записью в аудите.
+     *
+     * @throws \Throwable
+     */
+    protected function deleteTaskById(int $taskId): void
+    {
+        $model = $this->findModel($taskId);
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            foreach ($model->getAllAttachments() as $attachment) {
+                $model->removeAttachment($attachment->id);
+                $attachment->delete();
+            }
+            if (!$model->delete()) {
+                throw new \RuntimeException('Не удалось удалить заявку.');
+            }
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            throw $e;
+        }
+
+        AuditLog::log('task.delete', 'task', $taskId, 'success');
     }
 
     /**
@@ -447,6 +589,15 @@ class TasksController extends Controller
                 $oldStatus = $model->status_id;
                 $model->status_id = $statusId;
                 $model->updated_at = date('Y-m-d H:i:s');
+                if (DicTaskStatus::isCompletedStatusId((int) $statusId)) {
+                    if (!$model->closed_at) {
+                        $model->closed_at = date('Y-m-d H:i:s');
+                    }
+                } elseif ((int) $statusId === (int) (DicTaskStatus::resolveIdByCode(DicTaskStatus::CODE_CANCELLED) ?? 0)) {
+                    // оставляем closed_at без изменений
+                } else {
+                    $model->closed_at = null;
+                }
                 if ($model->save(false)) {
                     TaskHistory::log($model->id, 'status_id', (string) $oldStatus, (string) $statusId);
                     AuditLog::log('task.change_status', 'task', $model->id, 'success', ['status_id' => $statusId]);
@@ -482,47 +633,90 @@ class TasksController extends Controller
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
         try {
+            $user = Yii::$app->user->identity;
+            if (!$user || !$user->isAdministrator()) {
+                return [
+                    'success' => false,
+                    'message' => 'Назначить исполнителя может только руководитель отдела.',
+                ];
+            }
+
             $model = $this->findModel($id);
             if (!$this->canUserAccessTask($model)) {
                 return ['success' => false, 'message' => 'Нет доступа к этой заявке.'];
             }
-            if ($this->request->isPost) {
-            $executorId = $this->request->post('executor_id');
-            
-            // Проверяем, что исполнитель существует (если указан)
-            if ($executorId) {
-                $executor = Users::findOne($executorId);
-                if (!$executor) {
-                    return [
-                        'success' => false,
-                        'message' => 'Исполнитель не найден.'
-                    ];
-                }
+
+            if ($model->hasAssignedExecutor()) {
+                return [
+                    'success' => false,
+                    'message' => 'Исполнитель уже назначен. Изменить его можно только в разделе «Задачи».',
+                ];
             }
-            
+
+            if (!$this->request->isPost) {
+                return ['success' => false, 'message' => 'Некорректный запрос.'];
+            }
+
+            $executorId = $this->request->post('executor_id');
+            if ($executorId === '' || $executorId === null) {
+                return [
+                    'success' => false,
+                    'message' => 'Выберите исполнителя из списка.',
+                ];
+            }
+
+            $executor = Users::findOne($executorId);
+            if (!$executor) {
+                return [
+                    'success' => false,
+                    'message' => 'Исполнитель не найден.',
+                ];
+            }
+            if (!Users::canBeTaskExecutor((int) $executorId)) {
+                return [
+                    'success' => false,
+                    'message' => 'Исполнителем может быть только сотрудник технической поддержки.',
+                ];
+            }
+
             $oldExecutor = $model->executor_id;
-            $model->executor_id = $executorId ?: null;
+            $model->executor_id = (int) $executorId;
             $model->updated_at = date('Y-m-d H:i:s');
+
+            $assignedStatusId = DicTaskStatus::getExecutorAssignedStatusId();
+            if ($assignedStatusId !== null) {
+                $model->status_id = $assignedStatusId;
+            }
+
             if ($model->save(false)) {
                 TaskHistory::log($model->id, 'executor_id', (string) $oldExecutor, (string) $model->executor_id);
                 AuditLog::log('task.assign_executor', 'task', $model->id, 'success', ['executor_id' => $model->executor_id]);
-                $executorName = $executorId ? Users::findOne($executorId)->full_name : 'Не назначен';
+
+                try {
+                    (new WorkTaskService())->syncExecutorFromRequestToWorkTask($model);
+                } catch (\Throwable $e) {
+                    Yii::error(
+                        'Синхронизация исполнителя с задачей по заявке #' . $model->id . ': ' . $e->getMessage(),
+                        'tasks'
+                    );
+                }
+
                 return [
                     'success' => true,
                     'message' => 'Исполнитель успешно назначен.',
-                    'executor_name' => $executorName
+                    'executor_name' => $executor->full_name,
+                    'executor_locked' => true,
                 ];
             }
-            }
-            
+
             return [
                 'success' => false,
-                'message' => 'Ошибка при назначении исполнителя.'
+                'message' => 'Ошибка при назначении исполнителя.',
             ];
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Ошибка сервера: ' . $e->getMessage()
+                'message' => 'Ошибка сервера: ' . $e->getMessage(),
             ];
         }
     }
@@ -618,45 +812,14 @@ class TasksController extends Controller
      */
     public function actionStatistics()
     {
-        /** Получаем данные для диаграммы количества заявок по пользователям */
-        $userStats = Tasks::find()
-            ->select(['requester_id', 'COUNT(*) as count'])
-            ->groupBy('requester_id')
-            ->with('requester')
-            ->asArray()
-            ->all();
-
-        $userChartData = [];
-        foreach ($userStats as $stat) {
-            $user = Users::findOne($stat['requester_id']);
-            $userChartData[] = [
-                'name' => $user ? $user->full_name : 'Неизвестный пользователь',
-                'y' => (int)$stat['count']
-            ];
-        }
-
-        $resolvedStatusId = (int) (DicTaskStatus::find()->where(['status_code' => 'resolved'])->select('id')->scalar() ?: DicTaskStatus::find()->where(['status_code' => 'closed'])->select('id')->scalar());
-        $executorStats = Tasks::find()
-            ->select(['executor_id', 'COUNT(*) as count'])
-            ->where(['status_id' => $resolvedStatusId])
-            ->andWhere(['not', ['executor_id' => null]])
-            ->groupBy('executor_id')
-            ->with('executor')
-            ->asArray()
-            ->all();
-
-        $executorChartData = [];
-        foreach ($executorStats as $stat) {
-            $executor = Users::findOne($stat['executor_id']);
-            $executorChartData[] = [
-                'name' => $executor ? $executor->full_name : 'Неизвестный исполнитель',
-                'y' => (int)$stat['count']
-            ];
-        }
+        $dateFrom = $this->request->get('date_from');
+        $dateTo = $this->request->get('date_to');
+        $report = (new TaskStatisticsService($dateFrom, $dateTo))->buildReport();
 
         return $this->render('statistics', [
-            'userChartData' => $userChartData,
-            'executorChartData' => $executorChartData,
+            'report' => $report,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
         ]);
     }
 
@@ -664,57 +827,22 @@ class TasksController extends Controller
      * JSON для AG Grid на странице статистики: таблица «по пользователям» или «по исполнителям».
      * @param string $type 'user' | 'executor'
      */
-    public function actionStatisticsGetGridData($type = 'user')
+    public function actionStatisticsGetGridData($type = 'executor')
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $type = $type === 'executor' ? 'executor' : 'user';
 
-        if ($type === 'user') {
-            $userStats = Tasks::find()
-                ->select(['requester_id', 'COUNT(*) as count'])
-                ->groupBy('requester_id')
-                ->asArray()
-                ->all();
-            $total = array_sum(array_column($userStats, 'count'));
-            $data = [];
-            $rowNum = 1;
-            foreach ($userStats as $stat) {
-                $user = Users::findOne($stat['requester_id']);
-                $count = (int) $stat['count'];
-                $percentage = $total > 0 ? round(($count / $total) * 100, 2) : 0;
-                $data[] = [
-                    'row_num' => $rowNum++,
-                    'name' => $user ? $user->full_name : 'Неизвестный пользователь',
-                    'count' => $count,
-                    'percentage' => $percentage,
-                ];
-            }
-        } else {
-            $resolvedStatusId = (int) (DicTaskStatus::find()->where(['status_code' => 'resolved'])->select('id')->scalar() ?: DicTaskStatus::find()->where(['status_code' => 'closed'])->select('id')->scalar());
-            $executorStats = Tasks::find()
-                ->select(['executor_id', 'COUNT(*) as count'])
-                ->where(['status_id' => $resolvedStatusId])
-                ->andWhere(['not', ['executor_id' => null]])
-                ->groupBy('executor_id')
-                ->asArray()
-                ->all();
-            $total = array_sum(array_column($executorStats, 'count'));
-            $data = [];
-            $rowNum = 1;
-            foreach ($executorStats as $stat) {
-                $executor = Users::findOne($stat['executor_id']);
-                $count = (int) $stat['count'];
-                $percentage = $total > 0 ? round(($count / $total) * 100, 2) : 0;
-                $data[] = [
-                    'row_num' => $rowNum++,
-                    'name' => $executor ? $executor->full_name : 'Неизвестный исполнитель',
-                    'count' => $count,
-                    'percentage' => $percentage,
-                ];
-            }
+        $report = (new TaskStatisticsService(
+            $this->request->get('date_from'),
+            $this->request->get('date_to')
+        ))->buildReport();
+
+        if ($type === 'requester' || $type === 'user') {
+            $data = $report['requesters'];
+
+            return ['success' => true, 'data' => $data, 'total' => count($data)];
         }
 
-        return ['success' => true, 'data' => $data, 'total' => count($data)];
+        return ['success' => true, 'data' => $report['executors'], 'total' => count($report['executors'])];
     }
 
     /**
@@ -743,6 +871,7 @@ class TasksController extends Controller
                     'description' => $model->description,
                     'status_id' => $model->status_id,
                     'status_name' => $model->status ? $model->status->status_name : '',
+                    'status_code' => $model->status ? (string) $model->status->status_code : '',
                     'user_id' => $model->requester_id,
                     'user_name' => $model->requester ? $model->requester->full_name : '',
                     'executor_id' => $model->executor_id,
@@ -1170,6 +1299,27 @@ class TasksController extends Controller
                 'message' => 'Ошибка загрузки данных: ' . $e->getMessage(),
                 'data' => [],
             ];
+        }
+    }
+
+    /**
+     * Создаёт внутреннюю задачу в очереди техподдержки по заявке пользователя.
+     */
+    private function ensureLinkedWorkTask(Tasks $request): void
+    {
+        try {
+            $workTask = (new WorkTaskService())->ensureForRequest($request);
+            if ($workTask === null) {
+                Yii::warning(
+                    'Не создана внутренняя задача для заявки #' . $request->id,
+                    'work_tasks'
+                );
+            }
+        } catch (\Throwable $e) {
+            Yii::error(
+                'Ошибка создания внутренней задачи для заявки #' . $request->id . ': ' . $e->getMessage(),
+                'work_tasks'
+            );
         }
     }
 }

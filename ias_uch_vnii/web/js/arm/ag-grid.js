@@ -10,7 +10,7 @@
     let armQuickSearchText = '';
     let armQuickFilterTimer = null;
     let currentPageSize = Number(window.agGridArmDefaultLimit || 20) || 20;
-    const ARM_COLUMNS_STORAGE_PREFIX = 'arm-columns:';
+    const ARM_COLUMNS_STORAGE_PREFIX = 'arm-columns:v4:';
     let armFitColumnsTimer = null;
     /** Не сбрасывать ширину после ручного изменения столбца мышью. */
     let armSuppressFitUntil = 0;
@@ -58,9 +58,13 @@
         arm: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
         /** Вкладка «Системные блоки» */
         systemBlock: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
-        /** Ноутбуки, моноблоки и прочие хосты без колонки привязанных ИБП */
+        /** Ноутбуки: конфигурация и сеть; без колонок «Монитор» и «ИБП» */
+        laptop: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
+        /** Моноблоки: встроенный экран — без колонки «Монитор» и «ИБП» */
+        monoblock: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
+        /** Прочие хосты (сервер и т.п.) */
         host: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os'],
-        monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+        monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal'],
         upsType: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
         print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'cartridge_procurement', 'ip', 'other_tech'],
         /** Сканеры — без «Закупка картриджей» */
@@ -388,6 +392,13 @@
                 filter: 'agTextColumnFilter',
             },
             {
+                headerName: 'Диагональ экрана',
+                field: 'screen_diagonal',
+                minWidth: 110,
+                filter: 'agTextColumnFilter',
+                tooltipField: 'screen_diagonal',
+            },
+            {
                 headerName: 'Монитор',
                 field: 'monitor',
                 minWidth: 120,
@@ -657,7 +668,13 @@
         if (raw.indexOf('систем') >= 0 && raw.indexOf('блок') >= 0) {
             return COLUMN_PRESETS.systemBlock;
         }
-        if (raw.indexOf('ноут') >= 0 || raw.indexOf('моноблок') >= 0 || raw.indexOf('сервер') >= 0) {
+        if (raw.indexOf('ноут') >= 0) {
+            return COLUMN_PRESETS.laptop;
+        }
+        if (raw.indexOf('моноблок') >= 0) {
+            return COLUMN_PRESETS.monoblock;
+        }
+        if (raw.indexOf('сервер') >= 0) {
             return COLUMN_PRESETS.host;
         }
         if (raw.indexOf('ибп') >= 0 || raw === 'ups') {

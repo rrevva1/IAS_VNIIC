@@ -8,7 +8,12 @@ $config = [
     'name' => 'ИАС УТС ФГУП "ВНИИ "Центр"',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
-    'homeUrl' => ['arm/index'],
+    'homeUrl' => ['tasks/index'],
+    'on beforeRequest' => static function () {
+        if (!Yii::$app->user->isGuest && Yii::$app->user->identity instanceof \app\models\entities\Users) {
+            Yii::$app->setHomeUrl(Yii::$app->user->identity->getHomeUrl());
+        }
+    },
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',

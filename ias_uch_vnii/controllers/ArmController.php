@@ -44,21 +44,18 @@ class ArmController extends Controller
                 'class' => AccessControl::class,
                 'rules' => [
                     [
-                        'actions' => ['index', 'get-grid-data'],
-                        'allow' => true,
-                        'roles' => ['@'],
-                    ],
-                    [
-                        'actions' => ['view', 'update'],
-                        'allow' => true,
-                        'roles' => ['@'],
-                    ],
-                    [
                         'actions' => ['create', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'user-primary-location', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function () {
                             return Yii::$app->user->identity && Yii::$app->user->identity->isAdministrator();
+                        },
+                    ],
+                    [
+                        'allow' => true,
+                        'roles' => ['@'],
+                        'matchCallback' => function () {
+                            return Yii::$app->user->identity && Yii::$app->user->identity->canAccessArm();
                         },
                     ],
                 ],
@@ -205,6 +202,7 @@ class ArmController extends Controller
                     'hostname' => $chars['hostname'] ?? '',
                     'ip' => $chars['ip'] ?? '',
                     'os' => $chars['os'] ?? '',
+                    'screen_diagonal' => $chars['screen_diagonal'] ?? '',
                     'cartridge_procurement' => $this->formatCartridgeProcurementForGrid($model),
                     'other_tech' => $this->formatOtherTechForGrid($model),
                 ];
@@ -304,11 +302,15 @@ class ArmController extends Controller
                 $out[$id]['disk'] = isset($out[$id]['disk']) ? $out[$id]['disk'] . ', ' . $val : $val;
                 continue;
             }
+            if ($part === 'Монитор' && (strpos($c, 'диагональ') !== false)) {
+                $out[$id]['screen_diagonal'] = $val;
+                continue;
+            }
             if ($part === 'Монитор' && ($char === 'Модель' || strpos($c, 'модель') !== false)) {
                 $out[$id]['monitor'] = isset($out[$id]['monitor']) ? $out[$id]['monitor'] . ', ' . $val : $val;
                 continue;
             }
-            if ($part === 'Монитор' && (strpos($c, '№ монитора') !== false || strpos($c, 'номер') !== false)) {
+            if ($part === 'Монитор' && (strpos($c, '№ монитора') !== false || (strpos($c, 'номер') !== false && strpos($c, 'диагональ') === false))) {
                 $out[$id]['monitor_inv'] = isset($out[$id]['monitor_inv']) ? $out[$id]['monitor_inv'] . ', ' . $val : $val;
                 continue;
             }
@@ -335,6 +337,8 @@ class ArmController extends Controller
                 $out[$id]['ram'] = $val;
             } elseif (strpos($p, 'диск') !== false || strpos($p, 'накопитель') !== false || strpos($p, 'жесткий') !== false || $p === 'hdd' || $p === 'ssd') {
                 $out[$id]['disk'] = isset($out[$id]['disk']) ? $out[$id]['disk'] . ', ' . $val : $val;
+            } elseif (strpos($p, 'монитор') !== false && strpos($c, 'диагональ') !== false) {
+                $out[$id]['screen_diagonal'] = $val;
             } elseif (strpos($p, 'монитор') !== false && (strpos($c, 'модель') !== false || $c === '')) {
                 $out[$id]['monitor'] = isset($out[$id]['monitor']) ? $out[$id]['monitor'] . ', ' . $val : $val;
             } elseif (strpos($p, 'монитор') !== false && (strpos($c, '№') !== false || strpos($c, 'номер') !== false)) {
@@ -617,7 +621,8 @@ class ArmController extends Controller
     /**
      * Сохраняет значения характеристик из формы PartChar.
      * Маппинг: cpu->(ЦП,Модель), ram->(ОЗУ,Объём), disk->(Накопитель,Объём), monitor->(Монитор,Модель),
-     * hostname->(ПК,Имя ПК), ip->(ПК,IP адрес), os->(ПК,ОС), model->(Монитор,Модель).
+     * hostname->(ПК,Имя ПК), ip->(ПК,IP адрес), os->(ПК,ОС), model->(Монитор,Модель),
+     * screen_diagonal->(Монитор,Диагональ экрана), monitor_inv->(Монитор,№ монитора).
      */
     private function applyOrgTechDescriptionFromPost(Equipment $model): void
     {
@@ -664,7 +669,8 @@ class ArmController extends Controller
             'ip' => $isOrgTech ? ['Принтер', 'IP адрес'] : ['ПК', 'IP адрес'],
             'os' => ['ПК', 'ОС'],
             'model' => ['Монитор', 'Модель'],
-            'diagonal' => ['Монитор', '№ монитора'],
+            'screen_diagonal' => ['Монитор', 'Диагональ экрана'],
+            'monitor_inv' => ['Монитор', '№ монитора'],
         ];
         foreach ($partChar as $key => $value) {
             $value = is_string($value) ? trim($value) : '';
@@ -1388,6 +1394,7 @@ class ArmController extends Controller
             'hostname' => ['Имя ПК', static fn($m, $chars, $links) => $chars['hostname'] ?? ''],
             'ip' => ['IP адрес', static fn($m, $chars, $links) => $chars['ip'] ?? ''],
             'os' => ['ОС', static fn($m, $chars, $links) => $chars['os'] ?? ''],
+            'screen_diagonal' => ['Диагональ экрана', static fn($m, $chars, $links) => $chars['screen_diagonal'] ?? ''],
             'cartridge_procurement' => ['Закупка картриджей', fn($m, $chars, $links) => $this->formatCartridgeProcurementForGrid($m)],
             'other_tech' => ['Комментарий', fn($m, $chars, $links) => $this->formatOtherTechForGrid($m)],
         ];

@@ -6,202 +6,156 @@ use app\assets\AgGridAsset;
 use app\models\entities\Users;
 use app\models\dictionaries\DicTaskStatus;
 
-// Подключаем AG Grid assets
+/** @var \app\models\dictionaries\DicTaskStatus[] $taskStatuses */
+
 AgGridAsset::register($this);
 
-$this->title = 'Help Desk - Заявки';
+$taskStatuses = $taskStatuses ?? [];
+
+$this->title = 'Заявки';
 $this->params['breadcrumbs'] = [];
 
-// Определяем, является ли пользователь администратором
 $isAdmin = !Yii::$app->user->isGuest && Yii::$app->user->identity && Yii::$app->user->identity->isAdministrator();
 $isRegularUser = !Yii::$app->user->isGuest && Yii::$app->user->identity && Yii::$app->user->identity->isRegularUser();
 
-// Получаем список пользователей для dropdown (только для админов)
 $usersList = [];
 $statusList = [];
 
 if ($isAdmin) {
-    $usersList = Users::find()
-        ->select(['full_name', 'id'])
-        ->indexBy('id')
-        ->column();
-    
+    $usersList = Users::getSupportStaffList();
     $statusList = DicTaskStatus::getStatusList();
 }
 
-// Передаем данные в JavaScript
 $this->registerJs("
     window.isUserAdmin = " . ($isAdmin ? 'true' : 'false') . ";
-    window.allUsersList = " . json_encode($usersList) . ";
+    window.canAssignTaskExecutor = " . ($isAdmin ? 'true' : 'false') . ";
+    window.taskExecutorsList = " . json_encode($usersList) . ";
+    window.allUsersList = window.taskExecutorsList;
     window.allStatusList = " . json_encode($statusList) . ";
     window.agGridDataUrl = '" . Url::to(['tasks/get-grid-data']) . "';
+    window.tasksBulkDeleteUrl = '" . Url::to(['tasks/bulk-delete']) . "';
+    window.tasksMinSelectedForDelete = 1;
 ", \yii\web\View::POS_HEAD);
 ?>
 
-<!-- Основной контейнер для страницы заявок с AG Grid -->
-<div class="tasks-index-ag">
-    
-    <!-- Панель инструментов -->
-    <div class="ag-grid-toolbar">
-        <div class="btn-group">
+<div class="tasks-page tasks-page--grid">
+    <header class="tasks-page__header">
+        <div class="tasks-page__heading">
+            <h1 class="tasks-page__title"><?= Html::encode($this->title) ?></h1>
+            <p class="tasks-page__subtitle">Создание и отслеживание обращений в службу поддержки</p>
+        </div>
+    </header>
+
+    <div class="tasks-command-bar" role="region" aria-label="Поиск и действия">
+        <div class="tasks-search">
+            <label class="visually-hidden" for="tasksQuickFilter">Поиск по таблице</label>
+            <i class="fas fa-search tasks-search__icon" aria-hidden="true"></i>
+            <input type="search" id="tasksQuickFilter" class="form-control tasks-search__input"
+                   placeholder="Поиск по заявкам" autocomplete="off">
+            <button type="button" class="tasks-search__clear" id="tasksQuickFilterClear"
+                    aria-label="Очистить поиск" title="Очистить поиск" hidden>×</button>
+        </div>
+
+        <div class="tasks-command-bar__tabs" role="tablist" aria-label="Статус заявки">
+            <ul class="nav nav-tabs tasks-status-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active tasks-status-tab" href="#" data-status-code="" role="tab" aria-selected="true">Все</a>
+                </li>
+                <?php foreach ($taskStatuses as $status): ?>
+                <li class="nav-item">
+                    <a class="nav-link tasks-status-tab" href="#" role="tab" aria-selected="false"
+                       data-status-code="<?= Html::encode($status->status_code) ?>">
+                        <?= Html::encode($status->status_name) ?>
+                    </a>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+
+        <div class="tasks-command-bar__tools">
             <?php if ($isRegularUser || $isAdmin): ?>
-                <?= Html::button('<i class="glyphicon glyphicon-plus"></i> Создать заявку', [
-                    'class' => 'btn btn-success',
-                    'onclick' => 'openCreateTaskModal()'
+                <?= Html::button('<i class="fas fa-plus" aria-hidden="true"></i><span>Создать заявку</span>', [
+                    'class' => 'btn btn-primary tasks-tool-btn',
+                    'onclick' => 'openCreateTaskModal()',
+                    'title' => 'Новая заявка',
                 ]) ?>
             <?php endif; ?>
             <?php if ($isAdmin): ?>
-                <?= Html::button('<i class="glyphicon glyphicon-hdd"></i> Учет ТС', [
-                    'class' => 'btn btn-primary',
-                    'title' => 'Управление техническими средствами',
-                    'onclick' => 'openEquipmentManagementModal()'
+                <?= Html::button('<i class="fas fa-trash" aria-hidden="true"></i><span>Удалить</span>', [
+                    'class' => 'btn btn-outline-danger tasks-tool-btn',
+                    'id' => 'btnTasksBulkDelete',
+                    'onclick' => 'bulkDeleteSelectedTasks()',
+                    'disabled' => true,
+                    'title' => 'Удалить выбранные заявки',
                 ]) ?>
             <?php endif; ?>
-            
-            <?= Html::button('<i class="glyphicon glyphicon-refresh"></i> Обновить', [
-                'class' => 'btn btn-outline-secondary',
-                'onclick' => 'refreshGrid()'
+            <?= Html::button('<i class="fas fa-arrows-rotate" aria-hidden="true"></i><span>Обновить</span>', [
+                'class' => 'btn btn-outline-secondary tasks-tool-btn',
+                'onclick' => 'refreshGrid()',
+                'title' => 'Перезагрузить данные',
             ]) ?>
-        </div>
-        
-        <div class="btn-group">
-            <?= Html::button('<i class="glyphicon glyphicon-export"></i> Excel', [
-                'class' => 'btn btn-outline-primary',
-                'onclick' => 'exportToExcel()'
+            <?= Html::button('<i class="fas fa-file-excel" aria-hidden="true"></i><span>Excel</span>', [
+                'class' => 'btn btn-outline-primary tasks-tool-btn',
+                'onclick' => 'exportToExcel()',
+                'title' => 'Экспорт в Excel',
             ]) ?>
-            
-            <?= Html::button('<i class="glyphicon glyphicon-export"></i> CSV', [
-                'class' => 'btn btn-outline-primary',
-                'onclick' => 'exportToCsv()'
+            <?= Html::button('<i class="fas fa-file-csv" aria-hidden="true"></i><span>CSV</span>', [
+                'class' => 'btn btn-outline-primary tasks-tool-btn',
+                'onclick' => 'exportToCsv()',
+                'title' => 'Экспорт в CSV',
             ]) ?>
         </div>
     </div>
-    
-    <!-- Контейнер для AG Grid -->
-    <div id="agGridTasksContainer" class="ag-theme-quartz">
-        <div class="text-center">
-            <i class="glyphicon glyphicon-refresh glyphicon-spin"></i>
-            <p>Загрузка таблицы заявок...</p>
+
+    <div class="tasks-grid-card">
+        <div id="agGridTasksContainer" class="ag-theme-quartz">
+            <div class="text-center tasks-grid-loading">
+                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                <p>Загрузка таблицы заявок…</p>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно для создания заявки -->
-<div class="modal fade" id="createTaskModal" tabindex="-1" role="dialog" aria-labelledby="createTaskModalLabel">
-    <div class="modal-dialog modal-lg" role="document">
+<div class="modal fade tasks-modal tasks-create-modal" id="createTaskModal" tabindex="-1" aria-labelledby="createTaskModalLabel">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title" id="createTaskModalLabel">
-                    <i class="glyphicon glyphicon-plus-sign"></i> Создать новую заявку
-                </h4>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <div class="modal-header tasks-create-modal__header">
+                <div class="tasks-create-modal__header-text">
+                    <h5 class="modal-title" id="createTaskModalLabel">Новая заявка</h5>
+                    <p class="tasks-create-modal__lead">Опишите проблему — заявка сразу попадёт в очередь поддержки</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
-            <div class="modal-body" id="createTaskModalBody">
-                <!-- Сюда будет загружаться форма через AJAX -->
-                <div class="text-center">
-                    <i class="glyphicon glyphicon-refresh glyphicon-spin"></i>
-                    <p>Загрузка формы...</p>
+            <div class="modal-body tasks-create-modal__body" id="createTaskModalBody">
+                <div class="tasks-create-modal__loading">
+                    <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                    <p>Загрузка формы…</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно для предпросмотра файлов (AG Grid) -->
-<div class="modal fade preview-modal" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+<div class="modal fade tasks-modal preview-modal" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="previewModalLabel">Предпросмотр файла</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
             <div class="modal-body" id="previewContent">
-                <!-- Контент предпросмотра будет загружен через ag-grid.js -->
-                <div class="text-center text-muted">
-                    <i class="glyphicon glyphicon-picture"></i>
-                    <p>Выберите вложение для предпросмотра</p>
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-image fa-2x mb-2" aria-hidden="true"></i>
+                    <p class="mb-0">Выберите вложение для предпросмотра</p>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                <a href="#" class="btn btn-primary" id="downloadBtn" target="_blank">
-                    <i class="glyphicon glyphicon-download"></i> Скачать
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <a href="#" class="btn btn-primary" id="downloadBtn" target="_blank" rel="noopener">
+                    <i class="fas fa-download" aria-hidden="true"></i> Скачать
                 </a>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Модальное окно для управления ТС -->
-<div class="modal fade" id="equipmentManagementModal" tabindex="-1" role="dialog" aria-labelledby="equipmentManagementModalLabel">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title" id="equipmentManagementModalLabel">
-                    <i class="glyphicon glyphicon-hdd"></i> Управление техническими средствами
-                </h4>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="equipmentManagementModalBody">
-                <!-- Сюда будет загружаться контент через AJAX -->
-                <div class="text-center">
-                    <i class="glyphicon glyphicon-refresh glyphicon-spin"></i>
-                    <p>Загрузка...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<?php
-// JavaScript для модального окна управления ТС
-$this->registerJs("
-    // Экземпляр модального окна для управления ТС
-    var equipmentManagementModalInstance = null;
-    
-    // Функция открытия модального окна управления ТС
-    function openEquipmentManagementModal() {
-        var modalElement = document.getElementById('equipmentManagementModal');
-        if (!modalElement) {
-            console.error('Модальное окно equipmentManagementModal не найдено');
-            return;
-        }
-        
-        // Создаем или получаем экземпляр модального окна
-        if (!equipmentManagementModalInstance) {
-            equipmentManagementModalInstance = new bootstrap.Modal(modalElement, {
-                backdrop: true,
-                keyboard: true
-            });
-        }
-        
-        // Показываем модальное окно
-        equipmentManagementModalInstance.show();
-        
-        // Загружаем список пользователей для выбора
-        $.ajax({
-            url: '" . \yii\helpers\Url::to(['users/index']) . "',
-            type: 'GET',
-            success: function(data) {
-                // Извлекаем только содержимое контейнера с пользователями
-                var content = $(data).find('.users-index').html();
-                if (!content) {
-                    content = '<div class=\"alert alert-info\">Перейдите в раздел <a href=\"" . \yii\helpers\Url::to(['users/index']) . "\" target=\"_blank\">Пользователи</a> для управления техническими средствами.</div>';
-                }
-                $('#equipmentManagementModalBody').html(content);
-            },
-            error: function() {
-                $('#equipmentManagementModalBody').html('<div class=\"alert alert-danger\">Ошибка загрузки данных. <a href=\"" . \yii\helpers\Url::to(['users/index']) . "\" target=\"_blank\">Открыть в новой вкладке</a></div>');
-            }
-        });
-    }
-    
-    // Очистка при закрытии модального окна
-    $('#equipmentManagementModal').on('hidden.bs.modal', function() {
-        $('#equipmentManagementModalBody').html('<div class=\"text-center\"><i class=\"glyphicon glyphicon-refresh glyphicon-spin\"></i><p>Загрузка...</p></div>');
-    });
-    
-    // Экспортируем функцию глобально
-    window.openEquipmentManagementModal = openEquipmentManagementModal;
-", \yii\web\View::POS_END);
-?>

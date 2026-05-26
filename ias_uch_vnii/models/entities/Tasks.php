@@ -22,6 +22,7 @@ use yii\web\UploadedFile;
  * @property string|null $due_at
  * @property string|null $closed_at
  * @property string|null $comment
+ * @property string|null $contact_phone
  * @property string|null $created_at
  * @property string|null $updated_at
  *
@@ -36,10 +37,27 @@ class Tasks extends ActiveRecord
     public $uploadFiles;
     /** @var array ID выбранных активов (для формы) */
     public $equipment_ids = [];
+    /** @var string|null Телефон для обратной связи (колонка tasks.contact_phone) */
+    public $contact_phone;
 
     public static function tableName()
     {
         return 'tasks';
+    }
+
+    /**
+     * Поддержка contact_phone до применения миграции и после обновления схемы БД.
+     *
+     * @return string[]
+     */
+    public function attributes()
+    {
+        $parent = parent::attributes();
+        if (!in_array('contact_phone', $parent, true)) {
+            $parent[] = 'contact_phone';
+        }
+
+        return $parent;
     }
 
     public function behaviors()
@@ -62,6 +80,9 @@ class Tasks extends ActiveRecord
             [['description', 'comment'], 'string'],
             [['title'], 'string', 'max' => 250],
             [['task_number'], 'string', 'max' => 50],
+            [['contact_phone'], 'string', 'max' => 50],
+            [['contact_phone'], 'trim'],
+            [['contact_phone'], 'default', 'value' => null],
             [['priority'], 'in', 'range' => ['low', 'medium', 'high', 'critical']],
             [['due_at', 'closed_at', 'created_at', 'updated_at'], 'safe'],
             [['status_id'], 'exist', 'targetClass' => DicTaskStatus::class, 'targetAttribute' => ['status_id' => 'id']],
@@ -86,6 +107,7 @@ class Tasks extends ActiveRecord
             'due_at' => 'Срок',
             'closed_at' => 'Закрыта',
             'comment' => 'Комментарий',
+            'contact_phone' => 'Телефон для обратной связи',
             'created_at' => 'Дата создания',
             'updated_at' => 'Обновлено',
             'uploadFiles' => 'Файлы',
@@ -105,6 +127,14 @@ class Tasks extends ActiveRecord
     public function getExecutor()
     {
         return $this->hasOne(Users::class, ['id' => 'executor_id']);
+    }
+
+    /**
+     * Исполнитель зафиксирован — в заявке его менять нельзя (только через «Задачи»).
+     */
+    public function hasAssignedExecutor(): bool
+    {
+        return $this->executor_id !== null && (int) $this->executor_id > 0;
     }
 
     /** Для совместимости с представлениями: автор заявки */
@@ -212,6 +242,34 @@ class Tasks extends ActiveRecord
                 $this->addAttachment($att->id);
             }
         }
+        return true;
+    }
+
+    public function beforeSave($insert)
+    {
+        if (!parent::beforeSave($insert)) {
+            return false;
+        }
+        if ($this->contact_phone !== null && $this->contact_phone !== '') {
+            $this->contact_phone = trim($this->contact_phone);
+        }
+        if ($this->contact_phone === '') {
+            $this->contact_phone = null;
+        }
+
+        return true;
+    }
+
+    public function beforeDelete()
+    {
+        if (!parent::beforeDelete()) {
+            return false;
+        }
+
+        TaskEquipment::deleteAll(['task_id' => $this->id]);
+        TaskAttachments::deleteAll(['task_id' => $this->id]);
+        TaskHistory::deleteAll(['task_id' => $this->id]);
+
         return true;
     }
 
