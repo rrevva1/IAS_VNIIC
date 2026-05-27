@@ -1,28 +1,20 @@
 <?php
-use yii\helpers\Html;
-use yii\helpers\Url;
+
 use app\assets\ReferencesGridAsset;
+use yii\helpers\Url;
 
 ReferencesGridAsset::register($this);
 
 $this->title = 'Статусы заявок';
-$this->params['breadcrumbs'][] = ['label' => 'Справочники', 'url' => ['index']];
-$this->params['breadcrumbs'][] = $this->title;
-?>
-<div class="references-task-status">
-    <h1><?= Html::encode($this->title) ?></h1>
-    <p>
-        <?= Html::a('Добавить статус', ['task-status-create'], ['class' => 'btn btn-success']) ?>
-        <?= Html::a('Обновить', ['task-status'], ['class' => 'btn btn-outline-secondary']) ?>
-    </p>
-    <div
-        id="agGridRefTaskStatus"
-        class="ag-theme-quartz"
-        style="width: 100%; height: 60vh; min-height: 300px;"
-        data-url="<?= Html::encode(Url::to(['task-status-get-grid-data'])) ?>"
-        data-update-url="<?= Html::encode(Url::to(['task-status-update'])) ?>"
-        data-archive-url="<?= Html::encode(Url::to(['task-status-archive'])) ?>"
-    >
-        <div class="text-center text-muted p-4">Загрузка таблицы...</div>
-    </div>
-</div>
+
+echo $this->render('_grid_layout', [
+    'pageTitle' => $this->title,
+    'gridId' => 'agGridRefTaskStatus',
+    'createLabel' => 'Добавить',
+    'createRoute' => ['task-status-create'],
+    'gridDataAttrs' => [
+        'data-url' => Url::to(['task-status-get-grid-data']),
+        'data-update-url' => Url::to(['task-status-update']),
+        'data-archive-url' => Url::to(['task-status-archive']),
+    ],
+]);

@@ -37,8 +37,6 @@ class Tasks extends ActiveRecord
     public $uploadFiles;
     /** @var array ID выбранных активов (для формы) */
     public $equipment_ids = [];
-    /** @var string|null Телефон для обратной связи (колонка tasks.contact_phone) */
-    public $contact_phone;
 
     public static function tableName()
     {
@@ -75,7 +73,7 @@ class Tasks extends ActiveRecord
     public function rules()
     {
         return [
-            [['status_id', 'description', 'requester_id'], 'required'],
+            [['status_id', 'description', 'requester_id'], 'required', 'message' => 'Заполните поле «{attribute}».'],
             [['status_id', 'requester_id', 'executor_id'], 'integer'],
             [['description', 'comment'], 'string'],
             [['title'], 'string', 'max' => 250],

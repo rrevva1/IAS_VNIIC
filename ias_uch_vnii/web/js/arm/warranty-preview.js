@@ -79,13 +79,17 @@
         var ids = ['equipment-warranty-years', 'equipment-commissioning-date', 'equipment-purchase-date'];
         ids.forEach(function (id) {
             var el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('input', updatePreview);
-                el.addEventListener('change', updatePreview);
+            if (!el || el.dataset.warrantyPreviewBound === '1') {
+                return;
             }
+            el.dataset.warrantyPreviewBound = '1';
+            el.addEventListener('input', updatePreview);
+            el.addEventListener('change', updatePreview);
         });
         updatePreview();
     }
+
+    window.armInitWarrantyPreview = bind;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', bind);

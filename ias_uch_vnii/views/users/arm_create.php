@@ -18,8 +18,6 @@ $this->params['breadcrumbs'][] = $this->title;
 
 <div class="users-arm-create">
     <h1><?= Html::encode($this->title) ?></h1>
-    <p class="text-muted">Заполните форму для добавления техники выбранному сотруднику.</p>
-
     <?= $this->render('_arm_form', [
         'model' => $model,
         'locations' => $locations,

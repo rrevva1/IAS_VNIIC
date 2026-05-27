@@ -72,4 +72,45 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     sidebar.addEventListener('mouseleave', removeSidebarTooltip);
+
+    function isTextEntryTarget(el) {
+        if (!el || el === document.body || el === document.documentElement) {
+            return false;
+        }
+        return !!el.closest(
+            'input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),'
+            + 'textarea, select, [contenteditable="true"], .select2-container, .select2-search__field,'
+            + '.ag-root-wrapper, .ag-popup, .ag-menu, .ag-popup-editor'
+        );
+    }
+
+    function clearAllGridCellFocus() {
+        var list = window.__iasAgGridApis;
+        if (!list || !list.length) {
+            return;
+        }
+        for (var i = list.length - 1; i >= 0; i--) {
+            var api = list[i];
+            if (!api || (typeof api.isDestroyed === 'function' && api.isDestroyed())) {
+                list.splice(i, 1);
+                continue;
+            }
+            if (typeof api.clearFocusedCell === 'function') {
+                api.clearFocusedCell();
+            }
+        }
+    }
+
+    document.addEventListener('mousedown', function (event) {
+        if (isTextEntryTarget(event.target)) {
+            return;
+        }
+
+        clearAllGridCellFocus();
+
+        var active = document.activeElement;
+        if (active && active !== document.body && !isTextEntryTarget(active)) {
+            active.blur();
+        }
+    });
 });

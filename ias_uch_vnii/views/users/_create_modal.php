@@ -11,7 +11,6 @@ use yii\helpers\Html;
             <div class="modal-header users-create-modal__header">
                 <div>
                     <h5 class="modal-title" id="createUserModalLabel">Новый пользователь</h5>
-                    <p class="users-create-modal__lead">Укажите данные учётной записи и роль в системе</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>

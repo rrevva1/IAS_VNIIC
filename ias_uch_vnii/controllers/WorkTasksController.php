@@ -6,7 +6,6 @@ use app\components\AuditLog;
 use app\components\WorkTaskService;
 use app\models\dictionaries\DicTaskStatus;
 use app\models\dictionaries\DicWorkTaskStatus;
-use app\models\entities\Tasks;
 use app\models\entities\WorkTask;
 use app\models\entities\WorkTaskComment;
 use app\models\search\WorkTaskSearch;
@@ -14,6 +13,7 @@ use Yii;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
 use yii\web\Controller;
+use yii\web\UploadedFile;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
@@ -111,7 +111,6 @@ class WorkTasksController extends Controller
             'isManager' => $isManager,
             'executors' => WorkTaskService::getExecutorList(),
             'createModel' => $isManager ? new WorkTask() : null,
-            'requests' => $isManager ? $this->getRecentRequestsList() : [],
         ]);
     }
 
@@ -173,28 +172,52 @@ class WorkTasksController extends Controller
             return $this->redirect(['index', 'create' => 1]);
         }
 
+        $model->uploadFiles = UploadedFile::getInstances($model, 'uploadFiles');
+        if (!$model->validate(['uploadFiles'])) {
+            $uploadErrors = $model->getFirstErrors();
+            $message = $uploadErrors ? implode(' ', $uploadErrors) : 'Некорректные вложения.';
+            if ($isAjax) {
+                Yii::$app->response->format = Response::FORMAT_JSON;
+
+                return ['success' => false, 'message' => $message, 'errors' => $model->errors];
+            }
+            Yii::$app->session->setFlash('error', $message);
+
+            return $this->redirect(['index', 'create' => 1]);
+        }
+
         try {
             $executorId = $model->executor_id ? (int) $model->executor_id : null;
-            $requestId = $model->request_task_id ? (int) $model->request_task_id : null;
             $created = $this->workTaskService->createManual(
                 (string) $model->title,
                 (string) $model->description,
                 $executorId,
-                $requestId
+                null
             );
+            if (!empty($model->uploadFiles)) {
+                $created->uploadFiles = $model->uploadFiles;
+                $created->persistUploadFiles();
+            }
             AuditLog::log('work_task.create', 'work_task', $created->id, 'success');
+
+            $attachmentsCount = count($created->getAllAttachments());
+            $successMessage = 'Задача создана.';
+            if ($attachmentsCount > 0) {
+                $successMessage .= ' Загружено файлов: ' . $attachmentsCount . '.';
+            }
 
             if ($isAjax) {
                 Yii::$app->response->format = Response::FORMAT_JSON;
 
                 return [
                     'success' => true,
-                    'message' => 'Задача создана.',
+                    'message' => $successMessage,
                     'task_id' => (int) $created->id,
+                    'attachments_count' => $attachmentsCount,
                 ];
             }
 
-            Yii::$app->session->setFlash('success', 'Задача создана.');
+            Yii::$app->session->setFlash('success', $successMessage);
 
             return $this->redirect(['index']);
         } catch (\Throwable $e) {
@@ -372,22 +395,4 @@ class WorkTasksController extends Controller
             ->all();
     }
 
-    /**
-     * @return array<int, string>
-     */
-    private function getRecentRequestsList(): array
-    {
-        $rows = Tasks::find()
-            ->where(['is_deleted' => false])
-            ->orderBy(['id' => SORT_DESC])
-            ->limit(100)
-            ->all();
-        $list = [];
-        foreach ($rows as $row) {
-            $title = trim((string) $row->title);
-            $list[$row->id] = $title !== '' ? $title : ('Заявка #' . $row->id);
-        }
-
-        return $list;
-    }
 }

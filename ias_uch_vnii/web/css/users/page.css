@@ -23,6 +23,15 @@
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+.users-page__header,
+.users-command-bar {
+    flex-shrink: 0;
 }
 
 body.app-body:has(.users-page--grid) {
@@ -155,7 +164,8 @@ body.app-body.modal-open:has(.users-page--grid) {
     flex-wrap: nowrap;
     gap: 0.35rem;
     margin: 0;
-    padding: 0.1rem 0;
+    padding: 0;
+    padding-bottom: 0.25rem;
     border-bottom: none;
     list-style: none;
 }
@@ -167,12 +177,14 @@ body.app-body.modal-open:has(.users-page--grid) {
     color: #475569;
     font-size: var(--users-font-base);
     font-weight: 500;
-    padding: 0 0.85rem;
+    padding: 0.35rem 0.9rem;
     min-height: var(--users-control-height);
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     background: #fff;
     white-space: nowrap;
+    line-height: 1.25;
 }
 
 .users-role-tabs .nav-link:hover {
@@ -204,47 +216,256 @@ body.app-body.modal-open:has(.users-page--grid) {
     white-space: nowrap;
 }
 
+/* Бейджи ролей в таблице пользователей */
+.users-page .users-role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.users-page .users-role-badge--admin {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.users-page .users-role-badge--operator {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.users-page .users-role-badge--user {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.users-page .users-role-badge--other {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+/* Карточка таблицы — как в «Учёт ТС» */
 .users-grid-card {
+    position: relative;
     flex: 1 1 auto;
-    min-height: 0;
     display: flex;
     flex-direction: column;
+    min-height: 240px;
     background: #fff;
     border: 1px solid var(--users-border);
     border-radius: var(--users-radius);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
     overflow: hidden;
 }
 
-#agGridUsersContainer {
+.users-page #agGridUsersContainer {
     flex: 1 1 auto;
-    min-height: 280px;
     width: 100%;
+    min-height: 240px;
+    height: 100%;
+    overflow: hidden;
 }
 
-.users-grid-loading {
+#agGridUsersContainer.ag-theme-quartz .ag-root-wrapper {
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-height: 240px;
+}
+
+#agGridUsersContainer.ag-theme-quartz .ag-root-wrapper-body {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+}
+
+#agGridUsersContainer.ag-theme-quartz .ag-root {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#agGridUsersContainer.ag-theme-quartz .ag-body {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+#agGridUsersContainer.ag-theme-quartz .ag-body-viewport.ag-layout-normal {
+    overflow-y: auto !important;
+}
+
+#agGridUsersContainer.ag-theme-quartz .ag-paging-panel {
+    flex-shrink: 0;
+}
+
+#agGridUsersContainer:not(.users-grid-loading) .users-grid-loading__inner {
+    display: none;
+}
+
+#agGridUsersContainer.users-grid-loading {
+    display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 2rem;
+    min-height: 320px;
+}
+
+.users-grid-loading__inner {
+    text-align: center;
+    font-size: var(--users-font-base);
     color: var(--users-text-muted);
 }
 
-.users-grid-loading i {
-    font-size: 1.5rem;
+.users-grid-loading__inner i {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
     color: var(--users-accent);
+}
+
+.users-page #agGridUsersContainer.ag-theme-quartz {
+    --ag-font-size: 14px;
+    --ag-font-family: inherit;
+    --ag-row-height: 48px;
+    --ag-header-height: 44px;
+    --ag-grid-line-color: #cbd5e1;
+    --ag-border-color: var(--ag-grid-line-color);
+    --ag-row-border-color: var(--ag-grid-line-color);
+    --ag-header-background-color: #e8eef4;
+    --ag-header-foreground-color: #1e293b;
+    --ag-background-color: #ffffff;
+    --ag-odd-row-background-color: var(--ag-background-color);
+    --ag-row-hover-color: #f1f5f9;
+    --ag-selected-row-background-color: #edf5ff;
+    --ag-active-color: #2563eb;
+    --ag-input-focus-box-shadow: none;
+}
+
+.users-page #agGridUsersContainer .ag-header-cell-text {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.01em;
+}
+
+.users-page #agGridUsersContainer .ag-paging-panel {
+    border-top: 1px solid var(--users-border);
+    background: #f8fafc;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--users-text-muted);
+}
+
+.users-page #agGridUsersContainer .ag-paging-panel input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.users-page #agGridUsersContainer .ag-paging-panel input[type="number"]::-webkit-inner-spin-button,
+.users-page #agGridUsersContainer .ag-paging-panel input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.users-page #agGridUsersContainer .ag-row:not(.ag-full-width-row):not(.ag-row-selected):not(.ag-row-hover) .ag-cell {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.users-page #agGridUsersContainer .ag-row.ag-row-hover:not(.ag-row-selected):not(.ag-full-width-row) .ag-cell {
+    background-color: #f1f5f9;
+}
+
+.users-page #agGridUsersContainer .ag-cell,
+.users-page #agGridUsersContainer .ag-ltr .ag-cell:not(.ag-cell-inline-editing) {
+    display: flex;
+    align-items: center;
+    line-height: 1.4;
+    font-size: 0.875rem;
+}
+
+.users-page #agGridUsersContainer .ag-overlay-no-rows-center {
+    font-size: 0.875rem;
+    color: var(--users-text-muted);
+    padding: 2rem 1rem;
 }
 
 #agGridUsersContainer .ag-actions {
     display: flex;
     gap: 0.25rem;
     align-items: center;
+    justify-content: flex-start;
 }
 
+/* Современные икон-кнопки в колонке «Действия» */
 #agGridUsersContainer .ag-actions .btn {
-    padding: 0.2rem 0.45rem;
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    line-height: 1 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border-width: 1px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+#agGridUsersContainer .ag-actions .btn i {
+    font-size: 0.95rem;
     line-height: 1;
+}
+
+#agGridUsersContainer .ag-actions .btn-outline-secondary {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+#agGridUsersContainer .ag-actions .btn-outline-secondary:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+#agGridUsersContainer .ag-actions .btn-outline-primary {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+}
+
+#agGridUsersContainer .ag-actions .btn-outline-primary:hover {
+    background: #dbeafe;
+    border-color: #60a5fa;
+    color: #1e40af;
+}
+
+#agGridUsersContainer .ag-actions .btn-outline-danger {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+#agGridUsersContainer .ag-actions .btn-outline-danger:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+/* Чтобы кнопки выглядели как иконки и не «растягивались» по линии */
+#agGridUsersContainer .ag-actions .btn:hover,
+#agGridUsersContainer .ag-actions .btn:focus,
+#agGridUsersContainer .ag-actions .btn:active {
+    text-decoration: none;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
 }
 
 /* Модальное окно создания */

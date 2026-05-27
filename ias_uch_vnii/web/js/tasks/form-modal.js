@@ -1,10 +1,38 @@
 /**
- * Модальная форма создания заявки
+ * Drag-and-drop и список файлов в формах создания заявки и внутренней задачи.
  */
 (function($) {
     'use strict';
 
     var selectedFiles = [];
+    var activeForm = null;
+
+    function resolveActiveForm(formEl) {
+        if (formEl) {
+            return formEl;
+        }
+        if (activeForm) {
+            return activeForm;
+        }
+
+        return document.getElementById('workTaskCreateForm')
+            || document.getElementById('task-form');
+    }
+
+    function getFileContext(formEl) {
+        var form = resolveActiveForm(formEl);
+        if (!form) {
+            return null;
+        }
+
+        return {
+            form: form,
+            dropZone: form.querySelector('[data-tasks-file-drop]'),
+            input: form.querySelector('[data-tasks-file-input]'),
+            filesList: form.querySelector('[data-tasks-files-list]'),
+            listContainer: form.querySelector('[data-tasks-files-container]'),
+        };
+    }
 
     function formatFileSize(bytes) {
         if (bytes === 0) {
@@ -34,16 +62,8 @@
         return icons[ext] || 'fa-file';
     }
 
-    function getFileInput() {
-        return document.getElementById('file-input-tasks');
-    }
-
-    function getDropZone() {
-        return document.getElementById('tasks-file-drop');
-    }
-
-    function syncInputFiles() {
-        var input = getFileInput();
+    function syncInputFiles(ctx) {
+        var input = ctx && ctx.input;
         if (!input || typeof DataTransfer === 'undefined') {
             return;
         }
@@ -54,22 +74,26 @@
         input.files = dt.files;
     }
 
-    function displayFilesList() {
-        var listContainer = $('#files-list-container');
-        var dropZone = getDropZone();
-        listContainer.empty();
+    function displayFilesList(ctx) {
+        if (!ctx || !ctx.listContainer) {
+            return;
+        }
+
+        var $listContainer = $(ctx.listContainer);
+        var $filesList = ctx.filesList ? $(ctx.filesList) : $();
+        $listContainer.empty();
 
         if (selectedFiles.length === 0) {
-            $('#selected-files-list').prop('hidden', true);
-            if (dropZone) {
-                dropZone.classList.remove('is-filled');
+            $filesList.prop('hidden', true);
+            if (ctx.dropZone) {
+                ctx.dropZone.classList.remove('is-filled');
             }
             return;
         }
 
-        $('#selected-files-list').prop('hidden', false);
-        if (dropZone) {
-            dropZone.classList.add('is-filled');
+        $filesList.prop('hidden', false);
+        if (ctx.dropZone) {
+            ctx.dropZone.classList.add('is-filled');
         }
 
         selectedFiles.forEach(function(file, index) {
@@ -83,11 +107,11 @@
                 .data('index', index);
 
             $item.append($name, $size, $remove);
-            listContainer.append($item);
+            $listContainer.append($item);
         });
     }
 
-    function addFiles(fileList) {
+    function addFiles(fileList, ctx) {
         if (!fileList || !fileList.length) {
             return;
         }
@@ -99,13 +123,13 @@
                 selectedFiles.push(file);
             }
         });
-        syncInputFiles();
-        displayFilesList();
+        syncInputFiles(ctx);
+        displayFilesList(ctx);
     }
 
-    function initDropZone() {
-        var dropZone = getDropZone();
-        var input = getFileInput();
+    function initDropZone(ctx) {
+        var dropZone = ctx && ctx.dropZone;
+        var input = ctx && ctx.input;
         if (!dropZone || !input) {
             return;
         }
@@ -134,7 +158,7 @@
         });
 
         input.addEventListener('change', function() {
-            addFiles(this.files);
+            addFiles(this.files, ctx);
             this.value = '';
         });
 
@@ -155,24 +179,28 @@
         });
 
         dropZone.addEventListener('drop', function(e) {
-            addFiles(e.dataTransfer && e.dataTransfer.files);
+            addFiles(e.dataTransfer && e.dataTransfer.files, ctx);
         });
     }
 
     $(document).on('click', '.tasks-files-list__item-remove', function() {
         var index = $(this).data('index');
         selectedFiles.splice(index, 1);
-        syncInputFiles();
-        displayFilesList();
+        var ctx = getFileContext();
+        syncInputFiles(ctx);
+        displayFilesList(ctx);
     });
 
     $(document).on('click', '.clear-files-btn', function() {
-        selectedFiles = [];
-        var input = getFileInput();
-        if (input) {
-            input.value = '';
+        var ctx = getFileContext();
+        if (!ctx || !ctx.form.contains(this)) {
+            return;
         }
-        displayFilesList();
+        selectedFiles = [];
+        if (ctx.input) {
+            ctx.input.value = '';
+        }
+        displayFilesList(ctx);
     });
 
     $(document).on('submit', '#task-form', function() {
@@ -181,17 +209,19 @@
         $btn.prop('disabled', true).addClass('form-loading');
     });
 
-    window.tasksCreateFormInit = function() {
+    window.tasksCreateFormInit = function(formEl) {
+        activeForm = resolveActiveForm(formEl);
+        var ctx = getFileContext(formEl);
         selectedFiles = [];
-        var input = getFileInput();
-        if (input) {
-            input.value = '';
+
+        if (ctx && ctx.input) {
+            ctx.input.value = '';
         }
-        var dropZone = getDropZone();
-        if (dropZone) {
-            delete dropZone.dataset.fileDropBound;
+        if (ctx && ctx.dropZone) {
+            delete ctx.dropZone.dataset.fileDropBound;
         }
-        displayFilesList();
-        initDropZone();
+
+        displayFilesList(ctx);
+        initDropZone(ctx);
     };
 })(jQuery);

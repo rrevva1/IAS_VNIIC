@@ -1,0 +1,99 @@
+/**
+ * AG Grid-страницы в каркасе arm-page (ПО, справочники и т.п.).
+ */
+
+.section-grid-page .section-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.5rem 0.75rem;
+    align-items: end;
+    margin: 0;
+    padding-top: 0.15rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.section-grid-page .section-filters__label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.section-grid-page.arm-page [id^="agGrid"] {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 240px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.section-grid-page [id^="agGrid"].ag-theme-quartz .ag-root-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 240px;
+}
+
+.section-grid-page [id^="agGrid"].ag-theme-quartz .ag-root-wrapper-body {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+}
+
+.section-grid-page [id^="agGrid"].ag-theme-quartz .ag-root {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.section-grid-page [id^="agGrid"].ag-theme-quartz .ag-body {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.section-grid-page [id^="agGrid"].ag-theme-quartz .ag-body-viewport.ag-layout-normal {
+    overflow-y: auto !important;
+}
+
+.section-grid-page [id^="agGrid"]:not(.arm-grid-loading) .arm-grid-loading__inner {
+    display: none;
+}
+
+.section-grid-page [id^="agGrid"].arm-grid-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+}
+
+.section-grid-page [id^="agGrid"].ag-theme-quartz {
+    --ag-font-size: 14px;
+    --ag-font-family: inherit;
+    --ag-row-height: 36px;
+    --ag-header-height: 48px;
+    --ag-grid-line-color: #cbd5e1;
+    --ag-border-color: var(--ag-grid-line-color);
+}
+
+.section-command-bar--stacked {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.section-command-bar__top {
+    display: grid;
+    grid-template-columns: minmax(200px, 280px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem 0.85rem;
+}
+
+@media (max-width: 767.98px) {
+    .section-command-bar__top {
+        grid-template-columns: 1fr;
+    }
+}

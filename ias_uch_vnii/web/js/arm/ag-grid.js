@@ -73,16 +73,14 @@
         generic: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
     };
 
-    function getViewUrl(id) {
-        var base = window.agGridArmViewUrl || (window.location.pathname.indexOf('index.php') >= 0
-            ? window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) + 'index.php'
-            : '/index.php');
-        if (base.indexOf('id=') === -1 && base.indexOf('arm/view') !== -1) {
-            var sep = base.indexOf('?') >= 0 ? '&' : '?';
-            return base + sep + 'id=' + encodeURIComponent(id);
+    function buildCardViewLink(id, innerHtml, extraClass, title) {
+        var cls = 'arm-link-to-card';
+        if (extraClass) {
+            cls += ' ' + extraClass;
         }
-        var sep = base.indexOf('?') >= 0 ? '&' : '?';
-        return base + sep + 'r=arm/view&id=' + encodeURIComponent(id);
+        var tit = title ? ' title="' + escapeHtml(title) + '"' : '';
+        return '<a href="#" class="' + cls + '" data-arm-view="' + encodeURIComponent(id) + '"' + tit + '>'
+            + innerHtml + '</a>';
     }
 
     function formatLinkedItemLabel(item) {
@@ -125,9 +123,7 @@
                 }
                 if (m && m.id) {
                     lines.push(
-                        '<a href="' + getViewUrl(m.id) + '" class="arm-link-to-card arm-monitor-link" title="' +
-                        escapeHtml(monitorLinkTitle(m)) + '">' +
-                        escapeHtml(label) + '</a>'
+                        buildCardViewLink(m.id, escapeHtml(label), 'arm-monitor-link', monitorLinkTitle(m))
                     );
                 } else {
                     lines.push(escapeHtml(label));
@@ -200,9 +196,7 @@
                 }
                 if (u && u.id) {
                     lines.push(
-                        '<a href="' + getViewUrl(u.id) + '" class="arm-link-to-card arm-ups-link" title="' +
-                        escapeHtml(upsLinkTitle(u)) + '">' +
-                        escapeHtml(label) + '</a>'
+                        buildCardViewLink(u.id, escapeHtml(label), 'arm-ups-link', upsLinkTitle(u))
                     );
                 } else {
                     lines.push(escapeHtml(label));
@@ -368,8 +362,7 @@
                 cellRenderer: function(params) {
                     if (!params.data || params.data.id == null) return params.value || '';
                     var text = params.value || '—';
-                    var url = getViewUrl(params.data.id);
-                    return '<a href="' + url + '" class="arm-link-to-card">' + escapeHtml(String(text)) + '</a>';
+                    return buildCardViewLink(params.data.id, escapeHtml(String(text)));
                 },
                 tooltipField: 'system_block',
             },
@@ -381,8 +374,7 @@
                 cellRenderer: function(params) {
                     if (!params.data || params.data.id == null) return params.value || '';
                     var text = params.value || '—';
-                    var url = getViewUrl(params.data.id);
-                    return '<a href="' + url + '" class="arm-link-to-card" title="Открыть карточку актива">' + escapeHtml(String(text)) + '</a>';
+                    return buildCardViewLink(params.data.id, escapeHtml(String(text)), '', 'Открыть карточку актива');
                 },
             },
             {

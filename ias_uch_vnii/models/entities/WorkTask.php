@@ -7,6 +7,7 @@ use Yii;
 use yii\behaviors\TimestampBehavior;
 use yii\db\ActiveRecord;
 use yii\db\Expression;
+use yii\web\UploadedFile;
 
 /**
  * Внутренняя задача (назначение исполнителю).
@@ -26,9 +27,13 @@ use yii\db\Expression;
  * @property string $created_at
  * @property string $updated_at
  * @property string $status_changed_at
+ * @property DeskAttachments[] $taskAttachments через work_task_attachments
  */
 class WorkTask extends ActiveRecord
 {
+    /** @var UploadedFile[]|null */
+    public $uploadFiles;
+
     public static function tableName()
     {
         return 'work_tasks';
@@ -61,6 +66,7 @@ class WorkTask extends ActiveRecord
             [['creator_id'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['creator_id' => 'id']],
             [['executor_id'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['executor_id' => 'id'], 'skipOnEmpty' => true],
             [['confirmed_by'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['confirmed_by' => 'id'], 'skipOnEmpty' => true],
+            [['uploadFiles'], 'file', 'skipOnEmpty' => true, 'extensions' => 'png, jpg, jpeg, gif, pdf, doc, docx, xls, xlsx, txt', 'maxFiles' => 10],
         ];
     }
 
@@ -78,6 +84,7 @@ class WorkTask extends ActiveRecord
             'created_at' => 'Создана',
             'updated_at' => 'Обновлена',
             'status_changed_at' => 'В колонке с',
+            'uploadFiles' => 'Файлы',
         ];
     }
 
@@ -127,6 +134,31 @@ class WorkTask extends ActiveRecord
         $name = $author ? trim((string) $author->full_name) : '';
 
         return $name !== '' ? $name : '—';
+    }
+
+    /**
+     * Телефон для обратной связи из связанной заявки.
+     */
+    public function getRequestContactPhone(): ?string
+    {
+        if (!$this->isLinkedToRequest()) {
+            return null;
+        }
+
+        if ($this->isRelationPopulated('requestTask') && $this->requestTask !== null) {
+            $phone = trim((string) $this->requestTask->contact_phone);
+
+            return $phone !== '' ? $phone : null;
+        }
+
+        $request = Tasks::findOne((int) $this->request_task_id);
+        if ($request === null) {
+            return null;
+        }
+
+        $phone = trim((string) $request->contact_phone);
+
+        return $phone !== '' ? $phone : null;
     }
 
     public function isLinkedToRequest(): bool
@@ -210,6 +242,79 @@ class WorkTask extends ActiveRecord
             ->orderBy(['created_at' => SORT_ASC, 'id' => SORT_ASC]);
     }
 
+    /**
+     * Вложения через таблицу work_task_attachments.
+     */
+    public function getTaskAttachments()
+    {
+        return $this->hasMany(DeskAttachments::class, ['id' => 'attachment_id'])
+            ->viaTable('work_task_attachments', ['work_task_id' => 'id']);
+    }
+
+    public function getAllAttachments(): array
+    {
+        return $this->getTaskAttachments()->all();
+    }
+
+    public function addAttachment(int $attachmentId): void
+    {
+        if ($attachmentId <= 0 || !$this->id) {
+            return;
+        }
+        $exists = WorkTaskAttachments::find()
+            ->where(['work_task_id' => $this->id, 'attachment_id' => $attachmentId])
+            ->exists();
+        if ($exists) {
+            return;
+        }
+        $link = new WorkTaskAttachments();
+        $link->work_task_id = (int) $this->id;
+        $link->attachment_id = $attachmentId;
+        $link->linked_by = Yii::$app->user->isGuest ? null : (int) Yii::$app->user->id;
+        $link->linked_at = date('Y-m-d H:i:s');
+        $link->save(false);
+    }
+
+    /**
+     * Сохраняет выбранные в форме файлы и привязывает к задаче.
+     */
+    public function persistUploadFiles(): bool
+    {
+        if (empty($this->uploadFiles) || !is_array($this->uploadFiles)) {
+            return true;
+        }
+
+        $uploadDir = Yii::getAlias('@webroot/uploads/work_tasks/');
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        foreach ($this->uploadFiles as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+            $fileName = time() . '_' . uniqid() . '_' . $file->baseName . '.' . $file->extension;
+            $relativePath = '/uploads/work_tasks/' . $fileName;
+            $fullPath = Yii::getAlias('@webroot') . $relativePath;
+            if (!$file->saveAs($fullPath)) {
+                continue;
+            }
+            $att = new DeskAttachments();
+            $att->storage_path = $relativePath;
+            $att->original_name = $file->baseName . '.' . $file->extension;
+            $att->file_extension = $file->extension;
+            $att->mime_type = $file->type;
+            $att->size_bytes = (int) $file->size;
+            $att->uploaded_by = Yii::$app->user->isGuest ? null : (int) Yii::$app->user->id;
+            $att->uploaded_at = date('Y-m-d H:i:s');
+            if ($att->save(false)) {
+                $this->addAttachment((int) $att->id);
+            }
+        }
+
+        return true;
+    }
+
     public function getStatusCode(): string
     {
         if (!$this->status_id) {
@@ -273,11 +378,19 @@ class WorkTask extends ActiveRecord
 
     public function getTimeInStatusLabel(): string
     {
+        if (!$this->showsTimeInColumn()) {
+            return '';
+        }
+
         return self::formatDuration($this->getTimeInStatusSeconds());
     }
 
     public function getTimeInStatusTitle(): string
     {
+        if (!$this->showsTimeInColumn()) {
+            return '';
+        }
+
         $statusName = $this->status ? $this->status->getDisplayName() : 'статусе';
         $since = Yii::$app->formatter->asDatetime(
             $this->status_changed_at ?: $this->created_at,
@@ -285,5 +398,157 @@ class WorkTask extends ActiveRecord
         );
 
         return 'В колонке «' . $statusName . '» с ' . $since;
+    }
+
+    /**
+     * Для активных статусов показывается длительность в колонке; для выполненных/закрытых — дата события.
+     */
+    public function showsTimeInColumn(): bool
+    {
+        return $this->getCompletionEventMeta() === null;
+    }
+
+    /**
+     * @return array{label: string, at: string|null}|null
+     */
+    public function getCompletionEventMeta(): ?array
+    {
+        $code = $this->getStatusCode();
+
+        if ($code === DicWorkTaskStatus::CODE_PENDING_REVIEW) {
+            return [
+                'label' => 'Выполнена',
+                'at' => $this->submitted_at ?: $this->status_changed_at ?: $this->updated_at,
+            ];
+        }
+        if ($code === DicWorkTaskStatus::CODE_DONE) {
+            return [
+                'label' => 'Закрыта',
+                'at' => $this->confirmed_at ?: $this->status_changed_at ?: $this->updated_at,
+            ];
+        }
+        if ($code === DicWorkTaskStatus::CODE_CANCELLED) {
+            return [
+                'label' => 'Отменена',
+                'at' => $this->status_changed_at ?: $this->updated_at,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Подпись времени на карточке канбана: таймер в работе или дата завершения/закрытия.
+     *
+     * @return array{label: string, title: string, is_completion: bool}
+     */
+    public function getCardTimeMeta(): array
+    {
+        $event = $this->getCompletionEventMeta();
+        if ($event !== null) {
+            $at = $event['at'] ?? null;
+            if ($at !== null && trim((string) $at) !== '') {
+                return $this->buildCardCompletionMeta((string) $at, $event['label']);
+            }
+
+            return [
+                'label' => '—',
+                'title' => $event['label'],
+                'is_completion' => true,
+            ];
+        }
+
+        return [
+            'label' => $this->getTimeInStatusLabel(),
+            'title' => $this->getTimeInStatusTitle(),
+            'is_completion' => false,
+        ];
+    }
+
+    /**
+     * @return array{label: string, title: string, is_completion: bool}
+     */
+    private function buildCardCompletionMeta(string $at, string $eventLabel): array
+    {
+        $formatted = Yii::$app->formatter->asDatetime($at, 'php:d.m.Y, H:i');
+
+        return [
+            'label' => $formatted,
+            'title' => $eventLabel . ': ' . $formatted,
+            'is_completion' => true,
+        ];
+    }
+
+    /**
+     * Хронология для списка закрытых задач (от старых событий к новым).
+     *
+     * @return array<int, array{at: string, time: string, title: string, note: string|null, user: string|null}>
+     */
+    public function getHistoryTimelineEntries(int $limit = 10): array
+    {
+        $eventLabels = [
+            'created' => 'Создание',
+            'created_from_request' => 'Создание по заявке',
+            'assign_executor' => 'Назначение исполнителя',
+            'status_change' => 'Смена статуса',
+            'comment' => 'Комментарий',
+            'deleted' => 'Удаление',
+        ];
+
+        if ($this->isRelationPopulated('history')) {
+            $rows = array_values($this->history);
+            usort($rows, static function (WorkTaskHistory $a, WorkTaskHistory $b): int {
+                $cmp = strcmp((string) $a->changed_at, (string) $b->changed_at);
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+
+                return $a->id <=> $b->id;
+            });
+            if (count($rows) > $limit) {
+                $rows = array_slice($rows, -$limit);
+            }
+        } else {
+            $rows = $this->getHistory()
+                ->with(['changedByUser', 'oldStatus', 'newStatus'])
+                ->orderBy(['changed_at' => SORT_ASC, 'id' => SORT_ASC])
+                ->limit($limit)
+                ->all();
+        }
+
+        $entries = [];
+        foreach ($rows as $row) {
+            if (!$row instanceof WorkTaskHistory) {
+                continue;
+            }
+
+            $note = null;
+            if ($row->event_type === 'status_change') {
+                if ($row->oldStatus && $row->newStatus) {
+                    $note = $row->oldStatus->getDisplayName() . ' → ' . $row->newStatus->getDisplayName();
+                } elseif ($row->newStatus) {
+                    $note = $row->newStatus->getDisplayName();
+                }
+            } elseif ($row->event_type === 'comment' && trim((string) $row->comment) !== '') {
+                $text = trim((string) $row->comment);
+                $note = mb_strlen($text) > 100 ? mb_substr($text, 0, 100) . '…' : $text;
+            }
+
+            $userName = null;
+            if ($row->changedByUser) {
+                $name = trim((string) $row->changedByUser->full_name);
+                $userName = $name !== '' ? $name : null;
+            }
+
+            $entries[] = [
+                'at' => (string) $row->changed_at,
+                'time' => Yii::$app->formatter->asDatetime($row->changed_at, 'php:d.m.Y, H:i'),
+                'title' => $eventLabels[$row->event_type] ?? $row->event_type,
+                'note' => $note,
+                'user' => $userName,
+            ];
+        }
+
+        return $entries;
     }
 }

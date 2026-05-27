@@ -170,6 +170,53 @@
         return String(opt.value).trim();
     }
 
+    function loadArmFormConfig() {
+        var templates = window.armFormFieldTemplates;
+        var chars = window.armFormChars || {};
+        var orgTech = window.armFormOrgTech || {};
+        if (templates && typeof templates === 'object' && Object.keys(templates).length > 0) {
+            return { templates: templates, chars: chars, orgTech: orgTech };
+        }
+        var node = document.getElementById('arm-form-config-json');
+        if (!node || !node.value) {
+            return { templates: {}, chars: {}, orgTech: {} };
+        }
+        try {
+            var data = JSON.parse(node.value);
+            if (data.templates) {
+                window.armFormFieldTemplates = data.templates;
+            }
+            if (data.chars) {
+                window.armFormChars = data.chars;
+            }
+            if (data.orgTech) {
+                window.armFormOrgTech = data.orgTech;
+            }
+            return {
+                templates: data.templates || {},
+                chars: data.chars || {},
+                orgTech: data.orgTech || {},
+            };
+        } catch (err) {
+            return { templates: {}, chars: {}, orgTech: {} };
+        }
+    }
+
+    function resolveTemplateFields(templates, type) {
+        var key = String(type || '').trim();
+        if (!key) {
+            return null;
+        }
+        if (templates[key]) {
+            return templates[key];
+        }
+        var lower = key.toLowerCase();
+        var foundKey = Object.keys(templates).find(function(k) {
+            return String(k).trim().toLowerCase() === lower;
+        });
+        return foundKey ? templates[foundKey] : null;
+    }
+
     function createDynamicFieldWrapper() {
         var div = document.createElement('div');
         div.className = 'arm-dynamic-field';
@@ -267,9 +314,10 @@
     }
 
     function renderFields(type) {
-        var templates = window.armFormFieldTemplates || {};
-        var chars = window.armFormChars || {};
-        var fields = templates[type];
+        var cfg = loadArmFormConfig();
+        var templates = cfg.templates;
+        var chars = cfg.chars;
+        var fields = resolveTemplateFields(templates, type);
         var block = document.getElementById('dynamic-fields-block');
         var content = document.getElementById('dynamic-fields-content');
         if (!block || !content) {
@@ -277,6 +325,7 @@
         }
         if (!type || !fields || fields.length === 0) {
             block.classList.add('d-none');
+            block.classList.remove('arm-form-create__config-visible');
             content.innerHTML = '';
             toggleDescriptionSection(type);
             return;
@@ -318,26 +367,30 @@
             }
         });
         block.classList.remove('d-none');
+        block.classList.add('arm-form-create__config-visible');
         toggleDescriptionSection(type);
     }
 
-    function init() {
-        var sel = document.getElementById('equipment-type-select');
+    function syncFormForSelect(sel) {
         if (!sel) {
             return;
         }
-        var currentType = getSelectedType(sel);
-        if (currentType) {
-            renderFields(currentType);
-        } else {
-            var block = document.getElementById('dynamic-fields-block');
-            if (block) {
-                block.classList.add('d-none');
+        renderFields(getSelectedType(sel));
+    }
+
+    function init() {
+        syncFormForSelect(document.getElementById('equipment-type-select'));
+    }
+
+    window.armInitEquipmentCreateForm = init;
+
+    if (!document.documentElement.dataset.armFormDynamicBound) {
+        document.documentElement.dataset.armFormDynamicBound = '1';
+        document.addEventListener('change', function(e) {
+            if (!e.target || e.target.id !== 'equipment-type-select') {
+                return;
             }
-            toggleDescriptionSection('');
-        }
-        sel.addEventListener('change', function() {
-            renderFields(getSelectedType(this));
+            renderFields(getSelectedType(e.target));
         });
     }
 

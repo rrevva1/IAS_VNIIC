@@ -17,7 +17,7 @@ $this->params['breadcrumbs'][] = $this->title;
 TasksAsset::register($this);
 
 // Передача URL для AJAX запросов в JavaScript
-$this->registerJs("var statusChangeUrl = '" . Url::to(['change-status', 'id' => $model->id]) . "'; var executorChangeUrl = '" . Url::to(['assign-executor', 'id' => $model->id]) . "';", \yii\web\View::POS_HEAD);
+$this->registerJs("var executorChangeUrl = '" . Url::to(['assign-executor', 'id' => $model->id]) . "';", \yii\web\View::POS_HEAD);
 
 $statusBadgeMap = [
     'new' => 'bg-success',
@@ -184,15 +184,6 @@ $statusBadgeMap = [
 
     <div class="tasks-panel">
     <div class="row g-3">
-        <div class="col-md-6">
-            <h4 class="tasks-panel__title"><i class="fas fa-flag" aria-hidden="true"></i> Изменить статус</h4>
-            <?= Html::dropDownList('status_change', $model->status_id, 
-                \app\models\dictionaries\DicTaskStatus::getStatusList(), [
-                'class' => 'form-control',
-                'id' => 'status-change',
-                'prompt' => 'Выберите статус...'
-            ]) ?>
-        </div>
         <div class="col-md-6">
             <h4 class="tasks-panel__title"><i class="fas fa-user-check" aria-hidden="true"></i> Исполнитель</h4>
             <?php

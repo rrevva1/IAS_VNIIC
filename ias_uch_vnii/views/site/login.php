@@ -17,12 +17,10 @@ $this->title = 'Вход в систему';
                 <i class="fas fa-desktop"></i>
             </div>
             <p class="login-card__app-name"><?= Html::encode(Yii::$app->name) ?></p>
-            <p class="login-card__subtitle">Информационно-аналитическая система учёта технических средств</p>
         </div>
 
         <div class="login-card__body">
             <h1 class="login-card__heading">Вход в систему</h1>
-            <p class="login-card__hint">Введите email или логин и пароль, выданные администратором</p>
 
             <?php $form = ActiveForm::begin([
                 'id' => 'login-form',

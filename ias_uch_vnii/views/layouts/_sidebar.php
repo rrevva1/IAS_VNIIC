@@ -105,7 +105,7 @@ $homeUrl = !$isGuest && Yii::$app->user->identity
                 <?= $renderSection('Учёт') ?>
                 <?php if ($canAccessArm): ?>
                 <li class="sidebar-nav__item">
-                    <?= $renderLink('fas fa-desktop', 'Учет ТС', ['/arm/index'], ['arm/index', 'arm/view', 'arm/create', 'arm/update']) ?>
+                    <?= $renderLink('fas fa-desktop', 'Учет ТС', ['/arm/index'], ['arm/index', 'arm/view', 'arm/update']) ?>
                 </li>
                 <?php endif; ?>
                 <li class="sidebar-nav__item">

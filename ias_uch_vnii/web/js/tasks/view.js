@@ -8,46 +8,9 @@ $(document).ready(function() {
     initTasksView();
     
     function initTasksView() {
-        initStatusChange();
         initExecutorChange();
         initImageModal();
         initAttachmentCards();
-    }
-    
-    // Обработчик изменения статуса
-    function initStatusChange() {
-        $('#status-change').on('change', function() {
-            var statusId = $(this).val();
-            var $select = $(this);
-            
-            if (statusId) {
-                // Показываем индикатор загрузки
-                $select.prop('disabled', true);
-                var originalValue = $select.val();
-                
-                $.post(statusChangeUrl, {
-                    status_id: statusId
-                })
-                .done(function(data) {
-                    if (data.success) {
-                        showNotification('Статус успешно изменен', 'success');
-                        setTimeout(function() {
-                            location.reload();
-                        }, 1000);
-                    } else {
-                        showNotification('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 'error');
-                        $select.val(originalValue);
-                    }
-                })
-                .fail(function() {
-                    showNotification('Ошибка соединения с сервером', 'error');
-                    $select.val(originalValue);
-                })
-                .always(function() {
-                    $select.prop('disabled', false);
-                });
-            }
-        });
     }
     
     // Обработчик изменения исполнителя

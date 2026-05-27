@@ -13,7 +13,7 @@ use yii\widgets\ActiveForm;
         'options' => [
             'enctype' => 'multipart/form-data',
             'id' => 'task-form',
-            'class' => 'task-create-form',
+            'class' => 'task-create-form tasks-create-form',
         ],
     ]); ?>
 
@@ -47,35 +47,12 @@ use yii\widgets\ActiveForm;
         <p class="tasks-create-form__hint">Укажите номер, если удобнее связаться по телефону</p>
     </div>
 
-    <div class="tasks-create-form__section">
-        <span class="tasks-create-form__label">
-            <i class="fas fa-paperclip" aria-hidden="true"></i>
-            Вложения <span class="tasks-create-form__optional">(необязательно)</span>
-        </span>
-
-        <div class="tasks-file-drop" id="tasks-file-drop" role="button" tabindex="0" aria-label="Выбрать файлы">
-            <div class="tasks-file-drop__icon" aria-hidden="true">
-                <i class="fas fa-cloud-arrow-up"></i>
-            </div>
-            <p class="tasks-file-drop__title">Перетащите файлы сюда или нажмите для выбора</p>
-            <p class="tasks-file-drop__formats">Изображения, PDF, Word, Excel, текст — до 10 файлов</p>
-            <?= $form->field($model, 'uploadFiles', ['options' => ['class' => 'mb-0 tasks-file-drop__field']])->fileInput([
-                'multiple' => true,
-                'accept' => 'image/*,application/pdf,.doc,.docx,.xls,.xlsx,.txt',
-                'class' => 'tasks-file-drop__input',
-                'id' => 'file-input-tasks',
-                'name' => 'Tasks[uploadFiles][]',
-            ])->label(false) ?>
-        </div>
-
-        <div id="selected-files-list" class="tasks-files-list" hidden>
-            <div class="tasks-files-list__head">
-                <strong>Выбранные файлы</strong>
-                <button type="button" class="btn btn-sm btn-link text-danger clear-files-btn p-0">Очистить все</button>
-            </div>
-            <ul id="files-list-container" class="tasks-files-list__items"></ul>
-        </div>
-    </div>
+    <?= $this->render('_form_attachments', [
+        'form' => $form,
+        'model' => $model,
+        'inputName' => 'Tasks[uploadFiles][]',
+        'inputId' => 'file-input-tasks',
+    ]) ?>
 
     <div class="tasks-create-form__footer">
         <button type="button" class="btn btn-outline-secondary tasks-tool-btn btn-cancel" data-bs-dismiss="modal">

@@ -7,7 +7,6 @@ let gridApi;
 let gridOptions;
 let isAdmin = false;
 let allUsers = [];
-let allStatuses = [];
 let previewModalInstance = null;
 
 /**
@@ -175,8 +174,6 @@ function initializeAgGrid() {
     // Проверяем, является ли пользователь администратором
     isAdmin = window.isUserAdmin || false;
     allUsers = window.taskExecutorsList || window.allUsersList || {};
-    allStatuses = window.allStatusList || {};
-    
     const gridDiv = document.querySelector('#agGridTasksContainer');
     if (!gridDiv) {
         console.error('AG Grid: Контейнер #agGridTasksContainer не найден в DOM!');
@@ -222,7 +219,9 @@ function initializeAgGrid() {
         paginationPageSize: 20,
         paginationPageSizeSelector: [10, 20, 50, 100],
         domLayout: 'normal',
-        
+        suppressCellFocus: true,
+        enableCellTextSelection: false,
+
         // Локализация
         localeText: {
             page: 'Страница',
@@ -518,39 +517,19 @@ function getColumnDefinitions() {
         tooltipField: 'description',
     });
     
-    // Статус
-    if (isAdmin) {
-        columns.push({
-            headerName: 'Статус',
-            field: 'status_name',
-            minWidth: 130,
-            maxWidth: 220,
-            filter: 'agTextColumnFilter',
-            cellRenderer: function(params) {
-                const statusId = params.data.status_id;
-                const code = params.data.status_code || '';
-
-                return `<select class="form-select form-select-sm status-change-ag tasks-grid-select" 
-                    data-task-id="${params.data.id}" 
-                    data-status-code="${escapeHtml(code)}">
-                    ${Object.entries(allStatuses).map(([id, name]) => 
-                        `<option value="${id}" ${id == statusId ? 'selected' : ''}>${escapeHtml(name)}</option>`
-                    ).join('')}
-                </select>`;
+    columns.push({
+        headerName: 'Статус',
+        field: 'status_name',
+        minWidth: 120,
+        maxWidth: 200,
+        filter: 'agTextColumnFilter',
+        cellRenderer: function(params) {
+            if (!params.data) {
+                return '';
             }
-        });
-    } else {
-        columns.push({
-            headerName: 'Статус',
-            field: 'status_name',
-            minWidth: 120,
-            maxWidth: 200,
-            filter: 'agTextColumnFilter',
-            cellRenderer: function(params) {
-                return renderTaskStatusBadge(params.data.status_code, params.value);
-            },
-        });
-    }
+            return renderTaskStatusBadge(params.data.status_code, params.value);
+        },
+    });
     
     // Автор
     columns.push({
@@ -566,10 +545,11 @@ function getColumnDefinitions() {
         columns.push({
             headerName: 'Исполнитель',
             field: 'executor_name',
-            minWidth: 150,
-            maxWidth: 260,
+            minWidth: 220,
+            maxWidth: 360,
             filter: 'agTextColumnFilter',
             cellRenderer: renderExecutorCell,
+            cellClass: 'tasks-executor-cell',
         });
     } else {
         columns.push({
@@ -703,7 +683,7 @@ function getColumnDefinitions() {
 function initExecutorUserSelectsInGrid() {
     var container = document.getElementById('agGridTasksContainer');
     if (container && window.IasUserSelect) {
-        window.IasUserSelect.init(container);
+        window.IasUserSelect.init(container, { force: true });
     }
 }
 
@@ -833,14 +813,7 @@ function setupEventHandlers() {
         return;
     }
     
-    // Обработчик изменений (статус, исполнитель)
     document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('status-change-ag')) {
-            const taskId = e.target.dataset.taskId;
-            const statusId = e.target.value;
-            changeTaskStatus(taskId, statusId);
-        }
-        
         if (e.target.classList.contains('executor-change-ag')) {
             const taskId = e.target.dataset.taskId;
             const executorId = e.target.value;
@@ -887,29 +860,6 @@ function getCsrfToken() {
         return metaTag.getAttribute('content');
     }
     return '';
-}
-
-/**
- * Изменение статуса задачи
- */
-function changeTaskStatus(taskId, statusId) {
-    const formData = new FormData();
-    formData.append('status_id', statusId);
-    formData.append('_csrf', getCsrfToken());
-    
-    const url = `/index.php?r=tasks/change-status&id=${taskId}`;
-    fetch(url, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        loadGridData();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        loadGridData();
-    });
 }
 
 /**

@@ -146,30 +146,30 @@
     }
 
     function createGrid(container, dataUrl, columnDefs) {
-        container.innerHTML = '';
-        if (typeof agGrid === 'undefined') {
-            container.innerHTML = '<p class="text-muted">Загрузка таблицы...</p>';
+        var utils = window.SectionGridUtils;
+        if (!utils || !utils.prepareContainer(container)) {
             return;
         }
-        var gridApi;
         var gridOpts = {
             columnDefs: columnDefs,
-            defaultColDef: { sortable: true, filter: true, resizable: true },
+            theme: 'legacy',
+            defaultColDef: utils.mergeDefaultColDef(),
             pagination: true,
             paginationPageSize: 20,
-            paginationPageSizeSelector: [10, 20, 50, 100],
+            paginationPageSizeSelector: [10, 20, 50, 100, 500],
             domLayout: 'normal',
             getRowHeight: function() { return 36; },
             localeText: localeTextRu,
+            sideBar: 'columns',
             onGridReady: function(params) {
-                gridApi = params.api;
+                utils.registerApi(container.id, params.api);
                 fetch(dataUrl)
                     .then(function(r) { return r.json(); })
                     .then(function(result) {
                         if (result && result.success && result.data) {
-                            gridApi.setGridOption('rowData', result.data);
+                            params.api.setGridOption('rowData', result.data);
                         } else {
-                            gridApi.setGridOption('rowData', []);
+                            params.api.setGridOption('rowData', []);
                         }
                     })
                     .catch(function(err) { console.error('AG Grid (справочник): ошибка загрузки', err); });

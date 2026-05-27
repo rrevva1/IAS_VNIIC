@@ -7,13 +7,17 @@
     window.__workTasksCreateInit = true;
 
     var modalEl = document.getElementById('workTaskCreateModal');
-    var form = document.getElementById('workTaskCreateForm');
-    if (!modalEl || !form) {
+    if (!modalEl) {
+        return;
+    }
+
+    var form = modalEl.querySelector('#workTaskCreateForm');
+    if (!form) {
         return;
     }
 
     var errorBox = document.getElementById('workTaskCreateFormError');
-    var submitBtn = document.getElementById('workTaskCreateSubmit');
+    var submitBtn = modalEl.querySelector('#workTaskCreateSubmit');
     var modalInstance = null;
     var isSubmitting = false;
 
@@ -57,8 +61,34 @@
         });
     }
 
+    function syncCreateModalTitle() {
+        var titleInput = form.querySelector('[name="WorkTask[title]"]');
+        var labelEl = document.getElementById('workTaskCreateModalLabel');
+        if (!labelEl || !titleInput) {
+            return;
+        }
+        var title = (titleInput.value || '').trim();
+        labelEl.innerHTML = title
+            ? '<i class="fas fa-plus" aria-hidden="true"></i> ' + escapeHtml(title)
+            : '<i class="fas fa-plus" aria-hidden="true"></i> Новая задача';
+    }
+
+    function escapeHtml(text) {
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function initFileDrop() {
+        if (typeof window.tasksCreateFormInit === 'function') {
+            window.tasksCreateFormInit(form);
+        }
+    }
+
     function openModal() {
         clearError();
+        initFileDrop();
+        syncCreateModalTitle();
         var m = getModal();
         if (m) {
             m.show();
@@ -72,9 +102,24 @@
         });
     });
 
+    modalEl.addEventListener('shown.bs.modal', function() {
+        initFileDrop();
+        var titleInput = form.querySelector('[name="WorkTask[title]"]');
+        if (titleInput) {
+            titleInput.focus();
+        }
+    });
+
+    modalEl.addEventListener('input', function(e) {
+        if (e.target && e.target.getAttribute('name') === 'WorkTask[title]') {
+            syncCreateModalTitle();
+        }
+    });
+
     modalEl.addEventListener('hidden.bs.modal', function() {
         clearError();
         form.reset();
+        initFileDrop();
         isSubmitting = false;
         if (submitBtn) {
             submitBtn.disabled = false;

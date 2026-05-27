@@ -1,0 +1,121 @@
+/**
+ * «Журнал аудита» — каркас как у «Учёт ТС».
+ */
+
+.audit-command-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.audit-command-bar__top {
+    display: grid;
+    grid-template-columns: minmax(200px, 280px) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem 0.85rem;
+}
+
+.audit-filters {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem 0.75rem;
+    align-items: end;
+    margin: 0;
+    padding-top: 0.15rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.audit-filters__field {
+    min-width: 0;
+}
+
+.audit-filters__field--wide {
+    grid-column: span 1;
+}
+
+.audit-filters__label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+}
+
+.audit-page.arm-page #agGridAuditContainer {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 240px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.audit-page #agGridAuditContainer.ag-theme-quartz .ag-root-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 240px;
+}
+
+.audit-page #agGridAuditContainer.ag-theme-quartz .ag-root-wrapper-body {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+}
+
+.audit-page #agGridAuditContainer.ag-theme-quartz .ag-root {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.audit-page #agGridAuditContainer.ag-theme-quartz .ag-body {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.audit-page #agGridAuditContainer.ag-theme-quartz .ag-body-viewport.ag-layout-normal {
+    overflow-y: auto !important;
+}
+
+.audit-page #agGridAuditContainer:not(.arm-grid-loading) .arm-grid-loading__inner {
+    display: none;
+}
+
+.audit-page #agGridAuditContainer.arm-grid-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+}
+
+.audit-page #agGridAuditContainer.ag-theme-quartz {
+    --ag-font-size: 14px;
+    --ag-font-family: inherit;
+    --ag-row-height: 36px;
+    --ag-header-height: 48px;
+    --ag-grid-line-color: #cbd5e1;
+    --ag-border-color: var(--ag-grid-line-color);
+}
+
+@media (max-width: 1199.98px) {
+    .audit-filters {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .audit-command-bar__top {
+        grid-template-columns: 1fr;
+    }
+
+    .audit-command-bar__tools {
+        justify-content: flex-start;
+    }
+
+    .audit-filters {
+        grid-template-columns: 1fr 1fr;
+    }
+}

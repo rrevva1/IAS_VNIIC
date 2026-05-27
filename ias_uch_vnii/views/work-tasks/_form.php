@@ -5,7 +5,6 @@ use yii\widgets\ActiveForm;
 
 /** @var app\models\entities\WorkTask $model */
 /** @var array $executors */
-/** @var array $requests */
 ?>
 
 <?php $form = ActiveForm::begin(['options' => ['class' => 'work-tasks-form']]); ?>
@@ -14,7 +13,6 @@ use yii\widgets\ActiveForm;
     'form' => $form,
     'model' => $model,
     'executors' => $executors,
-    'requests' => $requests,
 ]) ?>
 
 <div class="d-flex gap-2">

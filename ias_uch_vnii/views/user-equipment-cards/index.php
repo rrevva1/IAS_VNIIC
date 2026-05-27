@@ -4,67 +4,79 @@ use app\assets\UserEquipmentCardsGridAsset;
 use yii\helpers\Html;
 use yii\helpers\Url;
 
+/** @var yii\web\View $this */
+/** @var string $tab */
+/** @var string|null $q */
+
 UserEquipmentCardsGridAsset::register($this);
 
+$tab = $tab ?? 'all';
+$q = $q ?? '';
+
 $this->title = 'Карточки пользователей';
-$this->params['breadcrumbs'][] = $this->title;
+$this->params['breadcrumbs'] = [];
 ?>
-<div class="user-equipment-cards-index">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="mb-0"><?= Html::encode($this->title) ?></h1>
+<div class="arm-page user-equipment-cards-page">
+    <header class="arm-page__header">
+        <div class="arm-page__heading">
+            <h1 class="arm-page__title"><?= Html::encode($this->title) ?></h1>
+        </div>
+    </header>
+
+    <div class="arm-command-bar" role="region" aria-label="Поиск и фильтры">
+        <div class="arm-search">
+            <label class="visually-hidden" for="uecQuickFilter">Поиск по таблице</label>
+            <i class="fas fa-search arm-search__icon" aria-hidden="true"></i>
+            <input type="search" id="uecQuickFilter" class="form-control arm-search__input"
+                   placeholder="Поиск" autocomplete="off"
+                   value="<?= Html::encode($q) ?>">
+            <button type="button" class="arm-search__clear" id="uecQuickFilterClear"
+                    aria-label="Очистить поиск" title="Очистить поиск"<?= $q === '' ? ' hidden' : '' ?>>×</button>
+        </div>
+
+        <div class="arm-command-bar__tabs" role="tablist" aria-label="Фильтр карточек">
+            <ul class="nav nav-tabs arm-type-tabs">
+                <li class="nav-item">
+                    <a class="nav-link arm-type-tab uec-type-tab<?= $tab === 'all' ? ' active' : '' ?>"
+                       href="#" role="tab" data-tab="all"
+                       aria-selected="<?= $tab === 'all' ? 'true' : 'false' ?>">Все карточки</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link arm-type-tab uec-type-tab<?= $tab === 'unsigned' ? ' active' : '' ?>"
+                       href="#" role="tab" data-tab="unsigned"
+                       aria-selected="<?= $tab === 'unsigned' ? 'true' : 'false' ?>">Неподписанные</a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="arm-command-bar__tools">
+            <?= Html::button('<i class="fas fa-arrows-rotate" aria-hidden="true"></i><span class="arm-btn-label">Обновить</span>', [
+                'class' => 'btn btn-outline-secondary arm-tool-btn',
+                'type' => 'button',
+                'id' => 'uecRefreshGrid',
+                'title' => 'Перезагрузить данные',
+            ]) ?>
+        </div>
     </div>
 
-    <form method="get" action="<?= Url::to(['user-equipment-cards/index']) ?>" class="card card-body mb-3">
-        <input type="hidden" name="r" value="user-equipment-cards/index">
-        <input type="hidden" name="tab" value="<?= Html::encode($tab) ?>">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-9">
-                <label class="form-label">Поиск пользователя</label>
-                <input
-                    type="text"
-                    class="form-control"
-                    name="q"
-                    value="<?= Html::encode($q ?? '') ?>"
-                    placeholder="ФИО, логин или email"
-                >
+    <div class="arm-grid-card">
+        <div id="agGridUserEquipmentCardsContainer" class="ag-theme-quartz arm-grid-loading">
+            <div class="arm-grid-loading__inner">
+                <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                <p>Загрузка таблицы…</p>
             </div>
-            <div class="col-md-3 d-flex gap-2">
-                <button type="submit" class="btn btn-primary">Найти</button>
-                <a href="<?= Url::to(['user-equipment-cards/index', 'tab' => $tab]) ?>" class="btn btn-outline-secondary">Сброс</a>
-            </div>
-        </div>
-    </form>
-
-    <ul class="nav nav-tabs mb-3">
-        <li class="nav-item">
-            <a class="nav-link <?= $tab === 'all' ? 'active' : '' ?>" href="<?= Url::to(['user-equipment-cards/index', 'tab' => 'all', 'q' => ($q ?? '')]) ?>">Все карточки</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link <?= $tab === 'unsigned' ? 'active' : '' ?>" href="<?= Url::to(['user-equipment-cards/index', 'tab' => 'unsigned', 'q' => ($q ?? '')]) ?>">Неподписанные</a>
-        </li>
-    </ul>
-
-    <div
-        id="agGridUserEquipmentCardsContainer"
-        class="ag-theme-quartz"
-        style="width: 100%; height: calc(100vh - 320px); min-height: 480px;"
-    >
-        <div class="text-center p-4 text-muted">
-            <span class="glyphicon glyphicon-refresh glyphicon-spin"></span>
-            <p>Загрузка карточек...</p>
         </div>
     </div>
 </div>
 
 <?php
 $this->registerJs(
-    "window.userEquipmentCardsDataUrl = " . json_encode(Url::to(['user-equipment-cards/get-grid-data'])) . ";"
-    . "window.userEquipmentCardsTab = " . json_encode((string) ($tab ?? 'all')) . ";"
-    . "window.userEquipmentCardsSearch = " . json_encode((string) ($q ?? '')) . ";"
-    . "window.userEquipmentCardsDefaultLimit = 20;"
-    . "window.userEquipmentCardsCsrfParam = " . json_encode(Yii::$app->request->csrfParam) . ";"
-    . "window.userEquipmentCardsCsrfToken = " . json_encode(Yii::$app->request->csrfToken) . ";",
+    'window.userEquipmentCardsDataUrl = ' . json_encode(Url::to(['user-equipment-cards/get-grid-data'])) . ';'
+    . 'window.userEquipmentCardsTab = ' . json_encode((string) $tab) . ';'
+    . 'window.userEquipmentCardsSearch = ' . json_encode((string) $q) . ';'
+    . 'window.userEquipmentCardsDefaultLimit = 20;'
+    . 'window.userEquipmentCardsCsrfParam = ' . json_encode(Yii::$app->request->csrfParam) . ';'
+    . 'window.userEquipmentCardsCsrfToken = ' . json_encode(Yii::$app->request->csrfToken) . ';',
     \yii\web\View::POS_HEAD
 );
 ?>
-

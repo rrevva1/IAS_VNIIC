@@ -44,7 +44,7 @@ class ArmController extends Controller
                 'class' => AccessControl::class,
                 'rules' => [
                     [
-                        'actions' => ['create', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'user-primary-location', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
+                        'actions' => ['create', 'create-modal', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'user-primary-location', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function () {
@@ -483,46 +483,116 @@ class ArmController extends Controller
         return $result;
     }
 
+    /**
+     * @deprecated Используйте модальное окно на странице списка (actionCreateModal).
+     */
     public function actionCreate()
+    {
+        if (Yii::$app->request->isPost) {
+            $model = new Equipment();
+            $model->loadDefaultValues();
+            $result = $this->persistNewEquipment($model, Yii::$app->request->post());
+            if ($result['success']) {
+                Yii::$app->session->setFlash('success', $result['message']);
+                return $this->redirect(['index']);
+            }
+            Yii::$app->session->setFlash('error', $result['message']);
+        }
+
+        return $this->redirect(['index']);
+    }
+
+    /**
+     * Создание техники в модальном окне (GET — форма, POST — JSON).
+     */
+    public function actionCreateModal()
     {
         $model = new Equipment();
         $model->loadDefaultValues();
 
-        $users = ArrayHelper::map(
-            Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
-            'id',
-            function (Users $u) {
-                return $u->getDisplayName();
+        if (Yii::$app->request->isPost) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            $result = $this->persistNewEquipment($model, Yii::$app->request->post());
+            if ($result['success']) {
+                return [
+                    'success' => true,
+                    'message' => $result['message'],
+                    'equipment_id' => $result['equipment_id'],
+                ];
             }
-        );
 
-        $locations = ArrayHelper::map(
-            Location::find()->orderBy(['name' => SORT_ASC])->all(),
-            'id',
-            'name'
-        );
-
-        $statuses = DicEquipmentStatus::getList();
-        $equipmentTypes = EquipmentTypes::getList();
-
-        if ($model->load(Yii::$app->request->post())) {
-            $this->applyOrgTechDescriptionFromPost($model);
-            if ($model->save()) {
-                $this->savePartCharValuesFromPost($model->id, Yii::$app->request->post('PartChar', []));
-                EquipHistory::log($model->id, 'create', null, ['inventory_number' => $model->inventory_number, 'name' => $model->name]);
-                AuditLog::log('equipment.create', 'equipment', $model->id, 'success');
-                UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
-                Yii::$app->session->setFlash('success', 'Техника успешно добавлена.');
-                return $this->redirect(['index']);
-            }
+            return [
+                'success' => false,
+                'errors' => $result['errors'] ?? [],
+                'message' => $result['message'],
+            ];
         }
 
-        return $this->render('create', [
+        return $this->renderAjax('_form', $this->getCreateFormViewParams($model, true));
+    }
+
+    /**
+     * @param array<string, mixed> $post
+     * @return array{success: bool, message: string, equipment_id?: int, errors?: array}
+     */
+    private function persistNewEquipment(Equipment $model, array $post): array
+    {
+        if (!$model->load($post)) {
+            return [
+                'success' => false,
+                'message' => 'Не удалось загрузить данные формы.',
+                'errors' => $model->errors,
+            ];
+        }
+
+        $this->applyOrgTechDescriptionFromPost($model);
+        if (!$model->save()) {
+            $firstErrors = $model->getFirstErrors();
+
+            return [
+                'success' => false,
+                'message' => 'Не удалось сохранить технику'
+                    . ($firstErrors ? ': ' . implode(' ', $firstErrors) : ''),
+                'errors' => $model->errors,
+            ];
+        }
+
+        $this->savePartCharValuesFromPost($model->id, $post['PartChar'] ?? []);
+        EquipHistory::log($model->id, 'create', null, [
+            'inventory_number' => $model->inventory_number,
+            'name' => $model->name,
+        ]);
+        AuditLog::log('equipment.create', 'equipment', $model->id, 'success');
+        UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
+
+        return [
+            'success' => true,
+            'message' => 'Техника успешно добавлена.',
+            'equipment_id' => (int) $model->id,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getCreateFormViewParams(Equipment $model, bool $isModal = false): array
+    {
+        return [
             'model' => $model,
-            'users' => $users,
-            'locations' => $locations,
-            'statuses' => $statuses,
-            'equipmentTypes' => $equipmentTypes,
+            'users' => ArrayHelper::map(
+                Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
+                'id',
+                static function (Users $u) {
+                    return $u->getDisplayName();
+                }
+            ),
+            'locations' => ArrayHelper::map(
+                Location::find()->orderBy(['name' => SORT_ASC])->all(),
+                'id',
+                'name'
+            ),
+            'statuses' => DicEquipmentStatus::getList(),
+            'equipmentTypes' => EquipmentTypes::getList(),
             'chars' => [],
             'cpuModels' => EquipmentCharCatalog::getDistinctCpuModels(),
             'ramModels' => EquipmentCharCatalog::getDistinctRamValues(),
@@ -530,7 +600,8 @@ class ArmController extends Controller
             'diskModels' => EquipmentCharCatalog::getDistinctDiskModels(),
             'supplierNames' => EquipmentCharCatalog::getDistinctSuppliers(),
             'ipAddresses' => EquipmentCharCatalog::getDistinctIpAddresses(),
-        ]);
+            'isModal' => $isModal,
+        ];
     }
 
     /**
@@ -540,6 +611,29 @@ class ArmController extends Controller
     {
         $model = $this->findModel((int) $id);
         $this->ensureCanAccessEquipment($model);
+
+        return $this->redirect(['index', 'equipment' => $model->id]);
+    }
+
+    /**
+     * Карточка техники для модального окна (GET — HTML).
+     */
+    public function actionViewModal($id)
+    {
+        $model = $this->findModel((int) $id);
+        $this->ensureCanAccessEquipment($model);
+
+        return $this->renderAjax('_view_content', array_merge(
+            $this->getEquipmentViewParams($model),
+            ['isModal' => true]
+        ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getEquipmentViewParams(Equipment $model): array
+    {
         $chars = $this->loadPartCharValuesByEquipment([$model->id]);
         $history = EquipHistory::find()
             ->where(['equipment_id' => $model->id])
@@ -547,11 +641,12 @@ class ArmController extends Controller
             ->orderBy(['changed_at' => SORT_DESC])
             ->limit(50)
             ->all();
-        return $this->render('view', [
+
+        return [
             'model' => $model,
             'chars' => $chars[$model->id] ?? [],
             'history' => $history,
-        ]);
+        ];
     }
 
     /**

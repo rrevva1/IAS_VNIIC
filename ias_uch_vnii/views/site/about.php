@@ -2,10 +2,10 @@
 
 /** @var yii\web\View $this */
 
+use app\assets\SectionPageAsset;
 use yii\helpers\Html;
-use app\assets\SiteAsset;
 
-SiteAsset::register($this);
+SectionPageAsset::register($this);
 
 $appName = Yii::$app->name;
 $appVersion = Yii::$app->params['appVersion'] ?? '1.0';
@@ -18,27 +18,24 @@ try {
         $dbName = Yii::$app->db->createCommand('SELECT current_database()')->queryScalar();
     }
 } catch (Throwable $e) {
-    // БД недоступна или запрос не поддерживается — оставляем прочерк
+    // БД недоступна
 }
 
 $this->title = 'О проекте';
-$this->params['breadcrumbs'][] = $this->title;
+$this->params['breadcrumbs'] = [];
 ?>
-<div class="site-about">
-    <h1><?= Html::encode($this->title) ?></h1>
+<div class="arm-page site-about-page">
+    <header class="arm-page__header">
+        <div class="arm-page__heading">
+            <h1 class="arm-page__title"><?= Html::encode($this->title) ?></h1>
+        </div>
+    </header>
 
-    <p class="lead text-muted">
-        <?= Html::encode($appName) ?> — информационно-аналитическая система учёта технических средств предприятия
-        (учёт активов, Help Desk, справочники, отчётность).
-    </p>
-
-    <div class="row mt-4">
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card h-100">
-                <div class="card-header bg-light">
-                    <strong>Версия и окружение</strong>
-                </div>
-                <div class="card-body">
+    <div class="arm-grid-card arm-content-panel">
+        <div class="about-cards">
+            <div class="about-card">
+                <div class="about-card__header">Версия и окружение</div>
+                <div class="about-card__body">
                     <table class="table table-sm table-borderless mb-0">
                         <tr>
                             <td class="text-muted">Версия приложения</td>
@@ -69,13 +66,9 @@ $this->params['breadcrumbs'][] = $this->title;
                     </table>
                 </div>
             </div>
-        </div>
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card h-100">
-                <div class="card-header bg-light">
-                    <strong>Технологии</strong>
-                </div>
-                <div class="card-body">
+            <div class="about-card">
+                <div class="about-card__header">Технологии</div>
+                <div class="about-card__body">
                     <ul class="list-unstyled mb-0 small">
                         <li>PHP &ge; 7.4, Yii2</li>
                         <li>PostgreSQL</li>
@@ -86,25 +79,16 @@ $this->params['breadcrumbs'][] = $this->title;
                     </ul>
                 </div>
             </div>
-        </div>
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card h-100">
-                <div class="card-header bg-light">
-                    <strong>Развёртывание</strong>
-                </div>
-                <div class="card-body">
+            <div class="about-card">
+                <div class="about-card__header">Развёртывание</div>
+                <div class="about-card__body">
                     <p class="small mb-0">
-                        Приложение может работать в среде Docker (контейнеры PHP + PostgreSQL + веб-сервер)
-                        или на выделенном хостинге с PHP и PostgreSQL. Инструкции по запуску — в разделе
+                        Приложение может работать в среде Docker (контейнеры PHP, PostgreSQL и веб-сервер)
+                        или на выделенном хостинге с PHP и PostgreSQL. Инструкции — в каталоге
                         <code>docker/</code> репозитория.
                     </p>
                 </div>
             </div>
         </div>
     </div>
-
-    <p class="mt-3 text-muted small">
-        Документация по системе, техническое задание и описание требований размещены в репозитории проекта
-        (каталог <code>docs/</code>).
-    </p>
 </div>

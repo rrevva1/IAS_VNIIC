@@ -18,7 +18,6 @@ $this->params['breadcrumbs'][] = $this->title;
     <header class="tasks-page__header">
         <div class="tasks-page__heading">
             <h1 class="tasks-page__title"><?= Html::encode($this->title) ?></h1>
-            <p class="tasks-page__subtitle">Опишите проблему или запрос — заявка будет передана в службу поддержки</p>
         </div>
     </header>
 

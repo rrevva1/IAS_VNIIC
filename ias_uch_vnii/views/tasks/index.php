@@ -19,11 +19,9 @@ $isAdmin = !Yii::$app->user->isGuest && Yii::$app->user->identity && Yii::$app->
 $isRegularUser = !Yii::$app->user->isGuest && Yii::$app->user->identity && Yii::$app->user->identity->isRegularUser();
 
 $usersList = [];
-$statusList = [];
 
 if ($isAdmin) {
     $usersList = Users::getSupportStaffList();
-    $statusList = DicTaskStatus::getStatusList();
 }
 
 $this->registerJs("
@@ -31,7 +29,6 @@ $this->registerJs("
     window.canAssignTaskExecutor = " . ($isAdmin ? 'true' : 'false') . ";
     window.taskExecutorsList = " . json_encode($usersList) . ";
     window.allUsersList = window.taskExecutorsList;
-    window.allStatusList = " . json_encode($statusList) . ";
     window.agGridDataUrl = '" . Url::to(['tasks/get-grid-data']) . "';
     window.tasksBulkDeleteUrl = '" . Url::to(['tasks/bulk-delete']) . "';
     window.tasksMinSelectedForDelete = 1;
@@ -42,7 +39,6 @@ $this->registerJs("
     <header class="tasks-page__header">
         <div class="tasks-page__heading">
             <h1 class="tasks-page__title"><?= Html::encode($this->title) ?></h1>
-            <p class="tasks-page__subtitle">Создание и отслеживание обращений в службу поддержки</p>
         </div>
     </header>
 
@@ -123,7 +119,6 @@ $this->registerJs("
             <div class="modal-header tasks-create-modal__header">
                 <div class="tasks-create-modal__header-text">
                     <h5 class="modal-title" id="createTaskModalLabel">Новая заявка</h5>
-                    <p class="tasks-create-modal__lead">Опишите проблему — заявка сразу попадёт в очередь поддержки</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>

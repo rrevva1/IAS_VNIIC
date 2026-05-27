@@ -20,7 +20,6 @@ $roleFilter = Yii::$app->request->get('role_id', '');
     <header class="users-page__header">
         <div class="users-page__heading">
             <h1 class="users-page__title"><?= Html::encode($this->title) ?></h1>
-            <p class="users-page__subtitle">Учётные записи и роли в системе</p>
         </div>
     </header>
 
@@ -67,14 +66,14 @@ $roleFilter = Yii::$app->request->get('role_id', '');
 
     <div class="users-grid-card">
         <div id="agGridUsersContainer"
-             class="ag-theme-quartz"
+             class="ag-theme-quartz users-grid-loading"
              data-url="<?= Html::encode(Url::to(['users/get-grid-data'])) ?>"
              data-create-modal-url="<?= Html::encode(Url::to(['users/create-modal'])) ?>"
              data-view-url="<?= Html::encode(Url::to(['users/view'])) ?>"
              data-update-url="<?= Html::encode(Url::to(['users/update'])) ?>"
              data-delete-url="<?= Html::encode(Url::to(['users/delete'])) ?>">
-            <div class="users-grid-loading">
-                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            <div class="users-grid-loading__inner">
+                <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
                 <p>Загрузка таблицы…</p>
             </div>
         </div>

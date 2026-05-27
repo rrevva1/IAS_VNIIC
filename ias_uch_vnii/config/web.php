@@ -8,6 +8,8 @@ $config = [
     'name' => 'ИАС УТС ФГУП "ВНИИ "Центр"',
     'basePath' => dirname(__DIR__),
     'bootstrap' => ['log'],
+    'language' => 'ru-RU',
+    'sourceLanguage' => 'ru-RU',
     'homeUrl' => ['tasks/index'],
     'on beforeRequest' => static function () {
         if (!Yii::$app->user->isGuest && Yii::$app->user->identity instanceof \app\models\entities\Users) {

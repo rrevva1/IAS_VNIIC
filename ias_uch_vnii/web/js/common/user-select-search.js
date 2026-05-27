@@ -72,7 +72,7 @@
 
     function buildOptions($select) {
         var hasEmpty = $select.find('option[value=""]').length > 0;
-        return {
+        var opts = {
             language: RU,
             width: '100%',
             minimumResultsForSearch: 0,
@@ -81,6 +81,11 @@
             dropdownParent: resolveDropdownParent($select),
             dropdownAutoWidth: false,
         };
+        if ($select.hasClass('executor-change-ag')) {
+            opts.dropdownCssClass = 'ias-user-select-dropdown--executor';
+            opts.selectionCssClass = 'ias-user-select-selection--executor';
+        }
+        return opts;
     }
 
     function dispatchNativeChange(selectEl) {

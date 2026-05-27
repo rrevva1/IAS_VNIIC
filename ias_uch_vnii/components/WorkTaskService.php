@@ -619,13 +619,16 @@ class WorkTaskService
     }
 
     /**
-     * @return array{time_in_status: string, time_in_status_title: string}
+     * @return array{time_in_status: string, time_in_status_title: string, time_is_completion: bool}
      */
     public static function boardTimeMeta(WorkTask $task): array
     {
+        $meta = $task->getCardTimeMeta();
+
         return [
-            'time_in_status' => $task->getTimeInStatusLabel(),
-            'time_in_status_title' => $task->getTimeInStatusTitle(),
+            'time_in_status' => $meta['label'],
+            'time_in_status_title' => $meta['title'],
+            'time_is_completion' => $meta['is_completion'],
         ];
     }
 

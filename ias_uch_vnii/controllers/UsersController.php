@@ -169,14 +169,23 @@ class UsersController extends Controller
             foreach ($dataProvider->getModels() as $model) {
                 $roles = $model->roles ?? [];
                 $roleNames = [];
+                $roleCodes = [];
                 foreach ($roles as $role) {
                     $roleNames[] = $role->role_name;
+                    $roleCodes[] = $role->role_code;
+                }
+                $roleCode = null;
+                if (count($roleCodes) === 1) {
+                    $roleCode = $roleCodes[0];
+                } elseif (count($roleCodes) > 1) {
+                    $roleCode = 'other';
                 }
                 $data[] = [
                     'id' => $model->id,
                     'full_name' => $model->full_name,
                     'email' => $model->email,
                     'role_name' => $roleNames ? implode(', ', $roleNames) : null,
+                    'role_code' => $roleCode,
                 ];
             }
 

@@ -112,9 +112,11 @@
         }
         var label = res.time_in_status;
         var title = res.time_in_status_title;
+        var isCompletion = res.time_is_completion === true;
         if (!label) {
             return;
         }
+        var iconClass = isCompletion ? 'far fa-calendar-alt' : 'far fa-clock';
         var slot = card.querySelector('.work-task-card__time-slot');
         if (!slot) {
             var head = card.querySelector('.work-task-card__head');
@@ -126,20 +128,22 @@
             head.appendChild(slot);
         }
         slot.innerHTML = '<span class="work-task-card__time-in-status" title="">'
-            + '<i class="far fa-clock" aria-hidden="true"></i> '
+            + '<i class="' + iconClass + '" aria-hidden="true"></i> '
             + '</span>';
         var span = slot.querySelector('.work-task-card__time-in-status');
         if (span) {
+            span.classList.toggle('work-task-card__time-in-status--completion', isCompletion);
             if (title) {
                 span.setAttribute('title', title);
             }
             var icon = span.querySelector('i');
             span.textContent = '';
             if (icon) {
+                icon.className = iconClass;
                 span.appendChild(icon);
             } else {
                 var iEl = document.createElement('i');
-                iEl.className = 'far fa-clock';
+                iEl.className = iconClass;
                 iEl.setAttribute('aria-hidden', 'true');
                 span.appendChild(iEl);
             }

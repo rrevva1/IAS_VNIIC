@@ -15,6 +15,7 @@
  * @var string[] $diskModels — известные накопители для подсказок
  * @var string[] $supplierNames — известные поставщики для подсказок
  * @var string[] $ipAddresses — известные IP-адреса для подсказок
+ * @var bool $isModal форма в модальном окне
  */
 
 use app\assets\UserSelectAsset;
@@ -35,6 +36,7 @@ $diskModels = $diskModels ?? [];
 $supplierNames = $supplierNames ?? [];
 $ipAddresses = $ipAddresses ?? [];
 $currentSupplier = trim((string) ($model->supplier ?? ''));
+$isModal = !empty($isModal);
 
 $orgTech = [
     'cartridge_procurement' => '',
@@ -54,10 +56,44 @@ $orgTechFields = [
     ],
     ['name' => 'printer_comment', 'label' => 'Комментарий', 'widget' => 'printer-comment'],
 ];
+
+if ($isModal) {
+    echo $this->render('_form_modal', [
+        'model' => $model,
+        'users' => $users,
+        'locations' => $locations,
+        'statuses' => $statuses ?? [],
+        'equipmentTypes' => $equipmentTypes,
+        'cpuModels' => $cpuModels,
+        'ramModels' => $ramModels,
+        'osModels' => $osModels,
+        'diskModels' => $diskModels,
+        'supplierNames' => $supplierNames,
+        'ipAddresses' => $ipAddresses,
+        'currentSupplier' => $currentSupplier,
+    ]);
+    echo $this->render('_form_scripts', [
+        'model' => $model,
+        'chars' => $chars,
+        'orgTech' => $orgTech,
+        'orgTechFields' => $orgTechFields,
+        'cpuModels' => $cpuModels,
+        'ramModels' => $ramModels,
+        'osModels' => $osModels,
+        'diskModels' => $diskModels,
+        'ipAddresses' => $ipAddresses,
+        'isModal' => true,
+    ]);
+
+    return;
+}
+
+$formId = 'arm-equipment-form';
 ?>
 
 <div class="arm-form">
     <?php $form = ActiveForm::begin([
+        'id' => $formId,
         'options' => ['class' => 'arm-form__body'],
         'fieldConfig' => [
             'options' => ['class' => 'mb-3'],
@@ -83,44 +119,15 @@ $orgTechFields = [
                 ]) ?>
             </section>
 
-            <datalist id="arm-cpu-datalist">
-                <?php foreach ($cpuModels as $cpuModel): ?>
-                    <option value="<?= Html::encode($cpuModel) ?>"></option>
-                <?php endforeach; ?>
-            </datalist>
-
-            <datalist id="arm-ram-datalist">
-                <?php foreach ($ramModels as $ramModel): ?>
-                    <option value="<?= Html::encode($ramModel) ?>"></option>
-                <?php endforeach; ?>
-            </datalist>
-
-            <datalist id="arm-os-datalist">
-                <?php foreach ($osModels as $osModel): ?>
-                    <option value="<?= Html::encode($osModel) ?>"></option>
-                <?php endforeach; ?>
-            </datalist>
-
-            <datalist id="arm-disk-datalist">
-                <?php foreach ($diskModels as $diskModel): ?>
-                    <option value="<?= Html::encode($diskModel) ?>"></option>
-                <?php endforeach; ?>
-            </datalist>
-
-            <datalist id="arm-ip-datalist">
-                <?php foreach ($ipAddresses as $ipAddress): ?>
-                    <option value="<?= Html::encode($ipAddress) ?>"></option>
-                <?php endforeach; ?>
-            </datalist>
-
-            <datalist id="arm-supplier-datalist">
-                <?php foreach ($supplierNames as $supplierName): ?>
-                    <option value="<?= Html::encode($supplierName) ?>"></option>
-                <?php endforeach; ?>
-                <?php if ($currentSupplier !== '' && !in_array($currentSupplier, $supplierNames, true)): ?>
-                    <option value="<?= Html::encode($currentSupplier) ?>"></option>
-                <?php endif; ?>
-            </datalist>
+            <?= $this->render('_form_datalists', [
+                'cpuModels' => $cpuModels,
+                'ramModels' => $ramModels,
+                'osModels' => $osModels,
+                'diskModels' => $diskModels,
+                'ipAddresses' => $ipAddresses,
+                'supplierNames' => $supplierNames,
+                'currentSupplier' => $currentSupplier,
+            ]) ?>
 
             <section id="dynamic-fields-block" class="arm-form-section arm-form-section--chars d-none">
                 <h2 class="arm-form-section__title h6 text-uppercase text-muted">Характеристики</h2>
@@ -186,7 +193,7 @@ $orgTechFields = [
             </section>
 
             <div class="arm-form-actions">
-                <?= Html::submitButton('Сохранить', ['class' => 'btn btn-success']) ?>
+                <?= Html::submitButton('Сохранить', ['class' => 'btn btn-primary btn-success']) ?>
                 <?= Html::a('Отмена', ['index'], ['class' => 'btn btn-outline-secondary']) ?>
             </div>
         </div>
@@ -196,45 +203,15 @@ $orgTechFields = [
 </div>
 
 <?php
-$pcFields = [
-    ['name' => 'cpu', 'label' => 'Процессор (ЦП)', 'part' => 'ЦП', 'char' => 'Модель', 'widget' => 'cpu-datalist'],
-    ['name' => 'ram', 'label' => 'Оперативная память (ОЗУ)', 'part' => 'ОЗУ', 'char' => 'Объём', 'widget' => 'ram-datalist'],
-    ['name' => 'disk', 'label' => 'Накопители (диски)', 'part' => 'Накопитель', 'char' => 'Модель', 'widget' => 'disk-datalist-multi'],
-    ['name' => 'hostname', 'label' => 'Имя компьютера', 'part' => 'ПК', 'char' => 'Имя ПК'],
-    ['name' => 'ip', 'label' => 'IP-адрес', 'part' => 'ПК', 'char' => 'IP адрес', 'widget' => 'ip-datalist'],
-    ['name' => 'os', 'label' => 'Операционная система', 'part' => 'ПК', 'char' => 'ОС', 'widget' => 'os-datalist'],
-];
-$fieldTemplates = [
-    'АРМ' => $pcFields,
-    'Системный блок' => $pcFields,
-    'Ноутбук' => array_merge($pcFields, [
-        ['name' => 'monitor', 'label' => 'Встроенный монитор (модель)', 'part' => 'Монитор', 'char' => 'Модель'],
-        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
-    ]),
-    'Моноблок' => array_merge($pcFields, [
-        ['name' => 'monitor', 'label' => 'Встроенный монитор (модель)', 'part' => 'Монитор', 'char' => 'Модель'],
-        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
-    ]),
-    'Монитор' => [
-        ['name' => 'monitor', 'label' => 'Модель монитора', 'part' => 'Монитор', 'char' => 'Модель'],
-        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
-        ['name' => 'monitor_inv', 'label' => '№ монитора (инв.)', 'part' => 'Монитор', 'char' => '№ монитора'],
-    ],
-    'Принтер' => $orgTechFields,
-    'МФУ' => $orgTechFields,
-    'ИБП' => [
-        ['name' => 'model', 'label' => 'Марка и модель ИБП', 'part' => 'Монитор', 'char' => 'Модель'],
-    ],
-];
-$this->registerJs('
-window.armFormFieldTemplates = ' . json_encode($fieldTemplates) . ';
-window.armFormChars = ' . json_encode($chars) . ';
-window.armFormOrgTech = ' . json_encode($orgTech) . ';
-window.armFormCpuModels = ' . json_encode(array_values($cpuModels)) . ';
-window.armFormRamModels = ' . json_encode(array_values($ramModels)) . ';
-window.armFormOsModels = ' . json_encode(array_values($osModels)) . ';
-window.armFormDiskModels = ' . json_encode(array_values($diskModels)) . ';
-window.armFormIpAddresses = ' . json_encode(array_values($ipAddresses)) . ';
-', \yii\web\View::POS_HEAD);
-$this->registerJsFile(Url::to('@web/js/arm/form-dynamic.js'), ['depends' => ['yii\web\JqueryAsset'], 'position' => \yii\web\View::POS_END]);
-$this->registerJsFile(Url::to('@web/js/arm/warranty-preview.js'), ['depends' => ['yii\web\JqueryAsset'], 'position' => \yii\web\View::POS_END]);
+echo $this->render('_form_scripts', [
+    'model' => $model,
+    'chars' => $chars,
+    'orgTech' => $orgTech,
+    'orgTechFields' => $orgTechFields,
+    'cpuModels' => $cpuModels,
+    'ramModels' => $ramModels,
+    'osModels' => $osModels,
+    'diskModels' => $diskModels,
+    'ipAddresses' => $ipAddresses,
+    'isModal' => false,
+]);

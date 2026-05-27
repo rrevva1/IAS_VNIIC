@@ -49,9 +49,11 @@ $isAdmin = $isAdmin ?? false;
 
         <div class="arm-command-bar__tools">
             <?php if ($isAdmin): ?>
-            <?= Html::a('<i class="fas fa-plus" aria-hidden="true"></i><span class="arm-btn-label">Добавить</span>', ['create'], [
+            <?= Html::button('<i class="fas fa-plus" aria-hidden="true"></i><span class="arm-btn-label">Добавить</span>', [
                 'class' => 'btn btn-primary arm-tool-btn',
-                'title' => 'Создать новую запись техники',
+                'type' => 'button',
+                'data-arm-create-open' => '1',
+                'title' => 'Добавить технику',
             ]) ?>
             <?php endif; ?>
             <?= Html::button('<i class="fas fa-arrows-rotate" aria-hidden="true"></i><span class="arm-btn-label">Обновить</span>', [
@@ -102,7 +104,6 @@ $isAdmin = $isAdmin ?? false;
         <div id="armSelectionBar" class="arm-selection-bar" aria-live="polite">
             <p class="arm-selection-bar__text">
                 Выбрано: <strong id="armSelectionCount">0</strong>
-                <span class="arm-selection-bar__hint">— переназначить пользователя или помещение</span>
             </p>
             <div class="arm-selection-bar__actions">
                 <?= Html::button('<i class="fas fa-user-pen" aria-hidden="true"></i> Переназначить', [
@@ -118,7 +119,9 @@ $isAdmin = $isAdmin ?? false;
             </div>
         </div>
         <?php endif; ?>
-        <div id="agGridArmContainer" class="ag-theme-quartz arm-grid-loading">
+        <div id="agGridArmContainer" class="ag-theme-quartz arm-grid-loading"
+             data-create-modal-url="<?= Html::encode(Url::to(['create-modal'])) ?>"
+             data-view-modal-url-template="<?= Html::encode(Url::to(['view-modal', 'id' => '__ID__'])) ?>">
             <div class="arm-grid-loading__inner">
                 <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
                 <p>Загрузка таблицы…</p>
@@ -126,6 +129,11 @@ $isAdmin = $isAdmin ?? false;
         </div>
     </div>
 </div>
+
+<?= $this->render('_view_modal') ?>
+<?php if ($isAdmin): ?>
+<?= $this->render('_create_modal') ?>
+<?php endif; ?>
 
 <input type="file" id="armImportFileInput" accept=".xlsx,.xls" style="display:none;">
 
@@ -167,7 +175,6 @@ $isAdmin = $isAdmin ?? false;
                                 Выбранная техника
                                 <span class="arm-reassign-section__badge" id="reassignEquipmentCount">0</span>
                             </h6>
-                            <p class="arm-reassign-section__lead">Список выбранных строк и привязанных мониторов с ИБП.</p>
                             <div id="reassignEquipmentList" class="arm-reassign-equipment-list">
                                 <div class="arm-reassign-equipment-list__loading text-center text-muted py-3">
                                     <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
@@ -315,7 +322,7 @@ $isAdmin = $isAdmin ?? false;
 <?php
 $this->registerJs(
     "window.agGridArmDataUrl = " . json_encode(Url::to(['arm/get-grid-data'])) . ";" .
-    "window.agGridArmViewUrl = " . json_encode(Url::to(['arm/view'])) . ";",
+    "window.agGridArmViewModalUrlTemplate = " . json_encode(Url::to(['view-modal', 'id' => '__ID__'])) . ";",
     \yii\web\View::POS_HEAD
 );
 $this->registerJs(

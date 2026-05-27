@@ -12,6 +12,39 @@ body.app-body {
     display: flex;
     min-height: 100vh;
     overflow-x: hidden;
+    /* Курсора не должно быть на "пустом" UI, но выделение текста для копирования должно работать. */
+    caret-color: transparent;
+}
+
+/* Поля ввода и редактирование — обычное поведение */
+body.app-body input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+body.app-body textarea,
+body.app-body select,
+body.app-body [contenteditable="true"],
+body.app-body .select2-search__field,
+body.app-body .ag-filter input,
+body.app-body .ag-filter textarea,
+body.app-body .ag-popup-editor input,
+body.app-body .ag-popup-editor textarea,
+body.app-body .ag-large-text-input {
+    user-select: text;
+    -webkit-user-select: text;
+    caret-color: auto;
+    cursor: auto;
+}
+
+/* Копирование текста из карточек и писем */
+body.app-body .allow-text-select,
+body.app-body .profile-card,
+body.app-body .profile-hero,
+body.app-body a[href^="mailto:"] {
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+body.app-body .ag-theme-quartz .ag-root-wrapper .ag-cell a {
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 /* ——— Боковое меню ——— */

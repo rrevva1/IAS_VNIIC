@@ -6,13 +6,14 @@
  * @var app\models\entities\Equipment $model
  * @var array $chars Характеристики из part_char_values
  * @var app\models\entities\EquipHistory[] $history
+ * @var bool $isModal
  */
 
 use app\components\EquipmentCharCatalog;
 use yii\helpers\Html;
 use yii\helpers\Url;
 
-$this->registerCssFile(Url::to('@web/css/arm/view.css'), ['depends' => [\yii\bootstrap5\BootstrapAsset::class]]);
+$isModal = !empty($isModal);
 
 $isOrgTech = EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName());
 $cartridgeStatus = $isOrgTech
@@ -42,8 +43,10 @@ if ($displayTitle === '') {
     $displayTitle = trim((string) ($model->inventory_number ?: 'Техника'));
 }
 
-$this->title = $displayTitle;
-$this->params['breadcrumbs'][] = $this->title;
+if (!$isModal) {
+    $this->title = $displayTitle;
+    $this->params['breadcrumbs'][] = $this->title;
+}
 
 $formatDate = static function (?string $date): string {
     if ($date === null || trim($date) === '') {
@@ -122,7 +125,8 @@ $eventTypeLabels = [
 $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SORT_DESC])->limit(20)->all();
 ?>
 
-<div class="arm-view">
+<div class="arm-view" data-equipment-id="<?= (int) $model->id ?>">
+    <div id="armViewHeaderSlot">
     <header class="arm-view__header">
         <h1 class="arm-view__title"><?= Html::encode($displayTitle) ?></h1>
         <div class="arm-view__meta">
@@ -150,18 +154,31 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
             <?php endif; ?>
         </div>
     </header>
+    </div>
 
     <div class="arm-view__actions">
         <?php if ($canEdit): ?>
-            <?= Html::a('<span class="glyphicon glyphicon-pencil"></span> Редактировать', ['update', 'id' => $model->id], ['class' => 'btn btn-primary']) ?>
+            <?= Html::a('<i class="fas fa-pen" aria-hidden="true"></i> Редактировать', ['update', 'id' => $model->id], [
+                'class' => 'btn btn-primary arm-tool-btn',
+            ]) ?>
             <?php if (!$model->is_archived && $isAdmin): ?>
-                <?= Html::a('<span class="glyphicon glyphicon-folder-close"></span> Архивировать', ['archive', 'id' => $model->id], [
-                    'class' => 'btn btn-outline-warning',
+                <?= Html::a('<i class="fas fa-box-archive" aria-hidden="true"></i> Архивировать', ['archive', 'id' => $model->id], [
+                    'class' => 'btn btn-outline-warning arm-tool-btn',
                     'data' => ['method' => 'post', 'confirm' => 'Переместить эту единицу техники в архив?'],
                 ]) ?>
             <?php endif; ?>
         <?php endif; ?>
-        <?= Html::a('<span class="glyphicon glyphicon-arrow-left"></span> К списку', ['index'], ['class' => 'btn btn-outline-secondary']) ?>
+        <?php if ($isModal): ?>
+            <?= Html::button('<i class="fas fa-xmark" aria-hidden="true"></i> Закрыть', [
+                'class' => 'btn btn-outline-secondary arm-tool-btn',
+                'type' => 'button',
+                'data-bs-dismiss' => 'modal',
+            ]) ?>
+        <?php else: ?>
+            <?= Html::a('<i class="fas fa-arrow-left" aria-hidden="true"></i> К списку', ['index'], [
+                'class' => 'btn btn-outline-secondary arm-tool-btn',
+            ]) ?>
+        <?php endif; ?>
     </div>
 
     <?php if ($model->is_archived): ?>
@@ -279,7 +296,6 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
     <?php if (!empty($history)): ?>
     <section class="arm-view-section" aria-labelledby="arm-view-history-title">
         <h2 id="arm-view-history-title" class="arm-view-section__title">История перемещений и изменений</h2>
-        <p class="arm-view-section__hint text-muted small mb-3">Когда, куда перемещалась техника и кому назначалась.</p>
         <ul class="arm-view-timeline">
             <?php foreach ($history as $h): ?>
             <?php
@@ -330,4 +346,4 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
             </div>
         </div>
     </details>
-                    </div>
+</div>

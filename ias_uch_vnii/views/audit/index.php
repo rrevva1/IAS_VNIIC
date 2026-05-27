@@ -1,88 +1,121 @@
 <?php
 /**
  * Журнал аудита: список событий в AG Grid.
- * Фильтры по дате, пользователю, типу операции и типу объекта; данные из audit/get-grid-data.
  */
 
 use app\assets\AuditGridAsset;
 use yii\helpers\Html;
 use yii\helpers\Url;
-use yii\widgets\ActiveForm;
 
-/* @var $this yii\web\View */
-/* @var $users array [id => full_name] */
+/** @var yii\web\View $this */
+/** @var array $users [id => full_name] */
 
 AuditGridAsset::register($this);
 
+$req = Yii::$app->request;
+$filterFrom = (string) $req->get('from', '');
+$filterTo = (string) $req->get('to', '');
+$filterActorId = $req->get('actor_id', '');
+$filterActionType = (string) $req->get('action_type', '');
+$filterObjectType = (string) $req->get('object_type', '');
+
 $this->title = 'Журнал аудита';
-$this->params['breadcrumbs'][] = $this->title;
+$this->params['breadcrumbs'] = [];
 ?>
-<div class="audit-index">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <h1 class="mb-0"><?= Html::encode($this->title) ?></h1>
-        <?= Html::button('<i class="glyphicon glyphicon-refresh"></i> Обновить', [
-            'class' => 'btn btn-outline-secondary',
-            'onclick' => 'refreshAuditGrid()',
-        ]) ?>
+<div class="arm-page audit-page">
+    <header class="arm-page__header">
+        <div class="arm-page__heading">
+            <h1 class="arm-page__title"><?= Html::encode($this->title) ?></h1>
+        </div>
+    </header>
+
+    <div class="arm-command-bar audit-command-bar" role="region" aria-label="Поиск и фильтры">
+        <div class="audit-command-bar__top">
+            <div class="arm-search">
+                <label class="visually-hidden" for="auditQuickFilter">Поиск по таблице</label>
+                <i class="fas fa-search arm-search__icon" aria-hidden="true"></i>
+                <input type="search" id="auditQuickFilter" class="form-control arm-search__input"
+                       placeholder="Поиск" autocomplete="off">
+                <button type="button" class="arm-search__clear" id="auditQuickFilterClear"
+                        aria-label="Очистить поиск" title="Очистить поиск" hidden>×</button>
+            </div>
+
+            <div class="arm-command-bar__tools">
+                <?= Html::button('<i class="fas fa-filter" aria-hidden="true"></i><span class="arm-btn-label">Применить</span>', [
+                    'class' => 'btn btn-primary arm-tool-btn',
+                    'type' => 'button',
+                    'id' => 'auditApplyFilters',
+                    'title' => 'Применить фильтры',
+                ]) ?>
+                <?= Html::a('<i class="fas fa-rotate-left" aria-hidden="true"></i><span class="arm-btn-label">Сбросить</span>', ['index'], [
+                    'class' => 'btn btn-outline-secondary arm-tool-btn',
+                    'title' => 'Сбросить все фильтры',
+                ]) ?>
+                <?= Html::button('<i class="fas fa-arrows-rotate" aria-hidden="true"></i><span class="arm-btn-label">Обновить</span>', [
+                    'class' => 'btn btn-outline-secondary arm-tool-btn',
+                    'type' => 'button',
+                    'id' => 'auditRefreshGrid',
+                    'title' => 'Перезагрузить данные',
+                ]) ?>
+            </div>
+        </div>
+
+        <form id="audit-filter-form" class="audit-filters" method="get" action="<?= Html::encode(Url::to(['index'])) ?>">
+            <div class="audit-filters__field">
+                <label class="audit-filters__label" for="audit-filter-from">С</label>
+                <input type="date" name="from" id="audit-filter-from" class="form-control form-control-sm"
+                       value="<?= Html::encode($filterFrom) ?>">
+            </div>
+            <div class="audit-filters__field">
+                <label class="audit-filters__label" for="audit-filter-to">По</label>
+                <input type="date" name="to" id="audit-filter-to" class="form-control form-control-sm"
+                       value="<?= Html::encode($filterTo) ?>">
+            </div>
+            <div class="audit-filters__field audit-filters__field--wide">
+                <label class="audit-filters__label" for="audit-filter-actor">Пользователь</label>
+                <?= Html::dropDownList('actor_id', $filterActorId, ['' => '— все —'] + ($users ?? []), [
+                    'class' => 'form-select form-select-sm js-user-select-search',
+                    'id' => 'audit-filter-actor',
+                    'data-placeholder' => '— все —',
+                ]) ?>
+            </div>
+            <div class="audit-filters__field">
+                <label class="audit-filters__label" for="audit-filter-action">Тип операции</label>
+                <input type="text" name="action_type" id="audit-filter-action" class="form-control form-control-sm"
+                       value="<?= Html::encode($filterActionType) ?>" placeholder="task.create">
+            </div>
+            <div class="audit-filters__field">
+                <label class="audit-filters__label" for="audit-filter-object">Тип объекта</label>
+                <?= Html::dropDownList('object_type', $filterObjectType, [
+                    '' => '— все —',
+                    'task' => 'Заявка',
+                    'work_task' => 'Задача',
+                    'user' => 'Пользователь',
+                    'attachment' => 'Вложение',
+                    'equipment' => 'Актив',
+                    'software' => 'ПО',
+                    'license' => 'Лицензия',
+                    'equipment_software' => 'ПО на технике',
+                ], [
+                    'class' => 'form-select form-select-sm',
+                    'id' => 'audit-filter-object',
+                ]) ?>
+            </div>
+        </form>
     </div>
 
-    <?php $form = ActiveForm::begin([
-        'id' => 'audit-filter-form',
-        'method' => 'get',
-        'action' => ['index'],
-        'options' => ['class' => 'mb-3'],
-    ]); ?>
-    <div class="row g-2 align-items-end">
-        <div class="col-md-2">
-            <label class="form-label">С</label>
-            <input type="date" name="from" class="form-control" value="<?= Html::encode(Yii::$app->request->get('from')) ?>">
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">По</label>
-            <input type="date" name="to" class="form-control" value="<?= Html::encode(Yii::$app->request->get('to')) ?>">
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Пользователь</label>
-            <?= Html::dropDownList('actor_id', Yii::$app->request->get('actor_id'), ['' => '—'] + ($users ?? []), [
-                'class' => 'form-select js-user-select-search',
-                'data-placeholder' => '—',
-            ]) ?>
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Тип операции</label>
-            <input type="text" name="action_type" class="form-control" value="<?= Html::encode(Yii::$app->request->get('action_type')) ?>" placeholder="task.create">
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Тип объекта</label>
-            <?= Html::dropDownList('object_type', Yii::$app->request->get('object_type'), [
-                '' => '—',
-                'task' => 'Заявка',
-                'user' => 'Пользователь',
-                'attachment' => 'Вложение',
-                'equipment' => 'Актив',
-                'software' => 'ПО',
-                'license' => 'Лицензия',
-                'equipment_software' => 'ПО на технике',
-            ], ['class' => 'form-select']) ?>
-        </div>
-        <div class="col-md-2">
-            <?= Html::submitButton('Фильтр', ['class' => 'btn btn-primary']) ?>
-        </div>
-        <div class="col-md-2">
-            <?= Html::a('Сбросить фильтры', ['index'], ['class' => 'btn btn-outline-secondary']) ?>
-        </div>
-    </div>
-    <?php ActiveForm::end(); ?>
-
-    <div id="agGridAuditContainer" class="ag-theme-quartz" style="width: 100%; height: 65vh; min-height: 400px;">
-        <div class="text-center p-4 text-muted">
-            <span class="glyphicon glyphicon-refresh glyphicon-spin"></span>
-            <p>Загрузка таблицы...</p>
+    <div class="arm-grid-card">
+        <div id="agGridAuditContainer" class="ag-theme-quartz arm-grid-loading">
+            <div class="arm-grid-loading__inner">
+                <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                <p>Загрузка таблицы…</p>
+            </div>
         </div>
     </div>
 </div>
 <?php
 $this->registerJs(
-    "window.agGridAuditDataUrl = " . json_encode(Url::to(['audit/get-grid-data'])) . ";",
+    'window.agGridAuditDataUrl = ' . json_encode(Url::to(['audit/get-grid-data'])) . ';',
     \yii\web\View::POS_HEAD
 );
+?>

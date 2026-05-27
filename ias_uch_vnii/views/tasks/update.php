@@ -19,7 +19,6 @@ $this->params['breadcrumbs'][] = 'Редактировать';
     <header class="tasks-page__header">
         <div class="tasks-page__heading">
             <h1 class="tasks-page__title"><?= Html::encode($this->title) ?></h1>
-            <p class="tasks-page__subtitle">Изменение описания, вложений и связанного оборудования</p>
         </div>
     </header>
 

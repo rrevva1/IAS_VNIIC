@@ -8,8 +8,13 @@ class WorkTasksAsset extends AssetBundle
 {
     public $basePath = '@webroot';
     public $baseUrl = '@web';
-    public $css = ['css/work-tasks/work-tasks.css'];
+    public $css = [
+        'css/arm/index.css',
+        'css/tasks/form-modal.css',
+        'css/work-tasks/work-tasks.css',
+    ];
     public $js = [
+        'js/tasks/form-modal.js',
         'js/work-tasks/work-tasks.js',
         'js/work-tasks/work-tasks-board.js',
         'js/work-tasks/work-tasks-create.js',
@@ -17,6 +22,7 @@ class WorkTasksAsset extends AssetBundle
     ];
     public $depends = [
         'yii\web\YiiAsset',
+        'yii\web\JqueryAsset',
         'yii\bootstrap5\BootstrapAsset',
         'yii\bootstrap5\BootstrapPluginAsset',
     ];

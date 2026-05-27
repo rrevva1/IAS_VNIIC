@@ -11,6 +11,8 @@ use app\models\dictionaries\DicTaskStatus;
 use app\models\entities\DeskAttachments;
 use app\models\entities\TaskAttachments;
 use app\models\entities\TaskHistory;
+use app\models\entities\WorkTask;
+use app\models\entities\WorkTaskAttachments;
 use app\components\AuditLog;
 use app\components\TaskStatisticsService;
 use app\components\WorkTaskService;
@@ -486,6 +488,33 @@ class TasksController extends Controller
     }
 
     /**
+     * Проверка доступа к вложению заявки или внутренней задачи.
+     */
+    private function canAccessAttachment(int $attachmentId): bool
+    {
+        $task = $this->getTaskByAttachmentId($attachmentId);
+        if ($task && $this->canUserAccessTask($task)) {
+            return true;
+        }
+
+        $workLink = WorkTaskAttachments::find()
+            ->where(['attachment_id' => $attachmentId])
+            ->one();
+        if ($workLink === null) {
+            return false;
+        }
+
+        $workTask = WorkTask::findOne((int) $workLink->work_task_id);
+        if ($workTask === null || $workTask->is_deleted) {
+            return false;
+        }
+
+        $user = Yii::$app->user->identity;
+
+        return $user && (new WorkTaskService())->canAccess($workTask);
+    }
+
+    /**
      * Скачивание вложения. Доступ только при наличии прав на заявку.
      * @param int $attachmentId ID вложения
      * @return \yii\web\Response
@@ -496,8 +525,7 @@ class TasksController extends Controller
         if (!$attachment || !$attachment->fileExists()) {
             throw new NotFoundHttpException('Файл не найден.');
         }
-        $task = $this->getTaskByAttachmentId($attachmentId);
-        if (!$task || !$this->canUserAccessTask($task)) {
+        if (!$this->canAccessAttachment((int) $attachmentId)) {
             throw new \yii\web\ForbiddenHttpException('Нет доступа к этому вложению.');
         }
         $response = Yii::$app->response;
@@ -517,8 +545,7 @@ class TasksController extends Controller
         if (!$attachment || !$attachment->fileExists()) {
             throw new NotFoundHttpException('Файл не найден.');
         }
-        $task = $this->getTaskByAttachmentId($id);
-        if (!$task || !$this->canUserAccessTask($task)) {
+        if (!$this->canAccessAttachment((int) $id)) {
             throw new \yii\web\ForbiddenHttpException('Нет доступа к этому вложению.');
         }
         $extension = strtolower((string) $attachment->file_extension);
@@ -557,8 +584,7 @@ class TasksController extends Controller
         if (!$attachment || !$attachment->fileExists()) {
             throw new NotFoundHttpException('Файл не найден.');
         }
-        $task = $this->getTaskByAttachmentId($id);
-        if (!$task || !$this->canUserAccessTask($task)) {
+        if (!$this->canAccessAttachment((int) $id)) {
             throw new \yii\web\ForbiddenHttpException('Нет доступа к этому вложению.');
         }
         $response = Yii::$app->response;
@@ -576,50 +602,11 @@ class TasksController extends Controller
     public function actionChangeStatus($id)
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        try {
-            $model = $this->findModel($id);
-            if (!$this->canUserAccessTask($model)) {
-                return ['success' => false, 'message' => 'Нет доступа к этой заявке.'];
-            }
-            if ($this->request->isPost) {
-            $statusId = $this->request->post('status_id');
-            $status = DicTaskStatus::findOne($statusId);
-            
-            if ($status) {
-                $oldStatus = $model->status_id;
-                $model->status_id = $statusId;
-                $model->updated_at = date('Y-m-d H:i:s');
-                if (DicTaskStatus::isCompletedStatusId((int) $statusId)) {
-                    if (!$model->closed_at) {
-                        $model->closed_at = date('Y-m-d H:i:s');
-                    }
-                } elseif ((int) $statusId === (int) (DicTaskStatus::resolveIdByCode(DicTaskStatus::CODE_CANCELLED) ?? 0)) {
-                    // оставляем closed_at без изменений
-                } else {
-                    $model->closed_at = null;
-                }
-                if ($model->save(false)) {
-                    TaskHistory::log($model->id, 'status_id', (string) $oldStatus, (string) $statusId);
-                    AuditLog::log('task.change_status', 'task', $model->id, 'success', ['status_id' => $statusId]);
-                    return [
-                        'success' => true,
-                        'message' => 'Статус успешно изменен.',
-                        'status_name' => $status->status_name
-                    ];
-                }
-            }
-            }
-            
-            return [
-                'success' => false,
-                'message' => 'Ошибка при изменении статуса.'
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'Ошибка сервера: ' . $e->getMessage()
-            ];
-        }
+
+        return [
+            'success' => false,
+            'message' => 'Статус заявки изменяется автоматически при работе с задачей в разделе «Задачи».',
+        ];
     }
 
     /**

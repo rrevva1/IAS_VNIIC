@@ -21,7 +21,7 @@ $maxExecutorCount = $executors !== [] ? max(array_column($executors, 'completed_
 $maxStatusCount = $statusDistribution !== [] ? max(array_column($statusDistribution, 'count')) : 1;
 $maxMonthly = $monthlyCompleted !== [] ? max(array_column($monthlyCompleted, 'count')) : 1;
 
-$this->title = 'KPI заявок';
+$this->title = 'Статистика по заявкам и задачам';
 $this->params['breadcrumbs'][] = $this->title;
 
 $gridQuery = [];
@@ -39,7 +39,6 @@ $requesterGridUrl = Url::to(array_merge(['tasks/statistics-get-grid-data', 'type
     <header class="tasks-page__header">
         <div class="tasks-page__heading">
             <h1 class="tasks-page__title"><?= Html::encode($this->title) ?></h1>
-            <p class="tasks-page__subtitle">Показатели эффективности службы поддержки · <?= Html::encode($periodLabel) ?></p>
         </div>
         <div class="tasks-command-bar__tools">
             <?= Html::a('<i class="fas fa-list" aria-hidden="true"></i> К заявкам', ['index'], [
@@ -63,7 +62,6 @@ $requesterGridUrl = Url::to(array_merge(['tasks/statistics-get-grid-data', 'type
             <button type="submit" class="btn btn-primary tasks-tool-btn">Применить</button>
             <?= Html::a('Сбросить', ['statistics'], ['class' => 'btn btn-outline-secondary tasks-tool-btn']) ?>
         </div>
-        <p class="tasks-kpi-filter__hint">Учитываются заявки, <strong>созданные</strong> в выбранном периоде. Время выполнения — от создания до перевода в статус «Выполнена».</p>
     </form>
 
     <section class="tasks-kpi-cards" aria-label="Сводные показатели">

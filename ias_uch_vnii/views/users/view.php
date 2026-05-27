@@ -74,46 +74,6 @@ $formatAuditLine = static function ($ev) use ($auditActionLabels, $auditObjectLa
     return $action . ' (' . $object . $id . ')';
 };
 
-$profileInitials = static function (?string $fullName): string {
-    $parts = array_values(array_filter(preg_split('/\s+/u', trim((string) $fullName))));
-    if (count($parts) >= 2) {
-        return mb_strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[1], 0, 1));
-    }
-    if (count($parts) === 1) {
-        return mb_strtoupper(mb_substr($parts[0], 0, 2));
-    }
-
-    return '?';
-};
-
-/** Имя и отчество из ФИО (Фамилия Имя Отчество). */
-$profileNamePatronymic = static function (?string $fullName): string {
-    $parts = array_values(array_filter(preg_split('/\s+/u', trim((string) $fullName))));
-    if (count($parts) >= 3) {
-        return $parts[1] . ' ' . $parts[2];
-    }
-    if (count($parts) === 2) {
-        return $parts[1];
-    }
-
-    return $parts[0] ?? '';
-};
-
-$profileGreeting = static function (string $namePart): string {
-    $hour = (int) date('G');
-    if ($hour >= 5 && $hour < 12) {
-        $phrase = 'Доброе утро';
-    } elseif ($hour >= 12 && $hour < 18) {
-        $phrase = 'Добрый день';
-    } elseif ($hour >= 18 && $hour < 23) {
-        $phrase = 'Добрый вечер';
-    } else {
-        $phrase = 'Доброй ночи';
-    }
-
-    return $namePart !== '' ? $phrase . ', ' . $namePart . '!' : $phrase . '!';
-};
-
 $role = $model->role;
 $roleCode = $role ? $role->role_code : null;
 $roleDisplay = $roleCode && isset($roleLabels[$roleCode])
@@ -122,13 +82,42 @@ $roleDisplay = $roleCode && isset($roleLabels[$roleCode])
 
 $canOpenArm = Yii::$app->user->identity && Yii::$app->user->identity->canAccessArm();
 $equipmentCount = count($equipment);
-$initials = $profileInitials($model->full_name);
-$greetingName = $profileNamePatronymic($model->full_name);
-$greetingLine = $profileGreeting($greetingName);
 
-$editProfileLink = $isOwnProfile
-    ? Html::a('Редактировать профиль', ['update', 'id' => $model->id], ['class' => 'profile-hero__edit'])
-    : '';
+$heroActions = '';
+if ($isOwnProfile) {
+    $heroActions = Html::tag('div', ''
+        . Html::a('<i class="fas fa-pen" aria-hidden="true"></i> Редактировать профиль', ['update', 'id' => $model->id], [
+            'class' => 'profile-hero__action profile-hero__action--primary',
+        ]),
+        [
+            'class' => 'profile-hero__actions',
+            'role' => 'toolbar',
+            'aria-label' => 'Действия профиля',
+        ]
+    );
+} elseif ($isAdminViewer) {
+    $heroActions = Html::tag('div', ''
+        . Html::a('<i class="fas fa-pen" aria-hidden="true"></i> Редактировать', ['update', 'id' => $model->id], [
+            'class' => 'profile-hero__action profile-hero__action--primary',
+        ])
+        . Html::a('<i class="fas fa-key" aria-hidden="true"></i> Сбросить пароль', ['reset-password', 'id' => $model->id], [
+            'class' => 'profile-hero__action profile-hero__action--warning',
+            'data' => [
+                'confirm' => 'Установить временный пароль для пользователя?',
+                'method' => 'post',
+            ],
+        ])
+        . Html::a('<i class="fas fa-trash" aria-hidden="true"></i> Удалить', ['delete', 'id' => $model->id], [
+            'class' => 'profile-hero__action profile-hero__action--danger',
+            'data' => ['confirm' => 'Удалить пользователя?', 'method' => 'post'],
+        ]),
+        [
+            'class' => 'profile-hero__actions',
+            'role' => 'toolbar',
+            'aria-label' => 'Действия с пользователем',
+        ]
+    );
+}
 
 if ($isAdminViewer && !$isOwnProfile) {
     $this->title = $model->full_name;
@@ -167,14 +156,24 @@ $renderEquipmentList = static function () use ($equipment, $canOpenArm): string 
 };
 ?>
 <div class="profile-page">
-    <?php if ($isOwnProfile && !$isAdminViewer): ?>
-        <?php /* ——— Профиль обычного пользователя ——— */ ?>
-        <section class="profile-hero" aria-label="Профиль">
-            <div class="profile-hero__inner profile-hero__inner--compact">
-                <div class="profile-hero__head">
-                    <div class="profile-hero__body">
-                    <h1 class="profile-hero__greeting profile-hero__greeting--title"><?= Html::encode($greetingLine) ?></h1>
-                    <p class="profile-hero__name profile-hero__name--sub"><?= Html::encode($model->full_name ?: 'Пользователь') ?></p>
+    <header class="profile-page__header">
+        <div class="profile-page__heading">
+            <h1 class="profile-page__title">
+                <?= Html::encode($isOwnProfile ? 'Мой профиль' : 'Пользователи') ?>
+            </h1>
+            <?php if (!$isOwnProfile && $isAdminViewer): ?>
+                <p class="profile-page__subtitle"><?= Html::encode($model->full_name ?: 'Пользователь') ?></p>
+            <?php endif; ?>
+        </div>
+    </header>
+
+    <section class="profile-hero" aria-label="Профиль">
+        <div class="profile-hero__inner profile-hero__inner--compact">
+            <div class="profile-hero__head">
+                <div class="profile-hero__body">
+                    <h2 class="profile-hero__name">
+                        <?= Html::encode($model->full_name ?: 'Пользователь') ?>
+                    </h2>
                     <div class="profile-hero__meta">
                         <span class="profile-hero__badge"><?= Html::encode($roleDisplay) ?></span>
                         <?php if ($model->department): ?>
@@ -184,13 +183,14 @@ $renderEquipmentList = static function () use ($equipment, $canOpenArm): string 
                             <span><?= Html::encode($model->position) ?></span>
                         <?php endif; ?>
                     </div>
-                    </div>
-                    <?= $editProfileLink ?>
                 </div>
+                <?= $heroActions ?>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <div class="profile-stats" role="group" aria-label="Сводка">
+    <div class="profile-stats" role="group" aria-label="<?= $isOwnProfile ? 'Сводка' : 'Заявки пользователя' ?>">
+        <?php if ($isOwnProfile): ?>
             <?= Html::a(
                 '<span class="profile-stat__value">' . (int) $taskStats['total'] . '</span>'
                 . '<span class="profile-stat__label">Всего заявок</span>',
@@ -203,135 +203,7 @@ $renderEquipmentList = static function () use ($equipment, $canOpenArm): string 
                 ['/tasks/index'],
                 ['class' => 'profile-stat']
             ) ?>
-            <div class="profile-stat" style="cursor: default;">
-                <span class="profile-stat__value"><?= (int) $equipmentCount ?></span>
-                <span class="profile-stat__label">Единиц техники</span>
-            </div>
-        </div>
-
-        <div class="profile-grid">
-            <section class="profile-card" aria-labelledby="profile-contacts-title">
-                <div class="profile-card__header">
-                    <h2 class="profile-card__title" id="profile-contacts-title">
-                        <i class="fas fa-address-book" aria-hidden="true"></i>Контактные данные
-                    </h2>
-                </div>
-                <div class="profile-card__body">
-                    <dl class="profile-dl">
-                        <div class="profile-dl__row">
-                            <dt class="profile-dl__label">Электронная почта</dt>
-                            <dd class="profile-dl__value">
-                                <?php if ($model->email): ?>
-                                    <a href="mailto:<?= Html::encode($model->email) ?>"><?= Html::encode($model->email) ?></a>
-                                <?php else: ?>
-                                    <span class="text-muted">Не указана</span>
-                                <?php endif; ?>
-                            </dd>
-                        </div>
-                        <div class="profile-dl__row">
-                            <dt class="profile-dl__label">Телефон</dt>
-                            <dd class="profile-dl__value"><?= Html::encode($model->phone ?: 'Не указан') ?></dd>
-                        </div>
-                        <div class="profile-dl__row">
-                            <dt class="profile-dl__label">Логин в системе</dt>
-                            <dd class="profile-dl__value"><?= Html::encode($model->username ?: 'Не указан') ?></dd>
-                        </div>
-                    </dl>
-                </div>
-            </section>
-
-            <section class="profile-card" aria-labelledby="profile-equipment-title">
-                <div class="profile-card__header">
-                    <h2 class="profile-card__title" id="profile-equipment-title">
-                        <i class="fas fa-desktop" aria-hidden="true"></i>Моя техника
-                    </h2>
-                </div>
-                <div class="profile-card__body">
-                    <?= $renderEquipmentList() ?>
-                </div>
-            </section>
-
-            <section class="profile-card profile-card--full">
-                <div class="profile-card__body d-flex flex-wrap align-items-center justify-content-between gap-3">
-                    <div>
-                        <strong>Нужна помощь?</strong>
-                        <p class="profile-empty mb-0">Создайте заявку — её увидит служба технической поддержки.</p>
-                    </div>
-                    <?= Html::a(
-                        '<i class="fas fa-plus" aria-hidden="true"></i> Создать заявку',
-                        ['/tasks/index'],
-                        ['class' => 'btn btn-primary']
-                    ) ?>
-                </div>
-            </section>
-        </div>
-
-    <?php else: ?>
-        <?php /* ——— Просмотр администратором или свой профиль админа ——— */ ?>
-        <?php if (!$isOwnProfile): ?>
-        <div class="profile-page__toolbar">
-            <div class="profile-admin-header">
-                <h1><?= Html::encode($model->full_name) ?></h1>
-                <p class="profile-admin-header__sub">Карточка пользователя системы</p>
-            </div>
-            <div class="profile-page__toolbar-actions">
-                <?php if ($isAdminViewer): ?>
-                    <?= Html::a('<i class="fas fa-pen"></i> Редактировать', ['update', 'id' => $model->id], ['class' => 'btn btn-primary btn-sm']) ?>
-                    <?= Html::a('<i class="fas fa-key"></i> Сбросить пароль', ['reset-password', 'id' => $model->id], [
-                        'class' => 'btn btn-warning btn-sm',
-                        'data' => [
-                            'confirm' => 'Установить временный пароль для пользователя?',
-                            'method' => 'post',
-                        ],
-                    ]) ?>
-                    <?= Html::a('<i class="fas fa-trash"></i> Удалить', ['delete', 'id' => $model->id], [
-                        'class' => 'btn btn-danger btn-sm',
-                        'data' => ['confirm' => 'Удалить пользователя?', 'method' => 'post'],
-                    ]) ?>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-
-        <section class="profile-hero" aria-label="Профиль">
-            <div class="profile-hero__inner<?= $isOwnProfile ? ' profile-hero__inner--compact' : '' ?>">
-                <?php if ($isOwnProfile): ?>
-                <div class="profile-hero__head">
-                    <div class="profile-hero__body">
-                        <h1 class="profile-hero__greeting profile-hero__greeting--title"><?= Html::encode($greetingLine) ?></h1>
-                        <p class="profile-hero__name profile-hero__name--sub"><?= Html::encode($model->full_name ?: 'Без имени') ?></p>
-                        <div class="profile-hero__meta">
-                            <span class="profile-hero__badge"><?= Html::encode($roleDisplay) ?></span>
-                            <?php if ($model->department): ?>
-                                <span><?= Html::encode($model->department) ?></span>
-                            <?php endif; ?>
-                            <?php if ($model->position): ?>
-                                <span><?= Html::encode($model->position) ?></span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <?= $editProfileLink ?>
-                </div>
-                <?php else: ?>
-                <div class="profile-hero__avatar" aria-hidden="true"><?= Html::encode($initials) ?></div>
-                <div class="profile-hero__body">
-                    <h2 class="profile-hero__name"><?= Html::encode($model->full_name ?: 'Без имени') ?></h2>
-                    <div class="profile-hero__meta">
-                        <span class="profile-hero__badge"><?= Html::encode($roleDisplay) ?></span>
-                        <?php if ($model->department): ?>
-                            <span><?= Html::encode($model->department) ?></span>
-                        <?php endif; ?>
-                        <?php if ($model->position): ?>
-                            <span><?= Html::encode($model->position) ?></span>
-                        <?php endif; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-        </section>
-
-        <?php if ($isOwnProfile || $isAdminViewer): ?>
-        <div class="profile-stats" role="group" aria-label="Заявки пользователя">
+        <?php else: ?>
             <div class="profile-stat" style="cursor: default;">
                 <span class="profile-stat__value"><?= (int) $taskStats['total'] ?></span>
                 <span class="profile-stat__label">Всего заявок</span>
@@ -340,79 +212,75 @@ $renderEquipmentList = static function () use ($equipment, $canOpenArm): string 
                 <span class="profile-stat__value"><?= (int) $taskStats['open'] ?></span>
                 <span class="profile-stat__label">В работе</span>
             </div>
-            <div class="profile-stat" style="cursor: default;">
-                <span class="profile-stat__value"><?= (int) $equipmentCount ?></span>
-                <span class="profile-stat__label">Единиц техники</span>
-            </div>
-        </div>
         <?php endif; ?>
-
-        <div class="profile-grid">
-            <section class="profile-card" aria-labelledby="profile-admin-contacts">
-                <div class="profile-card__header">
-                    <h2 class="profile-card__title" id="profile-admin-contacts">
-                        <i class="fas fa-address-book" aria-hidden="true"></i>Контакты
-                    </h2>
-                </div>
-                <div class="profile-card__body">
-                    <dl class="profile-dl">
-                        <div class="profile-dl__row">
-                            <dt class="profile-dl__label">Электронная почта</dt>
-                            <dd class="profile-dl__value">
-                                <?php if ($model->email): ?>
-                                    <a href="mailto:<?= Html::encode($model->email) ?>"><?= Html::encode($model->email) ?></a>
-                                <?php else: ?>
-                                    Не указана
-                                <?php endif; ?>
-                            </dd>
-                        </div>
-                        <div class="profile-dl__row">
-                            <dt class="profile-dl__label">Телефон</dt>
-                            <dd class="profile-dl__value"><?= Html::encode($model->phone ?: 'Не указан') ?></dd>
-                        </div>
-                        <div class="profile-dl__row">
-                            <dt class="profile-dl__label">Логин</dt>
-                            <dd class="profile-dl__value"><?= Html::encode($model->username ?: 'Не указан') ?></dd>
-                        </div>
-                    </dl>
-                </div>
-            </section>
-
-            <section class="profile-card" aria-labelledby="profile-admin-equipment">
-                <div class="profile-card__header">
-                    <h2 class="profile-card__title" id="profile-admin-equipment">
-                        <i class="fas fa-desktop" aria-hidden="true"></i>Закреплённая техника
-                    </h2>
-                    <?php if ($canOpenArm): ?>
-                        <?= Html::a('Открыть учёт', ['/arm/index'], ['class' => 'btn btn-sm btn-outline-primary']) ?>
-                    <?php endif; ?>
-                </div>
-                <div class="profile-card__body">
-                    <?= $renderEquipmentList() ?>
-                </div>
-            </section>
-
-            <?php if ($isAdminViewer && !$isOwnProfile && $recentActions !== []): ?>
-            <section class="profile-card profile-card--full" aria-labelledby="profile-audit-title">
-                <div class="profile-card__header">
-                    <h2 class="profile-card__title" id="profile-audit-title">
-                        <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>Последние действия в системе
-                    </h2>
-                </div>
-                <div class="profile-card__body">
-                    <ul class="profile-audit-list">
-                        <?php foreach ($recentActions as $ev): ?>
-                        <li class="profile-audit-list__item">
-                            <span><?= Html::encode($formatAuditLine($ev)) ?></span>
-                            <time class="profile-audit-list__time" datetime="<?= Html::encode(date('c', strtotime($ev->event_time))) ?>">
-                                <?= Yii::$app->formatter->asDatetime($ev->event_time, 'php:d.m.Y, H:i') ?>
-                            </time>
-                        </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            </section>
-            <?php endif; ?>
+        <div class="profile-stat" style="cursor: default;">
+            <span class="profile-stat__value"><?= (int) $equipmentCount ?></span>
+            <span class="profile-stat__label">Единиц техники</span>
         </div>
-    <?php endif; ?>
+    </div>
+
+    <div class="profile-grid">
+        <section class="profile-card" aria-labelledby="profile-contacts-title">
+            <div class="profile-card__header">
+                <h2 class="profile-card__title" id="profile-contacts-title">
+                    <i class="fas fa-address-book" aria-hidden="true"></i>Контакты
+                </h2>
+            </div>
+            <div class="profile-card__body">
+                <dl class="profile-dl">
+                    <div class="profile-dl__row">
+                        <dt class="profile-dl__label">Электронная почта</dt>
+                        <dd class="profile-dl__value">
+                            <?php if ($model->email): ?>
+                                <a href="mailto:<?= Html::encode($model->email) ?>"><?= Html::encode($model->email) ?></a>
+                            <?php else: ?>
+                                Не указана
+                            <?php endif; ?>
+                        </dd>
+                    </div>
+                    <div class="profile-dl__row">
+                        <dt class="profile-dl__label">Телефон</dt>
+                        <dd class="profile-dl__value"><?= Html::encode($model->phone ?: 'Не указан') ?></dd>
+                    </div>
+                    <div class="profile-dl__row">
+                        <dt class="profile-dl__label">Логин</dt>
+                        <dd class="profile-dl__value"><?= Html::encode($model->username ?: 'Не указан') ?></dd>
+                    </div>
+                </dl>
+            </div>
+        </section>
+
+        <section class="profile-card" aria-labelledby="profile-equipment-title">
+            <div class="profile-card__header">
+                <h2 class="profile-card__title" id="profile-equipment-title">
+                    <i class="fas fa-desktop" aria-hidden="true"></i>Закреплённая техника
+                </h2>
+            </div>
+            <div class="profile-card__body">
+                <?= $renderEquipmentList() ?>
+            </div>
+        </section>
+
+        <?php if ($isAdminViewer && !$isOwnProfile && $recentActions !== []): ?>
+        <section class="profile-card profile-card--full" aria-labelledby="profile-audit-title">
+            <div class="profile-card__header">
+                <h2 class="profile-card__title" id="profile-audit-title">
+                    <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>Последние действия в системе
+                </h2>
+            </div>
+            <div class="profile-card__body">
+                <ul class="profile-audit-list">
+                    <?php foreach ($recentActions as $ev): ?>
+                    <li class="profile-audit-list__item">
+                        <span><?= Html::encode($formatAuditLine($ev)) ?></span>
+                        <time class="profile-audit-list__time" datetime="<?= Html::encode(date('c', strtotime($ev->event_time))) ?>">
+                            <?= Yii::$app->formatter->asDatetime($ev->event_time, 'php:d.m.Y, H:i') ?>
+                        </time>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        </section>
+        <?php endif; ?>
+    </div>
 </div>

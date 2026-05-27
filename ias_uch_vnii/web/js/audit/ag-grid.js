@@ -1,11 +1,11 @@
 /**
  * AG Grid для страницы «Журнал аудита».
- * Данные из audit/get-grid-data; фильтры по дате, пользователю, типу операции, типу объекта.
  */
 (function() {
     'use strict';
 
     var gridApi;
+    var quickFilterTimer;
 
     function getColumnDefs() {
         return [
@@ -48,11 +48,21 @@
             var actorId = (form.querySelector('[name="actor_id"]') || {}).value;
             var actionType = (form.querySelector('[name="action_type"]') || {}).value;
             var objectType = (form.querySelector('[name="object_type"]') || {}).value;
-            if (from) params.push('from=' + encodeURIComponent(from));
-            if (to) params.push('to=' + encodeURIComponent(to));
-            if (actorId) params.push('actor_id=' + encodeURIComponent(actorId));
-            if (actionType) params.push('action_type=' + encodeURIComponent(actionType));
-            if (objectType) params.push('object_type=' + encodeURIComponent(objectType));
+            if (from) {
+                params.push('from=' + encodeURIComponent(from));
+            }
+            if (to) {
+                params.push('to=' + encodeURIComponent(to));
+            }
+            if (actorId) {
+                params.push('actor_id=' + encodeURIComponent(actorId));
+            }
+            if (actionType) {
+                params.push('action_type=' + encodeURIComponent(actionType));
+            }
+            if (objectType) {
+                params.push('object_type=' + encodeURIComponent(objectType));
+            }
         }
         if (params.length) {
             base += (base.indexOf('?') >= 0 ? '&' : '?') + params.join('&');
@@ -61,7 +71,9 @@
     }
 
     function loadGridData() {
-        if (!gridApi) return;
+        if (!gridApi) {
+            return;
+        }
         fetch(getDataUrl())
             .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
             .then(function(result) {
@@ -69,29 +81,90 @@
                     gridApi.setGridOption('rowData', result.data);
                 }
             })
-            .catch(function(err) { console.error('AG Grid (Журнал аудита): ошибка загрузки', err); });
+            .catch(function(err) {
+                console.error('AG Grid (Журнал аудита): ошибка загрузки', err);
+            });
     }
 
-    function initFilterForm() {
+    function setQuickFilter(value) {
+        if (!gridApi) {
+            return;
+        }
+        if (typeof gridApi.setGridOption === 'function') {
+            gridApi.setGridOption('quickFilterText', value);
+        } else if (typeof gridApi.setQuickFilter === 'function') {
+            gridApi.setQuickFilter(value);
+        }
+    }
+
+    function bindCommandBar() {
         var form = document.getElementById('audit-filter-form');
+        var searchInput = document.getElementById('auditQuickFilter');
+        var searchClear = document.getElementById('auditQuickFilterClear');
+        var applyBtn = document.getElementById('auditApplyFilters');
+        var refreshBtn = document.getElementById('auditRefreshGrid');
+
         if (form) {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
                 loadGridData();
             });
         }
+
+        if (applyBtn) {
+            applyBtn.addEventListener('click', function() {
+                loadGridData();
+            });
+        }
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                loadGridData();
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                var value = searchInput.value.trim();
+                if (searchClear) {
+                    searchClear.hidden = value === '';
+                }
+                clearTimeout(quickFilterTimer);
+                quickFilterTimer = setTimeout(function() {
+                    setQuickFilter(value);
+                }, 200);
+            });
+        }
+
+        if (searchClear && searchInput) {
+            searchClear.addEventListener('click', function() {
+                searchInput.value = '';
+                searchClear.hidden = true;
+                setQuickFilter('');
+                searchInput.focus();
+            });
+        }
     }
 
     function init() {
         var container = document.getElementById('agGridAuditContainer');
+        if (container) {
+            container.classList.remove('arm-grid-loading');
+        }
         if (!container || typeof agGrid === 'undefined') {
-            if (container) container.innerHTML = '<p class="text-muted">Загрузка таблицы...</p>';
+            if (container) {
+                container.innerHTML = '<p class="text-muted p-4">Загрузка таблицы…</p>';
+            }
             return;
         }
         container.innerHTML = '';
+
         var gridOpts = {
             columnDefs: getColumnDefs(),
-            defaultColDef: { sortable: true, filter: true, resizable: true },
+            theme: 'legacy',
+            defaultColDef: (window.AgGridWrap && window.AgGridWrap.mergeDefaultColDef)
+                ? window.AgGridWrap.mergeDefaultColDef({ sortable: true, filter: true, resizable: true }, true)
+                : { sortable: true, filter: true, resizable: true },
             pagination: true,
             paginationPageSize: 50,
             paginationPageSizeSelector: [20, 50, 100, 500, 9999],
@@ -101,8 +174,9 @@
             sideBar: 'columns',
             onGridReady: function(params) {
                 gridApi = params.api;
+                container.classList.remove('arm-grid-loading');
                 loadGridData();
-                initFilterForm();
+                bindCommandBar();
             },
         };
         agGrid.createGrid(container, gridOpts);

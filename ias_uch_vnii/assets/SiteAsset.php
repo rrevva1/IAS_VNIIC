@@ -22,5 +22,6 @@ class SiteAsset extends AssetBundle
     
     public $depends = [
         'app\assets\LayoutAsset',
+        'app\assets\SectionPageAsset',
     ];
 }

@@ -277,6 +277,43 @@
     line-height: 1.5;
 }
 
+/* Без текстового курсора (мигающей полоски) при клике по строке / пустому месту грида */
+.ag-theme-quartz .ag-root-wrapper .ag-cell,
+.ag-theme-quartz .ag-root-wrapper .ag-cell .ag-cell-value {
+    /* Курсор (caret) скрываем, но выделение текста оставляем для копирования */
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: default;
+    caret-color: transparent;
+}
+
+.ag-theme-quartz .ag-root-wrapper .ag-cell.ag-cell-inline-editing,
+.ag-theme-quartz .ag-root-wrapper .ag-cell.ag-cell-inline-editing .ag-cell-value,
+.ag-theme-quartz .ag-root-wrapper .ag-popup-editor,
+.ag-theme-quartz .ag-root-wrapper .ag-popup-editor .ag-large-text-input {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: text;
+    caret-color: auto;
+}
+
+.ag-theme-quartz .ag-root-wrapper .ag-cell input,
+.ag-theme-quartz .ag-root-wrapper .ag-cell textarea,
+.ag-theme-quartz .ag-root-wrapper .ag-cell select,
+.ag-theme-quartz .ag-root-wrapper .ag-cell .form-control,
+.ag-theme-quartz .ag-root-wrapper .ag-cell .form-select {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: auto;
+    caret-color: auto;
+}
+
+.ag-theme-quartz .ag-root-wrapper .ag-cell a {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: pointer;
+}
+
 /* Стили для ссылок в ячейках */
 .ag-theme-quartz .ag-cell a {
     color: #007bff;
@@ -299,6 +336,38 @@
     font-size: 13px;
     padding: 4px 8px;
     width: 100%;
+}
+
+/* Колонка исполнителя: селект занимает всю ячейку */
+#agGridTasksContainer .tasks-executor-cell .ag-cell-wrapper,
+#agGridTasksContainer .tasks-executor-cell .ag-cell-value {
+    width: 100%;
+}
+
+#agGridTasksContainer .tasks-executor-cell .executor-change-ag {
+    width: 100%;
+    min-width: 100%;
+    margin: 0;
+}
+
+/* Select2 в колонке исполнителя */
+#agGridTasksContainer .tasks-executor-cell .select2-container.ias-user-select-selection--executor {
+    width: 100% !important;
+    min-width: 100%;
+}
+
+#agGridTasksContainer .tasks-executor-cell .select2-container--default .select2-selection--single {
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+}
+
+.select2-dropdown.ias-user-select-dropdown--executor {
+    min-width: 320px;
+}
+
+.select2-dropdown.ias-user-select-dropdown--executor .select2-results__option {
+    white-space: nowrap;
 }
 
 /* Стили для панели пагинации */

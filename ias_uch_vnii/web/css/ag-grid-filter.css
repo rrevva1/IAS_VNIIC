@@ -1,0 +1,119 @@
+/**
+ * Компактное меню фильтра колонок AG Grid (все таблицы ИАС).
+ */
+
+.ag-popup .ag-menu.ag-filter-menu,
+.ag-popup-child .ag-filter {
+    min-width: 12rem;
+    max-width: 22rem;
+    --ag-input-focus-box-shadow: none;
+    --ag-input-error-focus-box-shadow: none;
+}
+
+.ag-filter-body-wrapper {
+    padding: 0.5rem 0.65rem;
+}
+
+.ag-filter-body {
+    min-height: 0;
+}
+
+.ag-filter-filter {
+    margin: 0;
+}
+
+.ag-filter-filter .ag-input-field-input,
+.ag-filter-filter .ag-picker-field-wrapper {
+    min-height: 2rem;
+    font-size: 0.875rem;
+    border-radius: 8px;
+}
+
+/* Панель кнопок фильтра внизу меню */ 
+.ag-filter-apply-panel {
+    display: flex !important;
+    justify-content: stretch;
+    padding: 0.5rem 0.65rem 0.65rem;
+    margin-top: 0.15rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.ag-popup .ag-filter-apply-panel-button,
+.ag-popup-child .ag-filter-apply-panel-button {
+    flex: 1 1 auto;
+    width: 100%;
+    margin: 0 !important;
+    min-height: 2rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+}
+
+.ag-popup .ag-filter-apply-panel-button:hover,
+.ag-popup-child .ag-filter-apply-panel-button:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+/* Скрыть «Применить», если когда-либо включится в параметрах */
+.ag-filter-apply-panel-apply-button {
+    display: none !important;
+}
+
+.ias-filter-reset-panel {
+    display: flex !important;
+}
+
+.ag-filter-condition {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.35rem 0;
+    font-size: 0.8125rem;
+}
+
+.ag-filter-condition-operator {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.ag-filter-condition-operator .ag-label {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* «И» / «Или» — без прямоугольной подсветки фокуса (радиус не совпадает с кругом) */
+.ag-popup .ag-filter .ag-radio-button-input-wrapper,
+.ag-popup-child .ag-filter .ag-radio-button-input-wrapper {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.ag-popup .ag-filter .ag-radio-button-input-wrapper:focus-within,
+.ag-popup .ag-filter .ag-radio-button-input-wrapper:active,
+.ag-popup .ag-filter .ag-radio-button-input-wrapper.ag-focused,
+.ag-popup-child .ag-filter .ag-radio-button-input-wrapper:focus-within,
+.ag-popup-child .ag-filter .ag-radio-button-input-wrapper:active,
+.ag-popup-child .ag-filter .ag-radio-button-input-wrapper.ag-focused {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.ag-popup .ag-filter .ag-radio-button:focus-visible,
+.ag-popup-child .ag-filter .ag-radio-button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.ag-filter-select {
+    margin-bottom: 0.35rem;
+    font-size: 0.8125rem;
+}
+
+.ag-filter-select .ag-picker-field-display {
+    font-weight: 500;
+}

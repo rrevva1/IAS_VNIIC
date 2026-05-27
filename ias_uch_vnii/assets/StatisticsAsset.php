@@ -16,11 +16,13 @@ class StatisticsAsset extends AssetBundle
         'css/tasks/page.css',
         'css/tasks/statistics.css',
         'ag-grid-community/styles/ag-theme-quartz.css',
+        'css/ag-grid-filter.css',
         'css/tasks/ag-grid.css',
     ];
 
     public $js = [
         'ag-grid-community/dist/ag-grid-community.min.js',
+        'js/ag-grid-filter-config.js',
         'js/ag-grid-theme-config.js',
         'js/tasks/statistics-ag-grid.js',
     ];

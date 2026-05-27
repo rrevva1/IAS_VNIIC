@@ -43,23 +43,10 @@ $mainClass = 'main-content d-flex flex-column';
 
 <main class="<?= $mainClass ?>">
     <div class="content-wrapper flex-grow-1 p-4">
-        <?php if (!empty($this->params['breadcrumbs'])): ?>
-            <?php
-            $breadcrumbHome = false;
-            if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
-                $identity = Yii::$app->user->identity;
-                if ($identity->canAccessArm()) {
-                    $breadcrumbHome = ['label' => 'Учет ТС', 'url' => ['/arm/index']];
-                } else {
-                    $breadcrumbHome = ['label' => 'Заявки', 'url' => ['/tasks/index']];
-                }
-            }
-            ?>
-            <?= Breadcrumbs::widget([
-                'links' => $this->params['breadcrumbs'],
-                'homeLink' => $breadcrumbHome,
-            ]) ?>
-        <?php endif ?>
+        <?php
+        // Breadcrumbs отключены по требованию: на страницах не используются
+        // заголовки/маршрутизация вида "Учет ТС / ...".
+        ?>
         <?= Alert::widget() ?>
         <?= $content ?>
     </div>

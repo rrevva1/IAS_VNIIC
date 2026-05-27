@@ -157,7 +157,8 @@ body.app-body.modal-open:has(.tasks-page--grid) {
     overflow-x: auto;
     overflow-y: visible;
     gap: 0.35rem;
-    padding: 0.1rem 0;
+    padding: 0;
+    padding-bottom: 0.25rem;
     margin: 0;
     border-bottom: none;
     -webkit-overflow-scrolling: touch;
@@ -180,7 +181,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
     color: #475569;
     font-size: var(--tasks-font-control);
     font-weight: 500;
-    padding: 0 0.85rem;
+    padding: 0.35rem 0.9rem;
     white-space: nowrap;
     background: #fff;
     line-height: 1.25;

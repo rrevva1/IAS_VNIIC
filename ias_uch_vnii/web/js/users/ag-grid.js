@@ -1,10 +1,13 @@
 /**
- * AG Grid для страницы «Пользователи».
+ * AG Grid для страницы «Пользователи» (оформление как «Учёт ТС» / «Заявки»).
  */
 (function() {
     'use strict';
 
     var gridApi;
+    var usersFitColumnsTimer = null;
+    /** Не пересчитывать ширину сразу после ручного изменения столбца. */
+    var usersSuppressFitUntil = 0;
 
     function buildUrl(baseUrl, id) {
         if (!baseUrl) {
@@ -45,13 +48,104 @@
 
     function getColumnDefs() {
         return [
-            { headerName: 'ID', field: 'id', width: 90, filter: 'agNumberColumnFilter' },
-            { headerName: 'ФИО', field: 'full_name', flex: 1, minWidth: 180, filter: 'agTextColumnFilter' },
-            { headerName: 'Email', field: 'email', flex: 1, minWidth: 200, filter: 'agTextColumnFilter', cellRenderer: emailRenderer },
-            { headerName: 'Роль', field: 'role_name', width: 180, filter: 'agTextColumnFilter' },
-            { headerName: 'Пароль', field: 'password_mask', width: 120, sortable: false, filter: false, valueGetter: function() { return '••••••••'; } },
-            { headerName: 'Действия', field: 'actions', width: 118, minWidth: 110, sortable: false, filter: false, cellRenderer: actionsRenderer },
+            { headerName: 'ID', field: 'id', minWidth: 64, maxWidth: 120, filter: 'agNumberColumnFilter' },
+            { headerName: 'ФИО', field: 'full_name', minWidth: 120, filter: 'agTextColumnFilter' },
+            {
+                headerName: 'Электронная почта',
+                field: 'email',
+                minWidth: 140,
+                filter: 'agTextColumnFilter',
+                cellRenderer: emailRenderer,
+            },
+            {
+                headerName: 'Роль',
+                field: 'role_name',
+                minWidth: 120,
+                filter: 'agTextColumnFilter',
+                cellRenderer: function(params) {
+                    var roleName = (params && params.value != null) ? String(params.value) : '';
+                    var roleCode = params && params.data && params.data.role_code ? String(params.data.role_code) : '';
+                    var cls = 'users-role-badge';
+                    if (roleCode === 'admin') {
+                        cls += ' users-role-badge--admin';
+                    } else if (roleCode === 'operator' || roleCode === 'support') {
+                        cls += ' users-role-badge--operator';
+                    } else if (roleCode === 'user') {
+                        cls += ' users-role-badge--user';
+                    } else {
+                        cls += ' users-role-badge--other';
+                    }
+                    var text = roleName || '—';
+                    return '<span class="' + cls + '">' + text + '</span>';
+                },
+            },
+            {
+                headerName: 'Действия',
+                field: 'actions',
+                minWidth: 110,
+                maxWidth: 140,
+                pinned: 'right',
+                sortable: false,
+                filter: false,
+                suppressHeaderMenuButton: true,
+                cellRenderer: actionsRenderer,
+            },
         ];
+    }
+
+    function shouldSkipFitUsersColumns() {
+        return Date.now() < usersSuppressFitUntil;
+    }
+
+    function markUsersColumnUserResize() {
+        usersSuppressFitUntil = Date.now() + 3000;
+    }
+
+    function hideGridLoading(container) {
+        if (container) {
+            container.classList.remove('users-grid-loading');
+        }
+    }
+
+    /**
+     * 1) autoSize — ширина по содержимому (заголовок + ячейки);
+     * 2) sizeColumnsToFit — растянуть на всю ширину таблицы с сохранением пропорций.
+     */
+    function fitUsersGridColumns(force) {
+        clearTimeout(usersFitColumnsTimer);
+        usersFitColumnsTimer = setTimeout(function() {
+            if (!force && shouldSkipFitUsersColumns()) {
+                return;
+            }
+            if (!gridApi) {
+                return;
+            }
+            var container = document.getElementById('agGridUsersContainer');
+            if (!container || container.clientWidth < 80) {
+                return;
+            }
+
+            var colIds = [];
+            if (typeof gridApi.getColumns === 'function') {
+                gridApi.getColumns().forEach(function(col) {
+                    colIds.push(col.getColId());
+                });
+            }
+
+            if (colIds.length && typeof gridApi.autoSizeColumns === 'function') {
+                gridApi.autoSizeColumns(colIds, false);
+            } else if (typeof gridApi.autoSizeAllColumns === 'function') {
+                gridApi.autoSizeAllColumns(false);
+            }
+
+            if (typeof gridApi.sizeColumnsToFit === 'function') {
+                try {
+                    gridApi.sizeColumnsToFit();
+                } catch (e) {
+                    console.warn('AG Grid (Пользователи): sizeColumnsToFit', e);
+                }
+            }
+        }, 50);
     }
 
     function loadGridData(url) {
@@ -66,15 +160,19 @@
                 } else {
                     gridApi.setGridOption('rowData', []);
                 }
+                fitUsersGridColumns(true);
             })
-            .catch(function(err) { console.error('AG Grid (Пользователи): ошибка загрузки', err); });
+            .catch(function(err) {
+                console.error('AG Grid (Пользователи): ошибка загрузки', err);
+                gridApi.setGridOption('rowData', []);
+            });
     }
 
     function init() {
         var container = document.getElementById('agGridUsersContainer');
         if (!container || typeof agGrid === 'undefined') {
             if (container) {
-                container.innerHTML = '<p class="text-muted">Загрузка таблицы...</p>';
+                container.innerHTML = '<p class="text-muted p-4">Не удалось загрузить таблицу. Обновите страницу.</p>';
             }
             return;
         }
@@ -85,7 +183,18 @@
 
         var gridOptions = {
             columnDefs: getColumnDefs(),
-            defaultColDef: { sortable: true, filter: true, resizable: true },
+            defaultColDef: {
+                sortable: true,
+                filter: true,
+                resizable: true,
+                wrapText: false,
+                autoHeight: false,
+            },
+            suppressHorizontalScroll: false,
+            alwaysShowHorizontalScroll: true,
+            alwaysShowVerticalScroll: true,
+            scrollbarWidth: 12,
+            suppressCellFocus: true,
             initialState: {
                 sort: {
                     sortModel: [{ colId: 'full_name', sort: 'asc' }],
@@ -104,11 +213,18 @@
             paginationPageSize: 20,
             paginationPageSizeSelector: [10, 20, 50, 100],
             domLayout: 'normal',
-            rowHeight: 36,
             localeText: {
-                page: 'Страница', to: 'до', of: 'из', next: 'След.', last: 'Последняя',
-                first: 'Первая', previous: 'Пред.', loadingOoo: 'Загрузка...',
-                noRowsToShow: 'Нет данных', filterOoo: 'Фильтр...', pageSizeSelectorLabel: 'Строк:',
+                page: 'Страница',
+                to: 'до',
+                of: 'из',
+                next: 'След.',
+                last: 'Последняя',
+                first: 'Первая',
+                previous: 'Пред.',
+                loadingOoo: 'Загрузка…',
+                noRowsToShow: 'Нет пользователей',
+                filterOoo: 'Фильтр…',
+                pageSizeSelectorLabel: 'Строк на странице:',
             },
             context: {
                 viewUrl: viewUrl,
@@ -118,15 +234,31 @@
             onGridReady: function(params) {
                 gridApi = params.api;
                 window.usersGridApi = gridApi;
+                hideGridLoading(container);
                 var dataUrl = typeof window.buildUsersDataUrl === 'function'
                     ? window.buildUsersDataUrl()
                     : (container.dataset.url || '/index.php?r=users/get-grid-data');
                 loadGridData(dataUrl);
             },
+            onFirstDataRendered: function() {
+                fitUsersGridColumns(true);
+            },
+            onGridSizeChanged: function() {
+                fitUsersGridColumns();
+            },
+            onColumnResized: function(event) {
+                if (event && event.finished) {
+                    markUsersColumnUserResize();
+                }
+            },
         };
 
-        container.innerHTML = '';
         agGrid.createGrid(container, gridOptions);
+
+        window.addEventListener('resize', function() {
+            usersSuppressFitUntil = 0;
+            fitUsersGridColumns(true);
+        });
     }
 
     window.refreshUsersGrid = function() {

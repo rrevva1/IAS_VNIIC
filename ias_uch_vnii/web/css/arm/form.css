@@ -105,3 +105,255 @@
 .arm-form .select2-container {
     width: 100% !important;
 }
+
+/* Форма создания в модальном окне (как карточка просмотра) */
+.arm-form--modal {
+    max-width: none;
+}
+
+#createArmModal.modal {
+    --arm-modal-font: 0.875rem;
+    --arm-modal-font-sm: 0.8125rem;
+    --arm-modal-text: #334155;
+    --arm-modal-text-muted: #64748b;
+}
+
+#createArmModal .arm-create-modal__body.arm-view-modal__body {
+    overflow-y: auto;
+    background: #f4f6f9;
+}
+
+#createArmModal .arm-form-create {
+    max-width: none;
+    padding-bottom: 0.5rem;
+}
+
+#createArmModal .arm-form-create .arm-view-card__body,
+#createArmModal .arm-form-create .arm-view-section .arm-view-card__body {
+    padding: 1rem 1.1rem;
+}
+
+#createArmModal .arm-form-create__primary-row,
+#createArmModal .arm-form-create__cards-row,
+#createArmModal .arm-form-create__config-section {
+    margin-bottom: 1rem;
+}
+
+#createArmModal .arm-form-create__config-section .arm-view-card__body {
+    padding: 1rem 1.1rem;
+}
+
+#createArmModal .arm-form-create__primary-col {
+    min-width: 0;
+}
+
+/* В модалке не наследуем сетку .arm-view__grid из view.css */
+#createArmModal .arm-form-create .arm-view__grid {
+    display: block;
+    margin-bottom: 0;
+}
+
+#createArmModal .arm-form-create__card-fields .arm-form-create__lead {
+    margin: 0 0 0.85rem;
+}
+
+#createArmModal .arm-form-create__card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+#createArmModal .arm-form-create__card .arm-view-card__body.arm-form-create__card-fields {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    gap: 0.85rem;
+}
+
+#createArmModal .arm-form-create__identity-row > [class*='col-'],
+#createArmModal .arm-form-create__dates-row > [class*='col-'] {
+    min-width: 0;
+}
+
+#createArmModal .arm-form-create__field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+}
+
+#createArmModal .arm-form-create__field .form-label,
+#createArmModal .arm-form-create__field label {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.35rem;
+    font-size: var(--arm-modal-font-sm, 0.8125rem);
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--arm-modal-text-muted, #64748b);
+}
+
+#createArmModal .arm-form-create__field .form-control,
+#createArmModal .arm-form-create__field .form-select,
+#createArmModal .arm-form-create__field input[type='date'],
+#createArmModal .arm-form-create__field input[type='number'],
+#createArmModal .arm-form-create .select2-container {
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+#createArmModal .arm-form-create__field--supplier {
+    margin-bottom: 0;
+}
+
+#createArmModal .arm-form-create__warranty-preview {
+    margin: 0.5rem 0 0;
+    min-height: 1.25rem;
+}
+
+#createArmModal .arm-form-create__card-fields > .help-block {
+    display: none;
+}
+
+#createArmModal .arm-form-create .invalid-feedback,
+#createArmModal .arm-form-create .help-block.arm-create-error {
+    font-size: 0.8125rem;
+}
+
+.arm-form-create__lead {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #64748b;
+    line-height: 1.45;
+}
+
+.arm-form-create__field {
+    margin-bottom: 0.85rem;
+}
+
+.arm-form-create__field--wide {
+    margin-bottom: 1rem;
+}
+
+.arm-form-create__card-fields .arm-form-create__field:last-child {
+    margin-bottom: 0;
+}
+
+.arm-form-create__card-fields .form-text {
+    margin-top: 0.35rem;
+    margin-bottom: 0;
+}
+
+#createArmModal .arm-form-create__card-fields .arm-form-create__field {
+    margin-bottom: 0;
+}
+
+#createArmModal .arm-form-create__cards-row {
+    margin-bottom: 0;
+}
+
+#createArmModal .arm-form-create__field .form-text,
+#createArmModal .arm-form-create__field .invalid-feedback {
+    margin-top: 0.35rem;
+}
+
+.arm-form-create__config-grid {
+    display: grid;
+    gap: 0.85rem 1rem;
+}
+
+@media (min-width: 768px) {
+    .arm-form-create__config-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.arm-form-create__config-grid > .arm-dynamic-field {
+    min-width: 0;
+}
+
+.arm-form-create__config-grid .arm-dynamic-field--disks {
+    grid-column: 1 / -1;
+}
+
+/* Конфигурация в модалке: сетка на всю ширину, каждое поле — отдельная ячейка */
+#createArmModal .arm-form-create__config-fields {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.85rem 1.25rem;
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    #createArmModal .arm-form-create__config-fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1200px) {
+    #createArmModal .arm-form-create__config-fields {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+#createArmModal .arm-form-create__config-fields > .arm-dynamic-field {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    margin: 0;
+}
+
+#createArmModal .arm-form-create__config-fields > .arm-dynamic-field--disks {
+    grid-column: 1 / -1;
+}
+
+#createArmModal .arm-form-create__config-fields .form-label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: var(--arm-modal-font-sm, 0.8125rem);
+    font-weight: 500;
+    color: var(--arm-modal-text-muted, #64748b);
+}
+
+#createArmModal .arm-form-create__config-fields .form-control,
+#createArmModal .arm-form-create__config-fields .form-select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+#createArmModal .arm-form-create__config-fields .form-text {
+    margin-top: 0.35rem;
+    margin-bottom: 0;
+}
+
+#createArmModal .arm-form-create__config-fields .arm-disk-add {
+    margin-top: 0.5rem;
+    align-self: flex-start;
+}
+
+.arm-form-section--chars.d-none {
+    display: none !important;
+}
+
+#createArmModal #dynamic-fields-block.arm-form-create__config-visible {
+    display: block !important;
+}
+
+#createArmModal .arm-create-modal__footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    border-top: 1px solid #dee2e6;
+    background: #fff;
+    padding: 0.75rem 1.25rem;
+}
+
+#createArmModal .arm-create-modal__header .modal-title i {
+    margin-right: 0.35rem;
+    color: #0d6efd;
+}

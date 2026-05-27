@@ -19,7 +19,6 @@ $this->params['breadcrumbs'][] = $this->title;
 
 <div class="arm-create">
     <h1><?= Html::encode($this->title) ?></h1>
-    <p class="text-muted">Заполните форму для добавления техники. Можно сразу закрепить за пользователем.</p>
 
     <?= $this->render('_form', [
         'model' => $model,

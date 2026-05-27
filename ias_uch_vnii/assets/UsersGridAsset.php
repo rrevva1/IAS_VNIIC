@@ -14,12 +14,15 @@ class UsersGridAsset extends AssetBundle
 
     public $css = [
         'ag-grid-community/styles/ag-theme-quartz.css',
+        'css/ag-grid-filter.css',
         'css/tasks/ag-grid.css',
         'css/users/page.css',
     ];
 
     public $js = [
         'ag-grid-community/dist/ag-grid-community.min.js',
+        'js/ag-grid-wrap-utils.js',
+        'js/ag-grid-filter-config.js',
         'js/ag-grid-theme-config.js',
         'js/users/page-ui.js',
         'js/users/users-create.js',

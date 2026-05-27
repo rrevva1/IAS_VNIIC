@@ -100,6 +100,65 @@
         }
     }
 
+    window.refreshUserEquipmentCardsGrid = function() {
+        reloadGrid(true);
+    };
+
+    function setActiveTab(tab) {
+        document.querySelectorAll('.uec-type-tab').forEach(function(link) {
+            var isActive = link.getAttribute('data-tab') === tab;
+            link.classList.toggle('active', isActive);
+            link.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+    }
+
+    function bindCommandBar() {
+        var searchInput = document.getElementById('uecQuickFilter');
+        var searchClear = document.getElementById('uecQuickFilterClear');
+        var refreshBtn = document.getElementById('uecRefreshGrid');
+        var debounceTimer;
+
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                var value = searchInput.value.trim();
+                if (searchClear) {
+                    searchClear.hidden = value === '';
+                }
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(function() {
+                    window.userEquipmentCardsSearch = value;
+                    reloadGrid(true);
+                }, 300);
+            });
+        }
+
+        if (searchClear && searchInput) {
+            searchClear.addEventListener('click', function() {
+                searchInput.value = '';
+                searchClear.hidden = true;
+                window.userEquipmentCardsSearch = '';
+                reloadGrid(true);
+                searchInput.focus();
+            });
+        }
+
+        document.querySelectorAll('.uec-type-tab').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                var tab = link.getAttribute('data-tab') || 'all';
+                window.userEquipmentCardsTab = tab;
+                setActiveTab(tab);
+                reloadGrid(true);
+            });
+        });
+
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', function() {
+                reloadGrid(true);
+            });
+        }
+    }
+
     function bindActions(container) {
         container.addEventListener('click', function(e) {
             var btn = e.target.closest && e.target.closest('.js-card-sign');
@@ -138,7 +197,6 @@
             return;
         }
 
-        container.innerHTML = '';
         var gridOptions = {
             columnDefs: getColumnDefs(),
             defaultColDef: { sortable: true, filter: true, resizable: true },
@@ -156,8 +214,10 @@
             },
             onGridReady: function(params) {
                 gridApi = params.api;
+                container.classList.remove('arm-grid-loading');
                 reloadGrid(true);
                 bindActions(container);
+                bindCommandBar();
             },
             onPaginationChanged: function() {
                 if (!gridApi) {

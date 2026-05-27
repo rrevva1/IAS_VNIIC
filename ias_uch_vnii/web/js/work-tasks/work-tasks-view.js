@@ -5,6 +5,8 @@
     var bodyEl = document.getElementById('workTaskViewModalBody');
     var headerEl = document.getElementById('workTaskViewModalHeader');
     var titleEl = document.getElementById('workTaskViewModalLabel');
+    var subtitleEl = document.getElementById('workTaskViewModalSubtitle');
+    var footerSlot = document.getElementById('workTaskViewModalFooter');
     if (!modalEl || !bodyEl) {
         return;
     }
@@ -27,16 +29,38 @@
         return tpl.replace('__ID__', String(taskId));
     }
 
+    function clearFooter() {
+        if (!footerSlot) {
+            return;
+        }
+        footerSlot.innerHTML = '';
+        footerSlot.classList.add('d-none');
+    }
+
     function setLoading() {
         bodyEl.innerHTML = loadingHtml;
         if (headerEl) {
             headerEl.innerHTML = defaultHeaderHtml;
         }
+        clearFooter();
     }
 
     function setTitle(text) {
         if (titleEl) {
             titleEl.textContent = text || 'Задача';
+        }
+    }
+
+    function setSubtitle(text) {
+        if (!subtitleEl) {
+            return;
+        }
+        if (text) {
+            subtitleEl.textContent = text;
+            subtitleEl.classList.remove('d-none');
+        } else {
+            subtitleEl.textContent = '';
+            subtitleEl.classList.add('d-none');
         }
     }
 
@@ -55,6 +79,26 @@
         if (titleNode) {
             setTitle(titleNode.textContent.trim());
         }
+        var subtitleNode = slot.querySelector('.work-task-view__subtitle');
+        if (subtitleNode) {
+            setSubtitle(subtitleNode.textContent.trim());
+        } else {
+            setSubtitle('');
+        }
+    }
+
+    function mountFooter(root) {
+        if (!footerSlot || !root) {
+            return;
+        }
+        var footer = root.querySelector('.work-task-view__footer');
+        clearFooter();
+        if (!footer) {
+            return;
+        }
+        footer.classList.add('work-task-view__footer--in-modal');
+        footerSlot.appendChild(footer);
+        footerSlot.classList.remove('d-none');
     }
 
     function loadTask(taskId) {
@@ -84,6 +128,7 @@
                 bodyEl.innerHTML = html;
                 var root = bodyEl.querySelector('.work-task-view');
                 mountHeader(root);
+                mountFooter(root);
                 var commentList = bodyEl.querySelector('.work-task-comment-list');
                 if (commentList) {
                     commentList.scrollTop = commentList.scrollHeight;
@@ -151,7 +196,7 @@
             return;
         }
 
-        var card = e.target.closest('.work-task-card--kanban');
+        var card = e.target.closest('.work-task-card--kanban, .work-task-card--closed');
         if (!card) {
             return;
         }
@@ -165,6 +210,7 @@
     modalEl.addEventListener('hidden.bs.modal', function() {
         currentTaskId = null;
         setTitle('Задача');
+        setSubtitle('');
         setLoading();
         var params = new URLSearchParams(window.location.search);
         if (params.has('task')) {
