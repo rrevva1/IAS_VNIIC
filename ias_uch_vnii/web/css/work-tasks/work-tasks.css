@@ -717,18 +717,18 @@
     flex-direction: column;
     gap: 0.45rem;
     padding: 0.62rem 0.68rem;
-    border: 1px solid #cfd8e3;
+    border: 1px solid #bfcddd;
     border-radius: 8px;
     background: #fff;
     text-decoration: none;
     color: inherit;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
     transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
 .work-task-card:hover {
-    border-color: #94a3b8;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
+    border-color: #93a8bf;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
     transform: translateY(-1px);
     color: inherit;
 }
@@ -966,7 +966,7 @@
     left: calc(50% + 0.65rem);
     right: calc(-50% + 0.65rem);
     height: 2px;
-    background: #e2e8f0;
+    background: #edf2f7;
     z-index: 0;
 }
 
@@ -974,7 +974,7 @@
     width: 1.25rem;
     height: 1.25rem;
     border-radius: 50%;
-    border: 2px solid #cbd5e1;
+    border: 2px solid #dde5ef;
     background: #fff;
     margin: 0 auto 0.4rem;
     position: relative;
@@ -1021,10 +1021,10 @@
 .work-timeline__step--pending_review.is-done .work-timeline__dot { border-color: #8b5cf6; background: #8b5cf6; }
 .work-timeline__step--done.is-done .work-timeline__dot { border-color: #22c55e; background: #22c55e; }
 
-.work-timeline__step--queue.is-done:not(:last-child)::after { background: #cbd5e1; }
-.work-timeline__step--assigned.is-done:not(:last-child)::after { background: #93c5fd; }
-.work-timeline__step--in_progress.is-done:not(:last-child)::after { background: #fcd34d; }
-.work-timeline__step--pending_review.is-done:not(:last-child)::after { background: #c4b5fd; }
+.work-timeline__step--queue.is-done:not(:last-child)::after { background: #d9e1ea; }
+.work-timeline__step--assigned.is-done:not(:last-child)::after { background: #bfdbfe; }
+.work-timeline__step--in_progress.is-done:not(:last-child)::after { background: #fde68a; }
+.work-timeline__step--pending_review.is-done:not(:last-child)::after { background: #bbf7d0; }
 
 .work-timeline__step--queue.is-current .work-timeline__label { color: #475569; }
 .work-timeline__step--assigned.is-current .work-timeline__label { color: #1d4ed8; }
@@ -1086,11 +1086,18 @@
     scroll-snap-align: start;
 }
 
-.work-kanban__column--queue { border-top: 3px solid #64748b; }
-.work-kanban__column--assigned { border-top: 3px solid #2563eb; }
-.work-kanban__column--in_progress { border-top: 3px solid #d97706; }
-.work-kanban__column--pending_review { border-top: 3px solid #7c3aed; }
-.work-kanban__column--done { border-top: 3px solid #16a34a; }
+.work-kanban__column--queue { border-top: 3px solid #94a3b8; }
+.work-kanban__column--assigned { border-top: 3px solid #60a5fa; }
+.work-kanban__column--in_progress { border-top: 3px solid #fbbf24; }
+.work-kanban__column--pending_review { border-top: 3px solid #4ade80; }
+.work-kanban__column--done { border-top: 3px solid #22c55e; }
+
+.work-kanban__column--queue .work-kanban__cards { background: #f8fafc; }
+.work-kanban__column--assigned .work-kanban__cards { background: #f5f9ff; }
+.work-kanban__column--in_progress .work-kanban__cards { background: #fffdf5; }
+.work-kanban__column--pending_review .work-kanban__cards { background: #f3fcf5; }
+.work-kanban__column--done .work-kanban__cards { background: #f2fbf4; }
+.work-kanban__column--cancelled .work-kanban__cards { background: #fef7f7; }
 
 .work-kanban__column.is-drop-target {
     border-color: #3b82f6;
@@ -1132,6 +1139,13 @@
     top: 0;
     z-index: 1;
 }
+
+.work-kanban__column--queue .work-kanban__column-header { background: #f3f6fa; }
+.work-kanban__column--assigned .work-kanban__column-header { background: #eaf3ff; }
+.work-kanban__column--in_progress .work-kanban__column-header { background: #fff6dd; }
+.work-kanban__column--pending_review .work-kanban__column-header { background: #e8f8ec; }
+.work-kanban__column--done .work-kanban__column-header { background: #e6f7ea; }
+.work-kanban__column--cancelled .work-kanban__column-header { background: #fdecec; }
 
 .work-kanban__column-title {
     font-size: var(--wt-font-base);
@@ -2079,9 +2093,9 @@
     flex-direction: column;
     gap: 0.45rem;
     padding: 0.65rem 0.7rem;
-    border-color: #dbe3ee;
+    border-color: #bfcddd;
     border-radius: 10px;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
 }
 
 .work-task-card--kanban .work-task-card__head {

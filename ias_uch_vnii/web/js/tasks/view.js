@@ -124,33 +124,10 @@ $(document).ready(function() {
     
     // Функция для показа уведомлений
     function showNotification(message, type) {
-        type = type || 'info';
-        
-        var alertClass = 'alert-info';
-        switch(type) {
-            case 'success':
-                alertClass = 'alert-success';
-                break;
-            case 'error':
-                alertClass = 'alert-danger';
-                break;
-            case 'warning':
-                alertClass = 'alert-warning';
-                break;
+        if (typeof window.IASNotify === 'function') {
+            window.IASNotify(message, type || 'info');
+            return;
         }
-        
-        var $notification = $('<div class="alert ' + alertClass + ' alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
-            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-            '<span aria-hidden="true">&times;</span>' +
-            '</button>' +
-            message +
-            '</div>');
-        
-        $('body').append($notification);
-        
-        // Автоматически скрываем уведомление через 5 секунд
-        setTimeout(function() {
-            $notification.alert('close');
-        }, 5000);
+        console.log((type || 'info') + ': ' + message);
     }
 });

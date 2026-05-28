@@ -237,38 +237,11 @@ function closeModal(modal) {
 
 // Функция для показа уведомлений
 function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `alert-site ${type}`;
-    notification.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span>${message}</span>
-            <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    `;
-    
-    // Добавляем стили для кнопки закрытия
-    const closeBtn = notification.querySelector('.btn-close');
-    closeBtn.style.cssText = `
-        background: none;
-        border: none;
-        font-size: 1rem;
-        cursor: pointer;
-        padding: 0;
-        margin-left: 10px;
-    `;
-    
-    // Вставляем уведомление в начало контейнера
-    const container = document.querySelector('.site-container') || document.body;
-    container.insertBefore(notification, container.firstChild);
-    
-    // Автоматически удаляем через 5 секунд
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
-    }, 5000);
+    if (typeof window.IASNotify === 'function') {
+        window.IASNotify(message, type);
+        return;
+    }
+    console.log(type + ': ' + message);
 }
 
 // Функция для плавной прокрутки к элементу

@@ -37,12 +37,12 @@
         return ''
             + '<div class="ag-actions">'
             + '<a class="btn btn-sm btn-outline-secondary" href="' + viewHref + '"'
-            + ' title="Просмотр" aria-label="Просмотр"><i class="fas fa-eye" aria-hidden="true"></i></a>'
+            + ' title="Профиль" aria-label="Профиль"><i class="fas fa-user" aria-hidden="true"></i></a>'
             + '<a class="btn btn-sm btn-outline-primary" href="' + updateHref + '"'
-            + ' title="Изменить" aria-label="Изменить"><i class="fas fa-pen" aria-hidden="true"></i></a>'
+            + ' title="Редактировать" aria-label="Редактировать"><i class="fas fa-pen" aria-hidden="true"></i></a>'
             + '<a class="btn btn-sm btn-outline-danger" href="' + deleteHref + '"'
             + ' title="Удалить" aria-label="Удалить" data-method="post"'
-            + ' data-confirm="Удалить пользователя?"><i class="fas fa-trash" aria-hidden="true"></i></a>'
+            + ' data-confirm="Удалить пользователя?"><i class="fas fa-xmark" aria-hidden="true"></i></a>'
             + '</div>';
     }
 
@@ -183,6 +183,7 @@
 
         var gridOptions = {
             columnDefs: getColumnDefs(),
+            animateRows: true,
             defaultColDef: {
                 sortable: true,
                 filter: true,

@@ -277,6 +277,40 @@
     line-height: 1.5;
 }
 
+#agGridTasksContainer .ag-cell.ag-cell-wrap-text {
+    white-space: normal !important;
+    align-items: center !important;
+}
+
+#agGridTasksContainer .ag-cell.ag-cell-wrap-text .ag-cell-wrapper,
+#agGridTasksContainer .ag-cell.ag-cell-wrap-text .ag-cell-value {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+#agGridTasksContainer .ag-cell.ag-cell-wrap-text .ag-cell-wrapper {
+    align-items: center !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+#agGridTasksContainer .ag-cell.ag-cell-wrap-text .ag-cell-value {
+    display: block !important;
+    line-height: 1.35 !important;
+    text-align: left !important;
+}
+
+#agGridTasksContainer .ag-cell-value {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.35 !important;
+    max-width: 100% !important;
+}
+
 /* Без текстового курсора (мигающей полоски) при клике по строке / пустому месту грида */
 .ag-theme-quartz .ag-root-wrapper .ag-cell,
 .ag-theme-quartz .ag-root-wrapper .ag-cell .ag-cell-value {
@@ -329,6 +363,19 @@
     text-decoration: none;
 }
 
+/* Статистика перемещений: ссылки в колонке "Техника" без синего акцента */
+#agGridStatisticsMovementContainer .tasks-movement-link {
+    color: inherit !important;
+    text-decoration: none !important;
+    font-weight: 400;
+}
+
+#agGridStatisticsMovementContainer .tasks-movement-link:hover,
+#agGridStatisticsMovementContainer .tasks-movement-link:focus {
+    color: inherit !important;
+    text-decoration: underline !important;
+}
+
 /* Стили для выпадающих списков в ячейках */
 .ag-theme-quartz .ag-cell select.form-control {
     border: 1px solid #ced4da;
@@ -339,15 +386,39 @@
 }
 
 /* Колонка исполнителя: селект занимает всю ячейку */
+#agGridTasksContainer .ag-cell.tasks-executor-cell {
+    padding: 0 !important;
+}
+
 #agGridTasksContainer .tasks-executor-cell .ag-cell-wrapper,
 #agGridTasksContainer .tasks-executor-cell .ag-cell-value {
-    width: 100%;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+#agGridTasksContainer .tasks-executor-cell .ag-cell-wrapper {
+    padding: 0 8px !important;
+}
+
+#agGridTasksContainer .tasks-executor-cell .ag-cell-value {
+    flex: 1 1 auto !important;
 }
 
 #agGridTasksContainer .tasks-executor-cell .executor-change-ag {
-    width: 100%;
-    min-width: 100%;
-    margin: 0;
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    margin: 0 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background-color: #fff !important;
+    padding: 0 28px 0 10px !important;
 }
 
 /* Select2 в колонке исполнителя */
@@ -357,7 +428,8 @@
 }
 
 #agGridTasksContainer .tasks-executor-cell .select2-container--default .select2-selection--single {
-    min-height: 30px;
+    min-height: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
 }

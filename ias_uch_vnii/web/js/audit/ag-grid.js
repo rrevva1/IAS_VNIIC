@@ -162,6 +162,7 @@
         var gridOpts = {
             columnDefs: getColumnDefs(),
             theme: 'legacy',
+            animateRows: true,
             defaultColDef: (window.AgGridWrap && window.AgGridWrap.mergeDefaultColDef)
                 ? window.AgGridWrap.mergeDefaultColDef({ sortable: true, filter: true, resizable: true }, true)
                 : { sortable: true, filter: true, resizable: true },

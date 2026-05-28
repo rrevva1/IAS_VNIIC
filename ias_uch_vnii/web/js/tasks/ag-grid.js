@@ -188,10 +188,14 @@ function initializeAgGrid() {
     // Настройки AG Grid
     gridOptions = {
         columnDefs: columnDefs,
+        animateRows: true,
         defaultColDef: {
             sortable: true,
             filter: true,
             resizable: true,
+            wrapText: true,
+            autoHeight: false,
+            cellClass: 'ag-cell-wrap-text',
             editable: false,
             floatingFilter: false, // только полное меню фильтра по клику на иконку (как на Учет ТС)
         },
@@ -241,30 +245,37 @@ function initializeAgGrid() {
         onGridReady: onGridReady,
         onFirstDataRendered: function() {
             fitTasksGridColumns();
+            if (gridApi && typeof gridApi.resetRowHeights === 'function') {
+                gridApi.resetRowHeights();
+            }
         },
         onModelUpdated: initExecutorUserSelectsInGrid,
         onCellValueChanged: onCellValueChanged,
         // Добавляем обработчик изменения размера страницы для автоматической подстройки высоты
         onPaginationChanged: onPaginationChanged,
+        onDisplayedColumnsChanged: function() {
+            if (gridApi && typeof gridApi.resetRowHeights === 'function') {
+                gridApi.resetRowHeights();
+            }
+        },
+        onColumnResized: function(event) {
+            if (event && event.finished && gridApi && typeof gridApi.resetRowHeights === 'function') {
+                gridApi.resetRowHeights();
+            }
+        },
+        onGridSizeChanged: function() {
+            if (gridApi && typeof gridApi.resetRowHeights === 'function') {
+                gridApi.resetRowHeights();
+            }
+        },
         onSelectionChanged: isAdmin ? function() {
             syncTasksDeleteButton();
         } : undefined,
 
-        // Высота строки: увеличить при длинном описании (перенос текста)
+        // Высота строки: по максимальному контенту видимых столбцов
         getRowHeight: function(params) {
-            if (!params.node.data) {
-                return undefined;
-            }
-            const desc = params.node.data.description;
-            if (desc && typeof desc === 'string' && desc.length > 0) {
-                const lineHeight = 20;
-                const charsPerLine = 55;
-                const lines = Math.min(Math.ceil(desc.length / charsPerLine), 6);
-                if (lines > 1) {
-                    return Math.max(40, 12 + lines * lineHeight);
-                }
-            }
-            return undefined;
+            const lines = Math.max(1, Math.min(8, getTasksRowDisplayLines(params)));
+            return Math.min(132, 24 + lines * 14);
         },
     };
     
@@ -477,6 +488,47 @@ function fitTasksGridColumns() {
     }
 }
 
+function estimateTasksCellLines(text, colWidth) {
+    const value = text == null ? '' : String(text).trim();
+    if (!value) return 1;
+    const width = Math.max(56, Number(colWidth || 120) - 20);
+    if (window.AgGridWrap && typeof window.AgGridWrap.estimateLines === 'function') {
+        return Math.max(1, window.AgGridWrap.estimateLines(value, width));
+    }
+    return Math.max(1, Math.ceil(value.length / 22));
+}
+
+function getTasksCellText(data, colId, colDef) {
+    if (!data || !colId) return '';
+    if (colId === 'ag-Grid-SelectionColumn' || colId === 'attachments') return '';
+    if (colId === 'id') return data.id != null ? String(data.id) : '';
+    const field = (colDef && colDef.field) ? colDef.field : colId;
+    const value = data[field];
+    if (value == null) return '';
+    if (Array.isArray(value)) {
+        return value.map(function(v) { return v == null ? '' : String(v); }).join(' ');
+    }
+    return String(value);
+}
+
+function getTasksRowDisplayLines(params) {
+    if (!params || !params.data || !params.api || typeof params.api.getAllDisplayedColumns !== 'function') {
+        return 1;
+    }
+    const cols = params.api.getAllDisplayedColumns() || [];
+    let maxLines = 1;
+    cols.forEach(function(col) {
+        if (!col || typeof col.getColId !== 'function') return;
+        const colId = col.getColId();
+        if (!colId || colId === 'ag-Grid-SelectionColumn') return;
+        const colDef = typeof col.getColDef === 'function' ? (col.getColDef() || {}) : {};
+        const text = getTasksCellText(params.data, colId, colDef);
+        const width = typeof col.getActualWidth === 'function' ? col.getActualWidth() : 120;
+        maxLines = Math.max(maxLines, estimateTasksCellLines(text, width));
+    });
+    return maxLines;
+}
+
 /**
  * Определение колонок таблицы
  */
@@ -523,6 +575,7 @@ function getColumnDefinitions() {
         minWidth: 120,
         maxWidth: 200,
         filter: 'agTextColumnFilter',
+        wrapText: false,
         cellRenderer: function(params) {
             if (!params.data) {
                 return '';
@@ -548,6 +601,7 @@ function getColumnDefinitions() {
             minWidth: 220,
             maxWidth: 360,
             filter: 'agTextColumnFilter',
+            wrapText: false,
             cellRenderer: renderExecutorCell,
             cellClass: 'tasks-executor-cell',
         });
@@ -558,6 +612,7 @@ function getColumnDefinitions() {
             minWidth: 100,
             maxWidth: 220,
             filter: 'agTextColumnFilter',
+            wrapText: false,
         });
     }
     
@@ -606,6 +661,7 @@ function getColumnDefinitions() {
         minWidth: 88,
         maxWidth: 110,
         filter: false,
+        wrapText: false,
         valueFormatter: function(params) {
             const attachments = params.value || [];
             return attachments.length > 0 ? `${attachments.length}` : '-';
@@ -788,7 +844,12 @@ function loadGridData() {
                 console.log('AG Grid: Загрузка', result.data.length, 'записей в таблицу');
                 gridApi.setGridOption('rowData', result.data);
                 syncTasksDeleteButton();
-                setTimeout(fitTasksGridColumns, 0);
+                setTimeout(function() {
+                    fitTasksGridColumns();
+                    if (gridApi && typeof gridApi.resetRowHeights === 'function') {
+                        gridApi.resetRowHeights();
+                    }
+                }, 0);
             } else {
                 console.error('AG Grid: Ошибка в ответе сервера:', result.error || 'Неизвестная ошибка');
             }
@@ -1167,25 +1228,11 @@ function displayFormErrors(errors) {
  * Показывает уведомление пользователю
  */
 function showNotification(type, message) {
-    var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-    var iconClass = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
-    
-    var notification = $('<div class="alert ' + alertClass + ' alert-dismissible fade show" role="alert">' +
-        '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>' +
-        '<i class="fas ' + iconClass + ' me-2"></i>' + message +
-        '</div>');
-    
-    var $host = $('.tasks-page--grid').first();
-    if (!$host.length) {
-        $host = $('.content-wrapper').first();
+    if (typeof window.IASNotify === 'function') {
+        window.IASNotify(message, type === 'error' ? 'danger' : type);
+        return;
     }
-    $host.prepend(notification);
-    
-    setTimeout(function() {
-        notification.fadeOut(function() {
-            $(this).remove();
-        });
-    }, 5000);
+    console.log((type || 'info') + ': ' + message);
 }
 
 /**

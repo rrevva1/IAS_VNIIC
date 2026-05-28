@@ -10,6 +10,7 @@
     let armQuickSearchText = '';
     let armQuickFilterTimer = null;
     let currentPageSize = Number(window.agGridArmDefaultLimit || 20) || 20;
+    const ARM_CLIENT_DATA_LIMIT = 5000;
     const ARM_COLUMNS_STORAGE_PREFIX = 'arm-columns:v4:';
     let armFitColumnsTimer = null;
     /** Не сбрасывать ширину после ручного изменения столбца мышью. */
@@ -53,24 +54,24 @@
 
     const COLUMN_PRESETS = {
         /** Вся техника */
-        all: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'],
+        all: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'],
         /** Вкладки АРМ, ПК */
-        arm: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
+        arm: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
         /** Вкладка «Системные блоки» */
-        systemBlock: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
+        systemBlock: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
         /** Ноутбуки: конфигурация и сеть; без колонок «Монитор» и «ИБП» */
-        laptop: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
+        laptop: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
         /** Моноблоки: встроенный экран — без колонки «Монитор» и «ИБП» */
-        monoblock: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
+        monoblock: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
         /** Прочие хосты (сервер и т.п.) */
-        host: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os'],
-        monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal'],
-        upsType: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
-        print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'cartridge_procurement', 'ip', 'other_tech'],
+        host: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os'],
+        monitor: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal'],
+        upsType: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date'],
+        print: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date', 'cartridge_procurement', 'ip', 'other_tech'],
         /** Сканеры — без «Закупка картриджей» */
-        scanner: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'ip', 'other_tech'],
+        scanner: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date', 'ip', 'other_tech'],
         /** Остальные вкладки — без колонки «ИБП» */
-        generic: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+        generic: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date'],
     };
 
     function buildCardViewLink(id, innerHtml, extraClass, title) {
@@ -287,6 +288,87 @@
         return Math.max(1, splitDiskFallback(fallback).length);
     }
 
+    function countUserDisplayLines(data, params) {
+        if (!data) {
+            return 1;
+        }
+        var text = String(data.user_name || '').trim();
+        if (!text) {
+            return 1;
+        }
+        var wrap = window.AgGridWrap;
+        var col = params && params.api && typeof params.api.getColumn === 'function'
+            ? params.api.getColumn('user_name')
+            : null;
+        var colWidth = wrap && col ? wrap.getColumnWidth(col) : 140;
+        if (wrap && typeof wrap.estimateLines === 'function') {
+            return Math.max(1, wrap.estimateLines(text, colWidth));
+        }
+        return Math.max(1, text.split(/\s+/).length);
+    }
+
+    function countGenericDisplayLines(data, params, colId) {
+        if (!data || !colId) {
+            return 1;
+        }
+        var value = data[colId];
+        if (value == null) {
+            return 1;
+        }
+        var text = String(value).trim();
+        if (!text) {
+            return 1;
+        }
+        var wrap = window.AgGridWrap;
+        var col = params && params.api && typeof params.api.getColumn === 'function'
+            ? params.api.getColumn(colId)
+            : null;
+        var colWidth = wrap && col ? wrap.getColumnWidth(col) : 120;
+        if (wrap && typeof wrap.estimateLines === 'function') {
+            return Math.max(1, wrap.estimateLines(text, colWidth));
+        }
+        return Math.max(1, Math.ceil(text.length / 22));
+    }
+
+    function countLinesForColumn(data, params, colId) {
+        switch (colId) {
+            case 'user_name':
+                return countUserDisplayLines(data, params);
+            case 'monitor':
+                return countMonitorDisplayLines(data, params);
+            case 'ups':
+                return countUpsDisplayLines(data, params);
+            case 'disk':
+                return countDiskDisplayLines(data, params);
+            default:
+                return countGenericDisplayLines(data, params, colId);
+        }
+    }
+
+    function getRowDisplayLines(data, params) {
+        if (!params || !params.api || typeof params.api.getAllDisplayedColumns !== 'function') {
+            return Math.max(
+                countUserDisplayLines(data, params),
+                countMonitorDisplayLines(data, params),
+                countUpsDisplayLines(data, params),
+                countDiskDisplayLines(data, params)
+            );
+        }
+        var displayed = params.api.getAllDisplayedColumns() || [];
+        var maxLines = 1;
+        displayed.forEach(function(col) {
+            if (!col || typeof col.getColId !== 'function') {
+                return;
+            }
+            var colId = col.getColId();
+            if (!colId || colId === 'ag-Grid-SelectionColumn') {
+                return;
+            }
+            maxLines = Math.max(maxLines, countLinesForColumn(data, params, colId));
+        });
+        return maxLines;
+    }
+
     function renderDiskCell(params) {
         var data = params.data;
         if (!data) {
@@ -320,6 +402,9 @@
                 field: 'user_name',
                 minWidth: 120,
                 filter: 'agTextColumnFilter',
+                wrapText: true,
+                autoHeight: false,
+                cellClass: 'ag-cell-wrap-text',
             },
             {
                 headerName: 'Помещение',
@@ -596,13 +681,24 @@
                 gridApi.paginationGoToFirstPage();
             } catch (e) {}
         }
-        if (typeof gridApi.setGridOption === 'function') {
-            gridApi.setGridOption('datasource', createDataSource());
-        } else if (typeof gridApi.setDatasource === 'function') {
-            gridApi.setDatasource(createDataSource());
-        } else {
-            console.error('AG Grid API: datasource method is unavailable');
-        }
+        fetch(getDataUrl(ARM_CLIENT_DATA_LIMIT, 0, {}, []))
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+            .then(function(result) {
+                if (!result || !result.success || !Array.isArray(result.data)) {
+                    return Promise.reject(new Error((result && result.message) || 'Invalid response'));
+                }
+                gridApi.setGridOption('rowData', result.data);
+                setTimeout(function() {
+                    scheduleFitArmColumns();
+                    scheduleArmGridRowHeights();
+                    syncSelectionChrome();
+                }, 0);
+            })
+            .catch(function(err) {
+                console.error('AG Grid (Учет ТС): ошибка загрузки', err);
+                gridApi.setGridOption('rowData', []);
+                setTimeout(syncSelectionChrome, 0);
+            });
         syncSelectionChrome();
     }
 
@@ -963,12 +1059,15 @@
         var gridOpts = {
             columnDefs: getColumnDefs(),
             theme: 'legacy',
+            animateRows: true,
             defaultColDef: (window.AgGridWrap && window.AgGridWrap.mergeDefaultColDef)
                 ? window.AgGridWrap.mergeDefaultColDef({
                     sortable: true,
                     filter: true,
                     resizable: true,
+                    wrapText: true,
                     autoHeight: false,
+                    cellClass: 'ag-cell-wrap-text',
                 }, true)
                 : {
                     sortable: true,
@@ -982,9 +1081,7 @@
             alwaysShowHorizontalScroll: true,
             alwaysShowVerticalScroll: true,
             scrollbarWidth: 12,
-            rowModelType: 'infinite',
-            cacheBlockSize: currentPageSize,
-            maxBlocksInCache: 5,
+            rowData: [],
             rowSelection: {
                 mode: 'multiRow',
                 checkboxes: true,
@@ -1007,16 +1104,16 @@
             paginationPageSize: currentPageSize,
             paginationPageSizeSelector: [10, 20, 50, 100, 200],
             domLayout: 'normal',
-            getRowHeight: function(params) {
-                var extraLines = Math.max(
-                    countMonitorDisplayLines(params.data, params),
-                    countUpsDisplayLines(params.data, params),
-                    countDiskDisplayLines(params.data, params)
-                );
-                if (window.AgGridWrap && typeof window.AgGridWrap.estimateRowHeight === 'function') {
-                    return window.AgGridWrap.estimateRowHeight(params, extraLines);
+            getRowId: function(params) {
+                if (!params || !params.data || params.data.id == null) {
+                    return undefined;
                 }
-                return Math.min(160, Math.max(62, extraLines * 24 + 28));
+                return String(params.data.id);
+            },
+            getRowHeight: function(params) {
+                var extraLines = getRowDisplayLines(params.data, params);
+                var lines = Math.max(1, Math.min(6, extraLines || 1));
+                return Math.min(108, 24 + lines * 14);
             },
             localeText: localeTextRu,
             sideBar: false,
@@ -1037,15 +1134,11 @@
                 var pageSize = gridApi.paginationGetPageSize ? gridApi.paginationGetPageSize() : currentPageSize;
                 if (pageSize !== currentPageSize) {
                     currentPageSize = pageSize;
-                    gridApi.setGridOption('cacheBlockSize', currentPageSize);
-                    loadGridData(true);
+                    gridApi.setGridOption('paginationPageSize', currentPageSize);
                 }
             },
             onSelectionChanged: function() {
                 syncSelectionChrome();
-            },
-            onSortChanged: function() {
-                loadGridData(true);
             },
             onDisplayedColumnsChanged: scheduleArmGridRowHeights,
             onColumnResized: function() {

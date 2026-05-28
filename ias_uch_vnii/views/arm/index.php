@@ -1133,22 +1133,12 @@ $this->registerJs("
     
     // Показ уведомления
     function showNotification(message, type) {
-        type = type || 'success';
-        var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-        var alertHtml = '<div class=\"alert ' + alertClass + ' alert-dismissible fade show\" role=\"alert\" style=\"position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;\">' +
-            escapeHtml(message) +
-            '<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Закрыть\"></button>' +
-            '</div>';
-        var alertDiv = document.createElement('div');
-        alertDiv.innerHTML = alertHtml;
-        document.body.appendChild(alertDiv.firstElementChild);
-        setTimeout(function() {
-            var alert = document.querySelector('.alert');
-            if (alert) {
-                var bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            }
-        }, 5000);
+        var level = type || 'success';
+        if (typeof window.IASNotify === 'function') {
+            window.IASNotify(message, level);
+            return;
+        }
+        console.log(level + ': ' + message);
     }
     
     // Отправка данных

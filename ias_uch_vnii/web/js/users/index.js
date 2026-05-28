@@ -260,23 +260,11 @@ function getUrlParameter(name) {
 
 // Функция для показа уведомлений
 function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `alert alert-${type} alert-dismissible fade show`;
-    notification.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    
-    // Вставляем уведомление в начало контейнера
-    const container = document.querySelector('.users-container') || document.body;
-    container.insertBefore(notification, container.firstChild);
-    
-    // Автоматически удаляем через 5 секунд
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
-    }, 5000);
+    if (typeof window.IASNotify === 'function') {
+        window.IASNotify(message, type);
+        return;
+    }
+    console.log(type + ': ' + message);
 }
 
 // Функция для экспорта списка пользователей

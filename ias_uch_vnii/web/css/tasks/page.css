@@ -482,10 +482,31 @@ body.app-body.modal-open:has(.tasks-page--grid) {
 .tasks-page #agGridTasksContainer .ag-paging-panel {
     border-top: 1px solid var(--tasks-border);
     background: #f8fafc;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8125rem;
-    color: var(--tasks-text-muted);
+    padding: 8px 12px;
+    font-size: 14px;
+    color: #475569;
     flex-shrink: 0;
+}
+
+.tasks-page #agGridTasksContainer .ag-paging-panel .ag-picker-field-wrapper,
+.tasks-page #agGridTasksContainer .ag-paging-panel input,
+.tasks-page #agGridTasksContainer .ag-paging-panel select,
+.tasks-page #agGridTasksContainer .ag-paging-panel button,
+.tasks-page #agGridTasksContainer .ag-paging-description,
+.tasks-page #agGridTasksContainer .ag-paging-row-summary-panel,
+.tasks-page #agGridTasksContainer .ag-paging-page-summary-panel {
+    font-size: 14px;
+    font-weight: 400;
+    color: #475569;
+}
+
+.tasks-page #agGridTasksContainer .ag-paging-button {
+    color: #334155;
+}
+
+.tasks-page #agGridTasksContainer .ag-paging-button.ag-disabled {
+    color: #94a3b8;
+    opacity: 1;
 }
 
 /* Убрать стрелки у поля «размер страницы» в пагинации AG Grid */

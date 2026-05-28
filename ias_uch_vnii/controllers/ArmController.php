@@ -146,7 +146,7 @@ class ArmController extends Controller
                 $params['ArmSearch']['quick_search'] = $quickSearch;
             }
 
-            $limit = max(1, min(500, (int)($params['limit'] ?? 20)));
+            $limit = max(1, min(5000, (int)($params['limit'] ?? 20)));
             $offset = max(0, (int)($params['offset'] ?? 0));
             $page = (int) floor($offset / $limit);
 

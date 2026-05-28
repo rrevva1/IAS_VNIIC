@@ -130,6 +130,7 @@
         var gridOpts = {
             columnDefs: columnDefs,
             theme: 'legacy',
+            animateRows: true,
             defaultColDef: utils.mergeDefaultColDef(),
             pagination: true,
             paginationPageSize: 20,

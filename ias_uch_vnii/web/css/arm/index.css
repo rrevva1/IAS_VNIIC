@@ -661,7 +661,7 @@ body.app-body:has(.arm-page) {
 #agGridArmContainer.ag-theme-quartz {
     --ag-font-size: 14px;
     --ag-font-family: inherit;
-    --ag-row-height: 74px;
+    --ag-row-height: 44px;
     --ag-header-height: 48px;
     --ag-grid-line-color: #cbd5e1;
     --ag-border-color: var(--ag-grid-line-color);
@@ -777,7 +777,7 @@ body.app-body:has(.arm-page) {
 
 #agGridArmContainer .ag-cell,
 #agGridArmContainer .ag-ltr .ag-cell:not(.ag-cell-inline-editing) {
-    padding: 12px !important;
+    padding: 8px 10px !important;
     font-size: var(--ag-font-size);
     line-height: var(--arm-line-grid) !important;
     color: var(--arm-text);
@@ -815,7 +815,15 @@ body.app-body:has(.arm-page) {
     display: block !important;
 }
 
-#agGridArmContainer .ag-cell-value,
+#agGridArmContainer .ag-cell-value {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+    line-height: var(--arm-line-grid) !important;
+    font-size: inherit;
+}
+
 #agGridArmContainer .ag-cell-value .arm-cell-wrap,
 #agGridArmContainer .ag-cell-value a.arm-link-to-card,
 #agGridArmContainer .ag-cell-value span.arm-cell-wrap,
@@ -826,11 +834,11 @@ body.app-body:has(.arm-page) {
     overflow-wrap: break-word !important;
     max-width: 100% !important;
     line-height: var(--arm-line-grid) !important;
-    font-size: inherit;
 }
 
 #agGridArmContainer .ag-cell-value a.arm-link-to-card {
     display: inline !important;
+    text-overflow: clip !important;
 }
 
 #agGridArmContainer .ag-cell.arm-cell-monitors .ag-cell-wrapper,

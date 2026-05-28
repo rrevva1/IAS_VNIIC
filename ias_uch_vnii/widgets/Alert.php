@@ -45,8 +45,8 @@ class Alert extends \yii\bootstrap5\Widget
     public $closeButton = [];
 
     /**
-     * @var bool Использовать Bootstrap Toast (всплывающие уведомления) вместо inline Alert.
-     * Тосты показываются в правом верхнем углу, зелёные для success, красные для error/danger.
+     * @var bool Использовать глобальные toast-уведомления вместо inline Alert.
+     * Уведомления показываются снизу справа и не влияют на вёрстку страницы.
      */
     public $useToast = true;
 
@@ -89,24 +89,25 @@ class Alert extends \yii\bootstrap5\Widget
 
     private function renderToasts(array $messages): void
     {
-        $toastTypeMap = [
-            'error' => 'danger', 'danger' => 'danger', 'success' => 'success',
-            'info' => 'info', 'warning' => 'warning',
-        ];
-        $id = $this->getId();
-        echo '<div class="toast-container position-fixed top-0 end-0 p-3" id="' . $id . '-toast-container" style="z-index: 9999;">';
-        foreach ($messages as $i => $m) {
-            $bsType = $toastTypeMap[$m['type']] ?? 'info';
-            $bgClass = $bsType === 'success' ? 'bg-success' : ($bsType === 'danger' ? 'bg-danger' : 'bg-' . $bsType);
-            echo '<div class="toast align-items-center text-white ' . $bgClass . ' border-0" role="alert" data-bs-autohide="true" data-bs-delay="5000">';
-            echo '<div class="d-flex"><div class="toast-body">' . \yii\helpers\Html::encode($m['body']) . '</div>';
-            echo '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div></div>';
-        }
-        echo '</div>';
         $json = \yii\helpers\Json::htmlEncode($messages);
         \Yii::$app->view->registerJs(
-            "(function(){ var c=document.getElementById('{$id}-toast-container'); if(c&&typeof bootstrap!=='undefined'){ var toasts=c.querySelectorAll('.toast'); toasts.forEach(function(t){ (new bootstrap.Toast(t)).show(); }); } })();",
-            \yii\web\View::POS_READY
+            "(function(){"
+            . "var items={$json};"
+            . "function emit(){"
+            . "if(typeof window.IASNotify!=='function'){"
+            . "window.IASNotify=function(msg,type){"
+            . "var stack=document.getElementById('iasToastStackFallback');"
+            . "if(!stack){stack=document.createElement('div');stack.id='iasToastStackFallback';stack.style.cssText='position:fixed;right:16px;bottom:16px;z-index:1600;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 32px));';document.body.appendChild(stack);}"
+            . "var t=document.createElement('div');t.style.cssText='background:#fff;border:1px solid #cbd5e1;border-left:4px solid #2563eb;border-radius:10px;padding:10px 12px;box-shadow:0 8px 24px rgba(15,23,42,.14);font-size:13px;line-height:1.35;color:#1f2937;';"
+            . "if(type==='success'){t.style.borderLeftColor='#16a34a';}else if(type==='danger'||type==='error'){t.style.borderLeftColor='#dc2626';}else if(type==='warning'){t.style.borderLeftColor='#d97706';}"
+            . "t.textContent=String(msg||'');stack.appendChild(t);setTimeout(function(){if(t&&t.parentNode){t.parentNode.removeChild(t);}},5000);"
+            . "};"
+            . "}"
+            . "items.forEach(function(m){window.IASNotify(m.body,m.type||'info');});"
+            . "}"
+            . "if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',emit,{once:true});}else{emit();}"
+            . "})();",
+            \yii\web\View::POS_END
         );
     }
 }

@@ -1,6 +1,50 @@
 /**
  * Боковое меню: сворачивание, подсказки, состояние в cookie.
  */
+(function () {
+    function normalizeType(type) {
+        var t = String(type || 'info').toLowerCase();
+        if (t === 'error') return 'danger';
+        if (t !== 'success' && t !== 'danger' && t !== 'warning' && t !== 'info') return 'info';
+        return t;
+    }
+
+    function ensureStack() {
+        var existing = document.getElementById('iasToastStack');
+        if (existing) return existing;
+        var stack = document.createElement('div');
+        stack.id = 'iasToastStack';
+        stack.className = 'ias-toast-stack';
+        document.body.appendChild(stack);
+        return stack;
+    }
+
+    window.IASNotify = function (message, type, options) {
+        if (!message) return;
+        var stack = ensureStack();
+        var level = normalizeType(type);
+        var timeout = (options && options.timeoutMs) || 5000;
+
+        var toast = document.createElement('div');
+        toast.className = 'ias-toast ias-toast--' + level;
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+        toast.innerHTML = '<div class="ias-toast__message"></div>'
+            + '<button type="button" class="ias-toast__close" aria-label="Закрыть">×</button>';
+        toast.querySelector('.ias-toast__message').textContent = String(message);
+        toast.querySelector('.ias-toast__close').addEventListener('click', function () {
+            toast.remove();
+        });
+        stack.appendChild(toast);
+
+        window.setTimeout(function () {
+            if (toast && toast.parentNode) {
+                toast.remove();
+            }
+        }, timeout);
+    };
+})();
+
 document.addEventListener('DOMContentLoaded', function () {
     var sidebar = document.getElementById('sidebar');
     var toggleBtn = document.getElementById('toggleSidebar');

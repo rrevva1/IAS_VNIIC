@@ -13,6 +13,8 @@ class StatisticsAsset extends AssetBundle
     public $baseUrl = '@web';
 
     public $css = [
+        'css/arm/index.css',
+        'css/section-grid-page.css',
         'css/tasks/page.css',
         'css/tasks/statistics.css',
         'ag-grid-community/styles/ag-theme-quartz.css',

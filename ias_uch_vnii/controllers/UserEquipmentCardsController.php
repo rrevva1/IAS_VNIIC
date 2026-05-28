@@ -53,7 +53,7 @@ class UserEquipmentCardsController extends Controller
         ]);
     }
 
-    public function actionGetGridData(string $tab = 'all', string $q = '', int $limit = 20, int $offset = 0)
+    public function actionGetGridData(string $tab = 'all', string $q = '', int $limit = 20, int $offset = 0, string $sortModel = '')
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
         if (!UserEquipmentCardService::isCardsTableReady()) {
@@ -62,10 +62,10 @@ class UserEquipmentCardsController extends Controller
 
         try {
             $q = trim($q);
-            $limit = max(1, min(200, $limit));
+            $limit = max(1, min(5000, $limit));
             $offset = max(0, $offset);
 
-            $query = $this->buildCardsQuery($tab, $q);
+            $query = $this->buildCardsQuery($tab, $q, $sortModel);
             $pageUserIds = (clone $query)
                 ->select('c.user_id')
                 ->limit($limit)
@@ -75,7 +75,7 @@ class UserEquipmentCardsController extends Controller
                 UserEquipmentCardService::ensureCardForUser($userId);
             }
 
-            $query = $this->buildCardsQuery($tab, $q);
+            $query = $this->buildCardsQuery($tab, $q, $sortModel);
             $total = (int) (clone $query)->count('c.id');
             $models = $query->limit($limit)->offset($offset)->all();
             $rows = [];
@@ -98,13 +98,12 @@ class UserEquipmentCardsController extends Controller
         }
     }
 
-    private function buildCardsQuery(string $tab, string $q)
+    private function buildCardsQuery(string $tab, string $q, string $sortModel = '')
     {
         $query = UserEquipmentCard::find()
             ->alias('c')
             ->with(['user', 'signedByAdmin'])
-            ->joinWith(['user u'])
-            ->orderBy(['c.updated_at' => SORT_DESC, 'c.id' => SORT_DESC]);
+            ->joinWith(['user u', 'signedByAdmin sba']);
 
         if ($tab === 'unsigned') {
             $query->andWhere(['c.is_signed' => false]);
@@ -119,7 +118,58 @@ class UserEquipmentCardsController extends Controller
             ]);
         }
 
+        $sort = $this->buildSortOrder($sortModel);
+        if (!empty($sort)) {
+            $query->orderBy($sort);
+        } else {
+            $query->orderBy(['u.full_name' => SORT_ASC, 'c.id' => SORT_DESC]);
+        }
+
         return $query;
+    }
+
+    private function buildSortOrder(string $sortModelRaw): array
+    {
+        $sortModelRaw = trim($sortModelRaw);
+        if ($sortModelRaw === '') {
+            return [];
+        }
+
+        $decoded = json_decode($sortModelRaw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+
+        $allowed = [
+            'id' => 'c.id',
+            'user_name' => 'u.full_name',
+            'version_no' => 'c.version_no',
+            'is_signed' => 'c.is_signed',
+            'signed_by_admin' => 'sba.full_name',
+            'updated_at' => 'c.updated_at',
+        ];
+
+        $orderBy = [];
+        foreach ($decoded as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $colId = isset($item['colId']) ? (string) $item['colId'] : '';
+            $dir = isset($item['sort']) ? strtolower((string) $item['sort']) : '';
+            if (!isset($allowed[$colId])) {
+                continue;
+            }
+            if ($dir !== 'asc' && $dir !== 'desc') {
+                continue;
+            }
+            $orderBy[$allowed[$colId]] = $dir === 'asc' ? SORT_ASC : SORT_DESC;
+        }
+
+        if (!empty($orderBy) && !isset($orderBy['c.id'])) {
+            $orderBy['c.id'] = SORT_DESC;
+        }
+
+        return $orderBy;
     }
 
     public function actionDownload(int $userId)

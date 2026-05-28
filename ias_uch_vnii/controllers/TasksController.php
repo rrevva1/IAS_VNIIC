@@ -829,6 +829,12 @@ class TasksController extends Controller
             return ['success' => true, 'data' => $data, 'total' => count($data)];
         }
 
+        if ($type === 'movement') {
+            $data = $report['movements'] ?? [];
+
+            return ['success' => true, 'data' => $data, 'total' => count($data)];
+        }
+
         return ['success' => true, 'data' => $report['executors'], 'total' => count($report['executors'])];
     }
 
