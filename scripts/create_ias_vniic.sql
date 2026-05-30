@@ -215,7 +215,6 @@ CREATE TABLE IF NOT EXISTS equipment (
     updated_by_id BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_equipment_inventory_number UNIQUE (inventory_number),
     CONSTRAINT chk_equipment_name_not_empty CHECK (length(trim(name)) > 0),
     CONSTRAINT chk_equipment_warranty_dates CHECK (warranty_until IS NULL OR commissioning_date IS NULL OR warranty_until >= commissioning_date)
 );
@@ -276,6 +275,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     closed_at TIMESTAMPTZ,
     comment TEXT,
     contact_phone VARCHAR(50),
+    room_number VARCHAR(50),
     attachments_legacy JSONB,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     deleted_at TIMESTAMPTZ,

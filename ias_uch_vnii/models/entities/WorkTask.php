@@ -284,18 +284,15 @@ class WorkTask extends ActiveRecord
             return true;
         }
 
-        $uploadDir = Yii::getAlias('@webroot/uploads/work_tasks/');
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
+        DeskAttachments::ensureUploadDirectory('work_tasks');
 
         foreach ($this->uploadFiles as $file) {
             if (!$file instanceof UploadedFile) {
                 continue;
             }
             $fileName = time() . '_' . uniqid() . '_' . $file->baseName . '.' . $file->extension;
-            $relativePath = '/uploads/work_tasks/' . $fileName;
-            $fullPath = Yii::getAlias('@webroot') . $relativePath;
+            $relativePath = DeskAttachments::buildStoragePath('work_tasks', $fileName);
+            $fullPath = DeskAttachments::resolveStoragePath($relativePath);
             if (!$file->saveAs($fullPath)) {
                 continue;
             }

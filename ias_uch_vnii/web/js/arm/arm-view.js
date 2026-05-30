@@ -40,6 +40,11 @@
     }
 
     function setTitle(text) {
+        var label = headerEl && headerEl.querySelector('.arm-view__title');
+        if (label) {
+            label.textContent = text || 'Карточка техники';
+            return;
+        }
         if (titleEl) {
             titleEl.textContent = text || 'Карточка техники';
         }

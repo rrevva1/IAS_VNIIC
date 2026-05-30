@@ -16,15 +16,6 @@
     padding: 2rem 1rem;
 }
 
-.login-layout__footer {
-    padding: 1rem;
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.login-layout__footer .text-muted {
-    color: rgba(255, 255, 255, 0.7) !important;
-}
-
 .login-page {
     width: 100%;
     max-width: 420px;
@@ -84,7 +75,7 @@
 }
 
 .login-card__hint {
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: #64748b;
     text-align: center;
     margin: 0 0 1.25rem;
@@ -93,7 +84,7 @@
 .login-form .form-label {
     font-weight: 500;
     color: #334155;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .login-form .form-control {
@@ -114,7 +105,7 @@
 }
 
 .login-form .form-check-label {
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: #475569;
 }
 
@@ -127,24 +118,6 @@
     padding: 0.7rem 1rem;
     font-weight: 600;
     border-radius: 8px;
-}
-
-.login-card__footer {
-    padding-top: 1rem;
-    margin-top: 1rem;
-    border-top: 1px solid #f1f5f9;
-    text-align: center;
-    font-size: 0.875rem;
-}
-
-.login-card__footer a {
-    color: #2563eb;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.login-card__footer a:hover {
-    text-decoration: underline;
 }
 
 .login-layout .alert {

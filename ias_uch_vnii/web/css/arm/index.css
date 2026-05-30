@@ -9,10 +9,10 @@
     --arm-text: #334155;
     --arm-text-muted: #64748b;
     --arm-radius: 12px;
-    /* Единая типографика страницы (14px база) */
-    --arm-font-base: 0.875rem;
-    --arm-font-title: 1.125rem;
-    --arm-font-control: 0.875rem;
+  /* Типографика: 12px текст, 13px заголовки */
+    --arm-font-base: var(--ias-font-body, 0.75rem);
+    --arm-font-title: var(--ias-font-section-title, 0.875rem);
+    --arm-font-control: var(--ias-font-body, 0.75rem);
     --arm-line: 1.45;
     --arm-line-grid: 1.4;
     --arm-control-height: 38px;
@@ -111,7 +111,7 @@ body.app-body:has(.arm-page) {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.875rem;
+    font-size: var(--arm-font-control);
     font-weight: 500;
     padding: 0.45rem 0.75rem;
     border-radius: 8px;
@@ -659,10 +659,13 @@ body.app-body:has(.arm-page) {
 
 /* ===== Таблица AG Grid (Учёт ТС) ===== */
 #agGridArmContainer.ag-theme-quartz {
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
     --ag-font-family: inherit;
-    --ag-row-height: 44px;
-    --ag-header-height: 48px;
+    --ag-row-height: 36px;
+    --arm-grid-row-base: 18;
+    --arm-grid-row-step: 12;
+    --arm-grid-row-max: 84;
+    --ag-header-height: 44px;
     --ag-grid-line-color: #cbd5e1;
     --ag-border-color: var(--ag-grid-line-color);
     --ag-row-border-color: var(--ag-grid-line-color);
@@ -775,9 +778,26 @@ body.app-body:has(.arm-page) {
     background-color: #dbeafe !important;
 }
 
+/*
+ * Плавное перемещение строк — как в ag-grid.css / таблице заявок (transform + top + height).
+ * Не задавать transition только height/top на .ag-row: это отключает анимацию transform.
+ */
+#agGridArmContainer .ag-row-animation .ag-row {
+    transition: transform 0.4s, top 0.4s, opacity 0.2s;
+}
+
+#agGridArmContainer .ag-row-animation .ag-row.ag-after-created {
+    transition: transform 0.4s, top 0.4s, height 0.4s, opacity 0.2s;
+}
+
+#agGridArmContainer .ag-row-animation.ag-prevent-animation .ag-row,
+#agGridArmContainer .ag-row-animation.ag-prevent-animation .ag-row.ag-after-created {
+    transition: none !important;
+}
+
 #agGridArmContainer .ag-cell,
 #agGridArmContainer .ag-ltr .ag-cell:not(.ag-cell-inline-editing) {
-    padding: 8px 10px !important;
+    padding: 6px 10px !important;
     font-size: var(--ag-font-size);
     line-height: var(--arm-line-grid) !important;
     color: var(--arm-text);
@@ -795,15 +815,15 @@ body.app-body:has(.arm-page) {
 #agGridArmContainer .ag-cell.ag-cell-wrap-text:not(.ag-cell-auto-height) .ag-cell-wrapper {
     align-items: center !important;
     height: 100% !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     width: 100% !important;
     max-width: 100% !important;
 }
 
 #agGridArmContainer .ag-cell.ag-cell-wrap-text:not(.ag-cell-auto-height) .ag-cell-wrapper .ag-cell-value {
     height: auto !important;
-    max-height: 100% !important;
-    overflow: hidden !important;
+    max-height: none !important;
+    overflow: visible !important;
     white-space: normal !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
@@ -815,15 +835,7 @@ body.app-body:has(.arm-page) {
     display: block !important;
 }
 
-#agGridArmContainer .ag-cell-value {
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-width: 100% !important;
-    line-height: var(--arm-line-grid) !important;
-    font-size: inherit;
-}
-
+#agGridArmContainer .ag-cell-value,
 #agGridArmContainer .ag-cell-value .arm-cell-wrap,
 #agGridArmContainer .ag-cell-value a.arm-link-to-card,
 #agGridArmContainer .ag-cell-value span.arm-cell-wrap,
@@ -834,6 +846,7 @@ body.app-body:has(.arm-page) {
     overflow-wrap: break-word !important;
     max-width: 100% !important;
     line-height: var(--arm-line-grid) !important;
+    font-size: inherit;
 }
 
 #agGridArmContainer .ag-cell-value a.arm-link-to-card {
@@ -862,15 +875,22 @@ body.app-body:has(.arm-page) {
     overflow-wrap: break-word !important;
 }
 
-#agGridArmContainer .arm-link-to-card {
-    color: var(--arm-accent);
+#agGridArmContainer .ag-cell a,
+#agGridArmContainer .arm-link-to-card,
+#agGridArmContainer .arm-monitor-link,
+#agGridArmContainer .arm-ups-link {
+    color: var(--arm-text) !important;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: inherit;
+    cursor: pointer;
 }
 
-#agGridArmContainer .arm-link-to-card:hover {
+#agGridArmContainer .ag-cell a:hover,
+#agGridArmContainer .arm-link-to-card:hover,
+#agGridArmContainer .arm-monitor-link:hover,
+#agGridArmContainer .arm-ups-link:hover {
+    color: var(--arm-text) !important;
     text-decoration: underline;
-    color: #1d4ed8;
 }
 
 /* Списки мониторов и дисков */
@@ -878,7 +898,7 @@ body.app-body:has(.arm-page) {
 #agGridArmContainer .arm-disk-list {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     width: 100%;
     min-width: 0;
     max-width: 100%;
@@ -1088,14 +1108,15 @@ body.app-body:has(.arm-page) {
     margin-top: 0.35rem;
 }
 
-/* Модальное окно переназначения — на всю страницу */
-#reassignArmModal.modal {
+/* Полноэкранные модалки Учёт ТС — единая типографика */
+#reassignArmModal.modal,
+#createArmModal.modal {
     --bs-modal-margin: 0;
     padding: 0 !important;
-    --arm-modal-font: 0.875rem;
-    --arm-modal-font-sm: 0.8125rem;
-    --arm-modal-font-title: 1rem;
-    --arm-modal-font-heading: 1.0625rem;
+    --arm-modal-font: var(--ias-font-body, 0.75rem);
+    --arm-modal-font-sm: var(--ias-font-body, 0.75rem);
+    --arm-modal-font-title: var(--ias-font-section-title, 0.875rem);
+    --arm-modal-font-heading: var(--ias-font-heading, 0.8125rem);
     --arm-modal-text: #334155;
     --arm-modal-text-muted: #64748b;
     --arm-modal-text-heading: #0f172a;
@@ -1108,7 +1129,9 @@ body.app-body:has(.arm-page) {
 }
 
 #reassignArmModal strong,
-#reassignArmModal b {
+#reassignArmModal b,
+#createArmModal strong,
+#createArmModal b {
     font-weight: 500;
 }
 
@@ -1119,17 +1142,30 @@ body.app-body:has(.arm-page) {
     margin-bottom: 0.3rem;
 }
 
+#createArmModal .form-label {
+    font-size: var(--ias-font-heading, 0.8125rem);
+    font-weight: 500;
+    color: var(--arm-modal-text-heading, #0f172a);
+    margin-bottom: 0.3rem;
+}
+
 #reassignArmModal .form-select,
 #reassignArmModal .form-control,
 #reassignArmModal .form-check-label,
 #reassignArmModal .form-text,
-#reassignArmModal small {
+#reassignArmModal small,
+#createArmModal .form-select,
+#createArmModal .form-control,
+#createArmModal .form-check-label,
+#createArmModal .form-text,
+#createArmModal small {
     font-size: var(--arm-modal-font);
     font-weight: 400;
     line-height: var(--arm-modal-line);
 }
 
-#reassignArmModal .form-select {
+#reassignArmModal .form-select,
+#createArmModal .form-select {
     font-weight: 400;
     color: var(--arm-modal-text);
     background-color: #fff;
@@ -1137,11 +1173,13 @@ body.app-body:has(.arm-page) {
 }
 
 /* Select2 (Ответственный и др.) — как у обычного form-select */
-#reassignArmModal .select2-container {
+#reassignArmModal .select2-container,
+#createArmModal .select2-container {
     width: 100% !important;
 }
 
-#reassignArmModal .select2-container--default .select2-selection--single {
+#reassignArmModal .select2-container--default .select2-selection--single,
+#createArmModal .select2-container--default .select2-selection--single {
     min-height: var(--arm-control-height);
     height: var(--arm-control-height);
     border: 1px solid #ced4da;
@@ -1153,42 +1191,104 @@ body.app-body:has(.arm-page) {
     background-size: 16px 12px;
 }
 
-#reassignArmModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+#reassignArmModal .select2-container--default .select2-selection--single .select2-selection__rendered,
+#createArmModal .select2-container--default .select2-selection--single .select2-selection__rendered {
+    font-size: var(--arm-modal-font);
     line-height: calc(var(--arm-control-height) - 2px);
     padding-left: 0.75rem;
     padding-right: 2.25rem;
     color: var(--arm-modal-text);
 }
 
-#reassignArmModal .select2-container--default .select2-selection--single .select2-selection__placeholder {
+/* Select2 dropdown в body — типографика модалки Учёт ТС */
+.select2-dropdown.arm-modal-select2-dropdown {
+    font-size: var(--ias-font-body, 0.75rem);
+    line-height: 1.45;
+    color: #334155;
+    border-color: #ced4da;
+    z-index: 2005;
+}
+
+.select2-dropdown.arm-modal-select2-dropdown .select2-search--dropdown {
+    padding: 0.35rem 0.5rem;
+}
+
+.select2-dropdown.arm-modal-select2-dropdown .select2-search--dropdown .select2-search__field {
+    font-size: var(--ias-font-body, 0.75rem);
+    line-height: 1.45;
+    padding: 0.35rem 0.75rem;
+    min-height: 34px;
+    border-radius: 0.375rem;
+}
+
+.select2-dropdown.arm-modal-select2-dropdown .select2-results__option {
+    font-size: var(--ias-font-body, 0.75rem);
+    line-height: 1.45;
+    padding: 0.4rem 0.75rem;
+}
+
+.select2-dropdown.arm-modal-select2-dropdown
+    .select2-results__option--highlighted.select2-results__option--selectable {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+#reassignArmModal .select2-container--default .select2-selection--single .select2-selection__placeholder,
+#createArmModal .select2-container--default .select2-selection--single .select2-selection__placeholder {
     color: var(--arm-modal-text);
 }
 
-#reassignArmModal .select2-container--default .select2-selection--single .select2-selection__arrow {
+#reassignArmModal .select2-container--default .select2-selection--single .select2-selection__arrow,
+#createArmModal .select2-container--default .select2-selection--single .select2-selection__arrow {
     display: none;
 }
 
-#reassignArmModal .select2-container--default .select2-selection--single .select2-selection__clear {
+#reassignArmModal .select2-container--default .select2-selection--single .select2-selection__clear,
+#createArmModal .select2-container--default .select2-selection--single .select2-selection__clear {
     margin-right: 1.75rem;
     color: var(--arm-modal-text-muted);
 }
 
-#reassignArmModal .select2-container--default.select2-container--disabled .select2-selection--single {
+#reassignArmModal .select2-container--default.select2-container--disabled .select2-selection--single,
+#createArmModal .select2-container--default.select2-container--disabled .select2-selection--single {
     background-color: #e9ecef;
     cursor: not-allowed;
 }
 
-#reassignArmModal .select2-container--default.select2-container--disabled .select2-selection--single .select2-selection__rendered {
+#reassignArmModal .select2-container--default.select2-container--disabled .select2-selection--single .select2-selection__rendered,
+#createArmModal .select2-container--default.select2-container--disabled .select2-selection--single .select2-selection__rendered {
     color: var(--arm-modal-text-muted);
 }
 
-#reassignArmModal h6 {
+/* Select2 — подсветка ошибки (контейнер рядом со скрытым select) */
+#createArmModal .arm-form-create__field.has-error .select2-container--default .select2-selection--single,
+#createArmModal .arm-form-create__field:has(.is-invalid) .select2-container--default .select2-selection--single,
+#createArmModal .arm-form-create__field.arm-field--error .select2-container--default .select2-selection--single,
+#createArmModal .form-select.is-invalid + .select2-container--default .select2-selection--single,
+#createArmModal .select2-container.is-invalid .select2-selection--single,
+#createArmModal .select2-container.arm-select2--invalid .select2-selection--single {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+}
+
+#createArmModal .arm-form-create__field.has-error .select2-container--default .select2-selection--single .select2-selection__rendered,
+#createArmModal .arm-form-create__field:has(.is-invalid) .select2-container--default .select2-selection--single .select2-selection__rendered,
+#createArmModal .select2-container.is-invalid .select2-selection--single .select2-selection__rendered,
+#createArmModal .select2-container.arm-select2--invalid .select2-selection--single .select2-selection__rendered {
+    color: #991b1b;
+}
+
+#reassignArmModal h6,
+#createArmModal h2.arm-view-card__title,
+#createArmModal .arm-form-section__title {
     font-size: var(--arm-modal-font-title);
     font-weight: 500;
     line-height: 1.35;
 }
 
-#reassignArmModal .arm-reassign-modal__dialog {
+#reassignArmModal .arm-reassign-modal__dialog,
+#createArmModal .arm-reassign-modal__dialog {
     width: 100vw;
     max-width: 100vw;
     height: 100vh;
@@ -1198,7 +1298,8 @@ body.app-body:has(.arm-page) {
     margin: 0;
 }
 
-#reassignArmModal .arm-reassign-modal__dialog .modal-content {
+#reassignArmModal .arm-reassign-modal__dialog .modal-content,
+#createArmModal .arm-reassign-modal__dialog .modal-content {
     height: 100%;
     min-height: 100%;
     display: flex;
@@ -1547,7 +1648,7 @@ body.app-body:has(.arm-page) {
 
 .arm-reassign-preview__title i {
     color: var(--arm-accent);
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .arm-reassign-preview__list {

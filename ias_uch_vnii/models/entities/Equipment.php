@@ -18,6 +18,7 @@ use yii\db\ActiveRecord;
  * @property int $status_id
  * @property int|null $responsible_user_id
  * @property int $location_id
+ * @property string|null $location_name Наименование помещения (ввод в форме)
  * @property string|null $description
  * @property string|null $supplier
  * @property string|null $purchase_date
@@ -45,6 +46,9 @@ class Equipment extends ActiveRecord
     /** @var float|string|null */
     public $warranty_years = null;
 
+    /** @var string|null */
+    public $location_name = null;
+
     public static function tableName()
     {
         return 'equipment';
@@ -58,8 +62,9 @@ class Equipment extends ActiveRecord
         }
 
         return [
-            [['inventory_number', 'name', 'status_id', 'location_id'], 'required'],
+            [['inventory_number', 'name', 'status_id', 'location_name'], 'required'],
             [$integerAttrs, 'integer'],
+            [['location_name'], 'string', 'max' => 150],
             [['name'], 'string', 'max' => 200],
             [['inventory_number'], 'string', 'max' => 100],
             [['serial_number'], 'filter', 'filter' => [static::class, 'normalizeSerialNumberValue']],
@@ -70,7 +75,6 @@ class Equipment extends ActiveRecord
             [['purchase_date', 'commissioning_date', 'warranty_until', 'archived_at', 'created_at', 'updated_at'], 'safe'],
             [['warranty_years'], 'number', 'min' => 0, 'max' => 50],
             [['is_archived', 'is_deleted'], 'boolean'],
-            [['inventory_number'], 'unique'],
             [['status_id'], 'exist', 'targetClass' => DicEquipmentStatus::class, 'targetAttribute' => ['status_id' => 'id']],
             [['responsible_user_id'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['responsible_user_id' => 'id']],
             [['location_id'], 'exist', 'targetClass' => Location::class, 'targetAttribute' => ['location_id' => 'id']],
@@ -89,6 +93,7 @@ class Equipment extends ActiveRecord
             'status_id' => 'Статус эксплуатации',
             'responsible_user_id' => 'Ответственный пользователь',
             'location_id' => 'Местоположение',
+            'location_name' => 'Местоположение',
             'description' => 'Примечание',
             'supplier' => 'Поставщик',
             'purchase_date' => 'Дата закупки',
@@ -112,6 +117,9 @@ class Equipment extends ActiveRecord
             static::resolveWarrantyBaseDate($this->commissioning_date, $this->purchase_date),
             $this->warranty_until
         );
+        if ($this->location_id && $this->location) {
+            $this->location_name = $this->location->name;
+        }
     }
 
     public function beforeValidate()
@@ -133,8 +141,32 @@ class Equipment extends ActiveRecord
         }
 
         $this->applyWarrantyUntilFromYears();
+        $this->applyLocationFromName();
 
         return true;
+    }
+
+    /**
+     * Привязка location_id по введённому наименованию помещения (создание в справочнике при отсутствии).
+     */
+    private function applyLocationFromName(): void
+    {
+        $name = trim((string) ($this->location_name ?? ''));
+        if ($name === '') {
+            return;
+        }
+
+        $locationId = Location::resolveOrCreateByName($name);
+        if ($locationId === null) {
+            $this->addError(
+                'location_name',
+                'Не удалось сохранить местоположение в справочнике.'
+            );
+
+            return;
+        }
+
+        $this->location_id = $locationId;
     }
 
     public function afterValidate()
@@ -352,7 +384,7 @@ class Equipment extends ActiveRecord
     }
 
     /**
-     * Значения по умолчанию при создании (инв. номер и статус).
+     * Значения по умолчанию при создании (статус эксплуатации).
      */
     public function loadDefaultValues($skipIfSet = true)
     {
@@ -360,9 +392,7 @@ class Equipment extends ActiveRecord
         if ($this->status_id === null || $this->status_id === '') {
             $this->status_id = DicEquipmentStatus::getDefaultId();
         }
-        if (empty($this->inventory_number)) {
-            $this->inventory_number = 'EQ-' . date('Ymd') . '-' . substr(uniqid(), -4);
-        }
+
         return $this;
     }
 }

@@ -67,13 +67,56 @@ class DeskAttachments extends ActiveRecord
         ];
     }
 
-    public function getFullPath()
+    /**
+     * Каталог хранения вложений (вне web/).
+     */
+    public static function getUploadBasePath(): string
     {
-        $path = $this->storage_path;
+        $base = Yii::getAlias('@uploads');
+        if (!is_dir($base)) {
+            mkdir($base, 0755, true);
+        }
+
+        return $base;
+    }
+
+    /**
+     * Относительный путь в БД (формат /uploads/{category}/file).
+     */
+    public static function buildStoragePath(string $category, string $fileName): string
+    {
+        return '/uploads/' . trim($category, '/') . '/' . $fileName;
+    }
+
+    /**
+     * Абсолютный путь к файлу на диске по storage_path из БД.
+     */
+    public static function resolveStoragePath(string $storagePath): string
+    {
+        $path = $storagePath;
         if (strpos($path, '/') !== 0 && strpos($path, ':') === false) {
             $path = '/' . $path;
         }
+        if (strncmp($path, '/uploads/', 9) === 0) {
+            return self::getUploadBasePath() . substr($path, strlen('/uploads'));
+        }
+
         return Yii::getAlias('@webroot') . $path;
+    }
+
+    public static function ensureUploadDirectory(string $category): string
+    {
+        $dir = self::getUploadBasePath() . '/' . trim($category, '/') . '/';
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        return $dir;
+    }
+
+    public function getFullPath()
+    {
+        return self::resolveStoragePath((string) $this->storage_path);
     }
 
     public function fileExists()

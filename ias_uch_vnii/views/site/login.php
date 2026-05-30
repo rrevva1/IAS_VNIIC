@@ -62,11 +62,6 @@ $this->title = 'Вход в систему';
             </div>
 
             <?php ActiveForm::end(); ?>
-
-            <div class="login-card__footer">
-                <p class="mb-1 text-muted">Нет учётной записи?</p>
-                <?= Html::a('Обратиться к администратору', ['/site/contact'], ['title' => 'Контакты администратора']) ?>
-            </div>
         </div>
     </div>
 </div>

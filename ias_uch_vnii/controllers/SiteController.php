@@ -24,14 +24,24 @@ class SiteController extends Controller
         return [
             'access' => [
                 'class' => AccessControl::class,
-                'only' => ['logout'],
                 'rules' => [
+                    [
+                        'actions' => ['login', 'error', 'captcha'],
+                        'allow' => true,
+                    ],
                     [
                         'actions' => ['logout'],
                         'allow' => true,
                         'roles' => ['@'],
                     ],
+                    [
+                        'allow' => true,
+                        'roles' => ['@'],
+                    ],
                 ],
+                'denyCallback' => static function () {
+                    return Yii::$app->user->loginRequired();
+                },
             ],
             'verbs' => [
                 'class' => VerbFilter::class,

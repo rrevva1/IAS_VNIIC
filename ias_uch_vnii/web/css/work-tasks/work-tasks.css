@@ -7,8 +7,8 @@
     --wt-border: var(--arm-border, #e2e8f0);
     --wt-text: var(--arm-text, #334155);
     --wt-text-muted: var(--arm-text-muted, #64748b);
-    --wt-font-base: var(--arm-font-base, 0.875rem);
-    --wt-font-control: var(--arm-font-control, 0.875rem);
+    --wt-font-base: var(--arm-font-base, var(--ias-font-body, 0.75rem));
+    --wt-font-control: var(--arm-font-control, var(--ias-font-body, 0.75rem));
     --wt-control-height: var(--arm-control-height, 38px);
 }
 
@@ -24,6 +24,31 @@
     max-width: 14rem;
     height: var(--wt-control-height);
     font-size: var(--wt-font-control);
+    flex: 0 0 auto;
+}
+
+/* Командная панель: кнопки и фильтры в одной строке */
+.arm-page.work-tasks-page .work-tasks-command-form.arm-command-bar {
+    align-items: center;
+}
+
+.arm-page.work-tasks-page .arm-command-bar__tools {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    align-self: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+.arm-page.work-tasks-page .arm-command-bar__tools > * {
+    flex: 0 0 auto;
+}
+
+.arm-page.work-tasks-page .arm-command-bar__tools [data-work-task-create-open] {
+    flex-shrink: 0;
 }
 
 .arm-page.work-tasks-page .work-tasks-board-card {
@@ -114,7 +139,7 @@
 }
 
 .work-task-modal .modal-title {
-    font-size: 1.125rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
     font-weight: 600;
     color: #0f172a;
     line-height: 1.35;
@@ -325,7 +350,7 @@
 }
 
 .work-task-view__comments--minimal .work-task-view__comments-title {
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     font-weight: 600;
     color: #334155;
 }
@@ -372,7 +397,7 @@
 }
 
 .work-task-comment__body--minimal {
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     line-height: 1.45;
     color: #334155;
 }
@@ -383,7 +408,7 @@
     border: none;
     background: transparent;
     color: #94a3b8;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .work-task-view__comment-form--minimal {
@@ -440,7 +465,7 @@
 .work-task-card__title {
     margin: 0;
     padding: 0.7rem 1rem;
-    font-size: 0.75rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -491,7 +516,7 @@
 }
 
 .work-task-form-create .tasks-file-drop__title {
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .work-task-form-create .tasks-file-drop__formats {
@@ -536,6 +561,17 @@
     box-shadow: none;
 }
 
+/* Секции формы — без сдвига и тени при наведении (в отличие от карточек на доске) */
+.work-task-create-modal .work-task-card {
+    transition: border-color 0.15s;
+}
+
+.work-task-create-modal .work-task-card:hover {
+    transform: none;
+    border-color: #e2e8f0;
+    box-shadow: none;
+}
+
 .work-task-create-modal .work-task-create-section .work-task-card__title {
     display: none;
 }
@@ -551,7 +587,7 @@
     margin-bottom: 0.65rem;
     color: #0f172a;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
     line-height: 1.25;
 }
 
@@ -577,7 +613,7 @@
 .work-task-create-modal .work-task-form-create .form-select {
     border-radius: 8px;
     border-color: #d5dde8;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     padding: 0.52rem 0.75rem;
     background: #fff;
 }
@@ -610,7 +646,7 @@
     border-radius: 10px;
     background: #eff6ff;
     border: 1px solid #bfdbfe;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .work-task-request-contact__label {
@@ -1246,7 +1282,7 @@
 
 .work-task-view__subtitle {
     margin: 0.35rem 0 0;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: var(--wt-text-muted);
 }
 
@@ -1394,7 +1430,7 @@
     width: 2rem;
     height: 2rem;
     border-radius: 999px;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .work-task-view__person--author .work-task-view__person-badge {
@@ -1560,7 +1596,7 @@
 .work-task-view__comments-empty {
     margin: 0 0 0.85rem;
     padding: 0;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: var(--wt-text-muted);
     background: transparent;
     border: none;
@@ -1653,7 +1689,7 @@
 
 .work-task-view__history > summary {
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     font-weight: 600;
     color: #475569;
     list-style: none;
@@ -1757,7 +1793,7 @@
 .work-task-view__delete {
     margin-left: auto;
     padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: #b91c1c !important;
     text-decoration: none;
 }
@@ -1804,23 +1840,49 @@
 }
 
 /* Адаптивность раздела «Задачи» */
+@media (max-width: 1100px) {
+    .arm-page.work-tasks-page .work-tasks-command-form.arm-command-bar {
+        grid-template-columns: minmax(160px, 220px) minmax(0, 1fr) auto;
+        align-items: center;
+    }
+}
+
 @media (max-width: 991.98px) {
     .arm-page.work-tasks-page .work-tasks-board-card {
         height: calc(100dvh - 210px);
         max-height: calc(100dvh - 150px);
     }
 
-    .arm-page.work-tasks-page .work-tasks-command-form {
-        grid-template-columns: 1fr;
+    .arm-page.work-tasks-page .work-tasks-command-form.arm-command-bar {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "search search"
+            "tabs tools";
+        align-items: center;
+        gap: 0.5rem 0.65rem;
     }
 
-    .arm-page.work-tasks-page .arm-command-bar__tools {
-        justify-content: flex-start;
+    .arm-page.work-tasks-page .work-tasks-command-form .arm-search {
+        grid-area: search;
+    }
+
+    .arm-page.work-tasks-page .work-tasks-command-form .arm-command-bar__tabs {
+        grid-area: tabs;
+        min-width: 0;
+    }
+
+    .arm-page.work-tasks-page .work-tasks-command-form .arm-command-bar__tools {
+        grid-area: tools;
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
     }
 
     .arm-page.work-tasks-page .work-tasks-executor-select {
-        flex: 1 1 100%;
-        max-width: none;
+        flex: 0 0 auto;
+        max-width: 14rem;
     }
 }
 
@@ -1888,7 +1950,7 @@
    FINAL OVERRIDE: чистая и стабильная modal UI
    ============================================ */
 .work-task-view-modal {
-    --wtm-font: 14px;
+    --wtm-font: var(--ias-font-body, 12px);
     --wtm-font-sm: 12px;
     --wtm-title: 24px;
     --wtm-line: 1.45;
@@ -1994,7 +2056,7 @@
 }
 
 .work-task-view-modal .work-task-view__comments-title {
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     font-weight: 600;
 }
 
@@ -2283,6 +2345,7 @@
 
 .arm-page.work-tasks-page.work-tasks-page--closed .arm-command-bar__tools {
     flex-wrap: nowrap;
+    align-items: center;
     overflow-x: auto;
     gap: 0.45rem;
 }

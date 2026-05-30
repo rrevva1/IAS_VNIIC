@@ -103,7 +103,6 @@
 
     function createMovementGrid(container, dataUrl) {
         var columnDefs = [
-            { headerName: '№', field: 'row_num', width: 64, filter: 'agNumberColumnFilter' },
             { headerName: 'Дата и время', field: 'moved_at', width: 170, minWidth: 150, filter: 'agTextColumnFilter', wrapText: true },
             { headerName: 'Откуда', field: 'from_location', width: 220, minWidth: 180, filter: 'agTextColumnFilter', wrapText: true },
             { headerName: 'Куда', field: 'to_location', width: 220, minWidth: 180, filter: 'agTextColumnFilter', wrapText: true },
@@ -257,15 +256,38 @@
             onGridReady: function(params) {
                 if (quickFilterSelector) {
                     var quickFilterInput = document.querySelector(quickFilterSelector);
+                    var quickFilterClear = document.getElementById('statsMovementQuickFilterClear');
+
+                    function updateQuickFilterClear() {
+                        if (!quickFilterClear || !quickFilterInput) {
+                            return;
+                        }
+                        quickFilterClear.hidden = !String(quickFilterInput.value || '').trim();
+                    }
+
                     if (quickFilterInput && !quickFilterInput.dataset.gridQuickFilterBound) {
                         quickFilterInput.dataset.gridQuickFilterBound = '1';
                         quickFilterInput.addEventListener('input', function() {
                             applyQuickFilter(params.api, quickFilterInput.value || '');
+                            updateQuickFilterClear();
+                        });
+                    }
+                    if (quickFilterClear && !quickFilterClear.dataset.gridQuickFilterBound) {
+                        quickFilterClear.dataset.gridQuickFilterBound = '1';
+                        quickFilterClear.addEventListener('click', function() {
+                            if (!quickFilterInput) {
+                                return;
+                            }
+                            quickFilterInput.value = '';
+                            applyQuickFilter(params.api, '');
+                            updateQuickFilterClear();
+                            quickFilterInput.focus();
                         });
                     }
                     if (quickFilterInput && quickFilterInput.value) {
                         applyQuickFilter(params.api, quickFilterInput.value);
                     }
+                    updateQuickFilterClear();
                 }
                 fetch(buildDataUrlWithPeriod(dataUrl), { cache: 'no-store' })
                     .then(function(r) {
@@ -296,7 +318,8 @@
             },
         };
 
-        agGrid.createGrid(container, gridOpts);
+        var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
+        (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(container, gridOpts);
     }
 
     function init() {

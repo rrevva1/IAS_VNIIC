@@ -35,27 +35,24 @@
     }
 
     var DATALIST_WIDGETS = {
-        'cpu-datalist': {
-            listId: 'arm-cpu-datalist',
-            placeholder: 'Выберите из списка или введите модель вручную',
-            hint: 'Можно выбрать известную модель или указать новую — она сохранится в учёте.'
-        },
-        'ram-datalist': {
-            listId: 'arm-ram-datalist',
-            placeholder: 'Выберите объём из списка или введите вручную',
-            hint: 'Можно выбрать известное значение или указать новое — оно сохранится в учёте.'
-        },
-        'os-datalist': {
-            listId: 'arm-os-datalist',
-            placeholder: 'Выберите ОС из списка или введите вручную',
-            hint: 'Можно выбрать известную систему или указать новую — она сохранится в учёте.'
-        },
-        'ip-datalist': {
-            listId: 'arm-ip-datalist',
-            placeholder: 'Выберите IP из списка или введите вручную',
-            hint: 'Можно выбрать известный адрес или указать новый — он сохранится в учёте.'
-        }
+        'cpu-datalist': { listId: 'arm-cpu-datalist' },
+        'ram-datalist': { listId: 'arm-ram-datalist' },
+        'os-datalist': { listId: 'arm-os-datalist' },
+        'ip-datalist': { listId: 'arm-ip-datalist' },
+        'ups-battery-datalist': { listId: 'arm-ups-battery-datalist' },
+        'screen-diagonal-datalist': { listId: 'arm-screen-diagonal-datalist' }
     };
+
+    function resolveFieldPlaceholder(field, datalistCfg) {
+        if (field && field.placeholder) {
+            return String(field.placeholder);
+        }
+        if (datalistCfg && datalistCfg.placeholder) {
+            return String(datalistCfg.placeholder);
+        }
+
+        return '';
+    }
 
     function getDatalistWidgetConfig(field) {
         if (!field) {
@@ -76,6 +73,12 @@
         if (field.name === 'ip') {
             return DATALIST_WIDGETS['ip-datalist'];
         }
+        if (field.name === 'ups_battery') {
+            return DATALIST_WIDGETS['ups-battery-datalist'];
+        }
+        if (field.name === 'screen_diagonal') {
+            return DATALIST_WIDGETS['screen-diagonal-datalist'];
+        }
         return null;
     }
 
@@ -94,25 +97,35 @@
             });
     }
 
-    function isPrinterOrMfuType(type) {
-        var t = String(type || '').trim().toLowerCase();
-        return t === 'принтер' || t === 'мфу';
-    }
-
-    function toggleDescriptionSection(type) {
-        var section = document.getElementById('arm-form-description-section');
-        if (!section) {
-            return;
-        }
-        if (isPrinterOrMfuType(type)) {
-            section.classList.add('d-none');
-        } else {
-            section.classList.remove('d-none');
-        }
-    }
-
     function getOrgTechValues() {
         return window.armFormOrgTech || {};
+    }
+
+    function renderChoiceSelectField(f) {
+        var chars = window.armFormChars || {};
+        var current = String(chars[f.name] || '').trim();
+        var div = createDynamicFieldWrapper();
+        var label = document.createElement('label');
+        label.className = 'form-label';
+        label.textContent = f.label || f.name;
+
+        var select = document.createElement('select');
+        select.className = 'form-select';
+        select.name = 'PartChar[' + (f.name || '') + ']';
+
+        (f.options || []).forEach(function(opt) {
+            var option = document.createElement('option');
+            option.value = String(opt.value != null ? opt.value : '');
+            option.textContent = String(opt.label != null ? opt.label : opt.value || '');
+            if (option.value === current) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+
+        div.appendChild(label);
+        div.appendChild(select);
+        return div;
     }
 
     function renderCartridgeSelectField(f) {
@@ -145,17 +158,6 @@
 
         div.appendChild(submitted);
         div.appendChild(select);
-        return div;
-    }
-
-    function renderPrinterCommentField(f) {
-        var orgTech = getOrgTechValues();
-        var val = String(orgTech.printer_comment || '').trim();
-        var div = createDynamicFieldWrapper();
-        div.innerHTML =
-            '<label class="form-label">' + escapeHtml(f.label || f.name) + '</label>' +
-            '<textarea class="form-control" name="OrgTech[printer_comment]" rows="3" placeholder="Дополнительные примечания">' +
-            escapeHtml(val) + '</textarea>';
         return div;
     }
 
@@ -223,7 +225,7 @@
         return div;
     }
 
-    function createDiskRow(value) {
+    function createDiskRow(value, placeholder) {
         var row = document.createElement('div');
         row.className = 'arm-disk-row';
         var input = document.createElement('input');
@@ -233,7 +235,7 @@
         input.value = value || '';
         input.setAttribute('list', 'arm-disk-datalist');
         input.setAttribute('autocomplete', 'off');
-        input.placeholder = 'Выберите из списка или введите вручную';
+        input.placeholder = placeholder || 'Тип и объём накопителя';
         input.addEventListener('change', function() {
             ensureDiskDatalistOption(input.value);
         });
@@ -285,8 +287,9 @@
         if (disks.length === 0) {
             disks = [''];
         }
+        var diskPlaceholder = resolveFieldPlaceholder(f, null);
         disks.forEach(function(d) {
-            list.appendChild(createDiskRow(d));
+            list.appendChild(createDiskRow(d, diskPlaceholder));
         });
 
         var addBtn = document.createElement('button');
@@ -294,22 +297,16 @@
         addBtn.className = 'btn btn-outline-primary btn-sm arm-disk-add';
         addBtn.textContent = '+ Добавить накопитель';
         addBtn.addEventListener('click', function() {
-            list.appendChild(createDiskRow(''));
+            list.appendChild(createDiskRow('', diskPlaceholder));
             var inputs = list.querySelectorAll('input[name="PartCharDisks[]"]');
             if (inputs.length) {
                 inputs[inputs.length - 1].focus();
             }
         });
 
-        var hint = document.createElement('div');
-        hint.className = 'form-text text-muted';
-        hint.textContent =
-            'Можно указать несколько дисков. Выберите известный вариант из списка или введите новый — он сохранится в учёте.';
-
         div.appendChild(submitted);
         div.appendChild(list);
         div.appendChild(addBtn);
-        div.appendChild(hint);
         return div;
     }
 
@@ -327,7 +324,6 @@
             block.classList.add('d-none');
             block.classList.remove('arm-form-create__config-visible');
             content.innerHTML = '';
-            toggleDescriptionSection(type);
             return;
         }
         content.innerHTML = '';
@@ -340,27 +336,27 @@
                 content.appendChild(renderCartridgeSelectField(f));
                 return;
             }
-            if (f.widget === 'printer-comment' || f.name === 'printer_comment') {
-                content.appendChild(renderPrinterCommentField(f));
+            if (f.widget === 'choice-select' && f.options && f.options.length) {
+                content.appendChild(renderChoiceSelectField(f));
                 return;
             }
-
             var val = chars[f.name] || '';
             var div = createDynamicFieldWrapper();
             var datalistCfg = getDatalistWidgetConfig(f);
+            var placeholder = resolveFieldPlaceholder(f, datalistCfg);
             var inputAttrs =
                 'type="text" class="form-control" name="PartChar[' + escapeHtml(f.name) + ']" value="' +
                 escapeHtml(val) + '" data-part="' + escapeHtml(f.part || '') + '" data-char="' +
                 escapeHtml(f.char || '') + '"';
-            var hint = '';
             if (datalistCfg) {
-                inputAttrs += ' list="' + datalistCfg.listId + '" autocomplete="off" placeholder="' +
-                    escapeHtml(datalistCfg.placeholder) + '"';
-                hint = '<div class="form-text text-muted">' + escapeHtml(datalistCfg.hint) + '</div>';
+                inputAttrs += ' list="' + datalistCfg.listId + '" autocomplete="off"';
+            }
+            if (placeholder) {
+                inputAttrs += ' placeholder="' + escapeHtml(placeholder) + '"';
             }
             div.innerHTML =
                 '<label class="form-label">' + escapeHtml(f.label || f.name) + '</label>' +
-                '<input ' + inputAttrs + '>' + hint;
+                '<input ' + inputAttrs + '>';
             content.appendChild(div);
             if (datalistCfg && val) {
                 ensureDatalistOption(datalistCfg.listId, val);
@@ -368,7 +364,6 @@
         });
         block.classList.remove('d-none');
         block.classList.add('arm-form-create__config-visible');
-        toggleDescriptionSection(type);
     }
 
     function syncFormForSelect(sel) {
@@ -378,11 +373,35 @@
         renderFields(getSelectedType(sel));
     }
 
+    function bindDatalistInputs(root, selector, listId) {
+        var scope = root || document;
+        var boundKey = 'datalistBound' + String(listId || '').replace(/[^a-z0-9]/gi, '');
+        Array.prototype.forEach.call(scope.querySelectorAll(selector), function(input) {
+            if (input.dataset[boundKey] === '1') {
+                return;
+            }
+            input.dataset[boundKey] = '1';
+            var sync = function() {
+                ensureDatalistOption(listId, input.value);
+            };
+            input.addEventListener('change', sync);
+            input.addEventListener('blur', sync);
+        });
+    }
+
     function init() {
         syncFormForSelect(document.getElementById('equipment-type-select'));
+        bindDatalistInputs(document, '.js-location-datalist', 'arm-location-datalist');
+        bindDatalistInputs(document, '.js-inventory-datalist', 'arm-inventory-datalist');
+        bindDatalistInputs(document, '.js-equipment-name-datalist', 'arm-name-datalist');
     }
 
     window.armInitEquipmentCreateForm = init;
+    window.armEnsureDatalistOption = ensureDatalistOption;
+    window.armBindDatalistInputs = bindDatalistInputs;
+    window.armBindLocationDatalist = function(root) {
+        bindDatalistInputs(root, '.js-location-datalist', 'arm-location-datalist');
+    };
 
     if (!document.documentElement.dataset.armFormDynamicBound) {
         document.documentElement.dataset.armFormDynamicBound = '1';

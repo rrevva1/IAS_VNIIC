@@ -11,11 +11,9 @@ use yii\helpers\Url;
 
 StatisticsAsset::register($this);
 
-$summary = $report['summary'] ?? [];
 $executors = $report['executors'] ?? [];
 $statusDistribution = $report['status_distribution'] ?? [];
 $workStatusDistribution = $report['work_status_distribution'] ?? [];
-$workSummary = $report['work_summary'] ?? [];
 $monthlyCompleted = $report['monthly_completed'] ?? [];
 $dailyCompleted = $report['daily_completed'] ?? [];
 $movements = $report['movements'] ?? [];
@@ -37,7 +35,7 @@ $maxWorkStatusCount = $workStatusDistribution !== [] ? max(array_column($workSta
 $maxMonthly = $monthlyCompleted !== [] ? max(array_column($monthlyCompleted, 'count')) : 1;
 $maxDaily = $dailyCompleted !== [] ? max(array_column($dailyCompleted, 'count')) : 1;
 
-$this->title = 'Статистика по заявкам и задачам';
+$this->title = 'Статистика';
 $this->params['breadcrumbs'][] = $this->title;
 
 $gridQuery = [];
@@ -50,7 +48,6 @@ if ($dateTo) {
 $executorGridUrl = Url::to(array_merge(['tasks/statistics-get-grid-data', 'type' => 'executor'], $gridQuery));
 $requesterGridUrl = Url::to(array_merge(['tasks/statistics-get-grid-data', 'type' => 'requester'], $gridQuery));
 $movementGridUrl = Url::to(array_merge(['tasks/statistics-get-grid-data', 'type' => 'movement'], $gridQuery));
-$statisticsFormAction = Yii::$app->request->scriptUrl ?: Url::to(['/']);
 
 $buildTabLink = static function (string $key, string $label) use ($statsTab, $dateFrom, $dateTo): string {
     $params = ['/tasks/statistics', 'tab' => $key];
@@ -79,6 +76,11 @@ $statsRootClasses = 'tasks-page tasks-page--stats tasks-kpi arm-page section-gri
 if ($statsTab === 'movements') {
     $statsRootClasses .= ' tasks-page--stats-movements';
 }
+
+$statsFilterClass = 'tasks-kpi-filter';
+if ($statsTab === 'movements') {
+    $statsFilterClass .= ' tasks-kpi-filter--movements';
+}
 ?>
 
 <div class="<?= Html::encode($statsRootClasses) ?>">
@@ -96,8 +98,7 @@ if ($statsTab === 'movements') {
         </ul>
     </div>
 
-    <form method="get" action="<?= Html::encode($statisticsFormAction) ?>" class="tasks-kpi-filter">
-        <input type="hidden" name="r" value="tasks/statistics">
+    <form method="get" action="<?= Html::encode(Url::to(['/tasks/statistics'])) ?>" class="<?= Html::encode($statsFilterClass) ?>">
         <input type="hidden" name="tab" value="<?= Html::encode($statsTab) ?>">
         <input type="hidden" name="trend" value="<?= Html::encode($trendMode) ?>">
         <div class="tasks-kpi-filter__fields">
@@ -112,18 +113,20 @@ if ($statsTab === 'movements') {
                        value="<?= Html::encode($dateTo ?? '') ?>">
             </div>
             <?php if ($statsTab === 'movements'): ?>
-            <div class="tasks-kpi-filter__field" style="min-width: 320px;">
-                <label for="statsMovementQuickFilter">Поиск по истории перемещений</label>
-                <input type="text"
-                       id="statsMovementQuickFilter"
-                       class="form-control"
-                       placeholder="Поиск по дате, маршруту, ответственным, технике">
+            <div class="tasks-kpi-filter__field tasks-kpi-filter__field--search">
+                <label for="statsMovementQuickFilter">Поиск по таблице</label>
+                <div class="arm-search tasks-kpi-filter__search">
+                    <i class="fas fa-search arm-search__icon" aria-hidden="true"></i>
+                    <input type="search" id="statsMovementQuickFilter" class="form-control arm-search__input"
+                           placeholder="Поиск" autocomplete="off"
+                           <?= $movements === [] ? ' disabled' : '' ?>>
+                    <button type="button" class="arm-search__clear" id="statsMovementQuickFilterClear"
+                            aria-label="Очистить поиск" title="Очистить поиск" hidden>×</button>
+                </div>
             </div>
             <?php endif; ?>
-            <div class="tasks-kpi-filter__actions">
-                <button type="submit" class="btn btn-primary tasks-tool-btn">Применить</button>
-                <?= Html::a('Сбросить', ['/tasks/statistics', 'tab' => $statsTab, 'trend' => $trendMode], ['class' => 'btn btn-outline-secondary tasks-tool-btn']) ?>
-            </div>
+            <button type="submit" class="btn btn-primary tasks-tool-btn">Применить</button>
+            <?= Html::a('Сбросить', ['/tasks/statistics', 'tab' => $statsTab, 'trend' => $trendMode], ['class' => 'btn btn-outline-secondary tasks-tool-btn']) ?>
         </div>
     </form>
 

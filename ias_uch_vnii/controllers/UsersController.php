@@ -47,7 +47,7 @@ class UsersController extends Controller
                             },
                         ],
                         [
-                            'actions' => ['index', 'create', 'create-modal', 'update', 'delete', 'arm-create', 'get-grid-data'],
+                            'actions' => ['index', 'create', 'create-modal', 'view-modal', 'update-modal', 'update', 'delete', 'arm-create', 'get-grid-data'],
                             'allow' => true,
                             'roles' => ['@'],
                         ],
@@ -144,6 +144,61 @@ class UsersController extends Controller
         return $this->renderAjax('_form_modal', [
             'model' => $model,
             'roleItems' => Roles::getList(),
+            'isUpdate' => false,
+        ]);
+    }
+
+    /**
+     * Форма редактирования пользователя в модальном окне (GET — HTML, POST — JSON).
+     */
+    public function actionUpdateModal($id)
+    {
+        if (!Yii::$app->user->identity->isAdmin()) {
+            throw new \yii\web\ForbiddenHttpException('Доступ разрешен только администраторам.');
+        }
+
+        $model = $this->findModel($id);
+        $model->setScenario('update');
+
+        if ($this->request->isPost) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            $post = $this->request->post();
+
+            if (!$model->load($post)) {
+                return [
+                    'success' => false,
+                    'message' => 'Не удалось принять данные формы. Обновите окно и повторите попытку.',
+                ];
+            }
+
+            if (empty($model->username) && !empty($model->email)) {
+                $model->username = $model->email;
+            }
+
+            if ($model->save()) {
+                AuditLog::log('user.update', 'user', $model->id, 'success');
+
+                return [
+                    'success' => true,
+                    'message' => 'Изменения пользователя «' . $model->full_name . '» сохранены.',
+                    'user_id' => (int) $model->id,
+                ];
+            }
+
+            $errors = $model->getFirstErrors();
+
+            return [
+                'success' => false,
+                'errors' => $model->errors,
+                'message' => 'Не удалось сохранить изменения'
+                    . ($errors ? ': ' . implode(' ', $errors) : ''),
+            ];
+        }
+
+        return $this->renderAjax('_form_modal', [
+            'model' => $model,
+            'roleItems' => Roles::getList(),
+            'isUpdate' => true,
         ]);
     }
 
@@ -203,47 +258,29 @@ class UsersController extends Controller
      */
     public function actionView($id)
     {
-        /** Проверяем права доступа - обычные пользователи видят только свои данные */
-        if (!Yii::$app->user->identity->isAdmin() && $id != Yii::$app->user->id) {
-            throw new \yii\web\ForbiddenHttpException('У вас нет прав для просмотра данных других пользователей.');
-        }
-
         $model = $this->findModel($id);
+        $this->ensureCanViewUser($model);
+
         $isOwnProfile = (int) Yii::$app->user->id === (int) $model->id;
-        $isAdminViewer = Yii::$app->user->identity->isAdmin();
-
-        $equipment = Equipment::find()
-            ->where(['responsible_user_id' => $model->id, 'is_archived' => false])
-            ->with('location')
-            ->orderBy(['inventory_number' => SORT_ASC])
-            ->limit(10)
-            ->all();
-
-        $taskStats = $this->buildProfileTaskStats((int) $model->id);
-
-        $recentActions = [];
-        if ($isAdminViewer && !$isOwnProfile) {
-            try {
-                if (class_exists(AuditEvent::class)) {
-                    $recentActions = AuditEvent::find()
-                        ->where(['actor_id' => $model->id])
-                        ->orderBy(['event_time' => SORT_DESC])
-                        ->limit(10)
-                        ->all();
-                }
-            } catch (\Throwable $e) {
-                // audit_events может отсутствовать
-            }
+        if (Yii::$app->user->identity->isAdmin() && !$isOwnProfile && !$this->request->isAjax) {
+            return $this->redirect(['index', 'user' => $model->id]);
         }
 
-        return $this->render('view', [
-            'model' => $model,
-            'equipment' => $equipment,
-            'recentActions' => $recentActions,
-            'isOwnProfile' => $isOwnProfile,
-            'isAdminViewer' => $isAdminViewer,
-            'taskStats' => $taskStats,
-        ]);
+        return $this->render('view', $this->getProfileViewParams($model));
+    }
+
+    /**
+     * Карточка пользователя для модального окна (GET — HTML).
+     */
+    public function actionViewModal($id)
+    {
+        $model = $this->findModel($id);
+        $this->ensureCanViewUser($model);
+
+        return $this->renderAjax('_view_content', array_merge(
+            $this->getProfileViewParams($model),
+            ['isModal' => true]
+        ));
     }
 
     /**
@@ -274,6 +311,10 @@ class UsersController extends Controller
 
         $model = $this->findModel($id);
         $model->setScenario('update');
+
+        if (Yii::$app->user->identity->isAdmin() && (int) $id !== (int) Yii::$app->user->id && !$this->request->isAjax) {
+            return $this->redirect(['index', 'edit' => $model->id]);
+        }
 
         if ($this->request->isPost && $model->load($this->request->post())) {
             if ($model->save()) {
@@ -411,6 +452,58 @@ class UsersController extends Controller
     public function actionIndex2()
     {
         throw new \yii\web\ForbiddenHttpException('Доступ запрещён.');
+    }
+
+    /**
+     * @throws \yii\web\ForbiddenHttpException
+     */
+    private function ensureCanViewUser(Users $model): void
+    {
+        if (!Yii::$app->user->identity->isAdmin() && (int) $model->id !== (int) Yii::$app->user->id) {
+            throw new \yii\web\ForbiddenHttpException('У вас нет прав для просмотра данных других пользователей.');
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getProfileViewParams(Users $model): array
+    {
+        $isOwnProfile = (int) Yii::$app->user->id === (int) $model->id;
+        $isAdminViewer = Yii::$app->user->identity->isAdmin();
+
+        $equipment = Equipment::find()
+            ->where(['responsible_user_id' => $model->id, 'is_archived' => false])
+            ->with('location')
+            ->orderBy(['inventory_number' => SORT_ASC])
+            ->limit(10)
+            ->all();
+
+        $taskStats = $this->buildProfileTaskStats((int) $model->id);
+
+        $recentActions = [];
+        if ($isAdminViewer && !$isOwnProfile) {
+            try {
+                if (class_exists(AuditEvent::class)) {
+                    $recentActions = AuditEvent::find()
+                        ->where(['actor_id' => $model->id])
+                        ->orderBy(['event_time' => SORT_DESC])
+                        ->limit(10)
+                        ->all();
+                }
+            } catch (\Throwable $e) {
+                // audit_events может отсутствовать
+            }
+        }
+
+        return [
+            'model' => $model,
+            'equipment' => $equipment,
+            'recentActions' => $recentActions,
+            'isOwnProfile' => $isOwnProfile,
+            'isAdminViewer' => $isAdminViewer,
+            'taskStats' => $taskStats,
+        ];
     }
 
     /**

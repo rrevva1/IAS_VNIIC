@@ -5,7 +5,7 @@
 .tasks-view .tasks-panel .form-control {
     border-radius: 8px;
     border-color: #e2e8f0;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .tasks-view .tasks-panel .form-control:focus {
@@ -37,7 +37,7 @@
 }
 
 .tasks-view .table {
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .tasks-view .table th {
@@ -48,7 +48,7 @@
 
 .tasks-view .list-group-item {
     border-color: #e2e8f0;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .tasks-view .list-group-item a {

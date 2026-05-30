@@ -35,27 +35,41 @@ $osModels = $osModels ?? [];
 $diskModels = $diskModels ?? [];
 $supplierNames = $supplierNames ?? [];
 $ipAddresses = $ipAddresses ?? [];
+$upsBatteryModels = $upsBatteryModels ?? [];
+$inventoryNumbers = $inventoryNumbers ?? [];
+$equipmentNames = $equipmentNames ?? [];
+$screenDiagonalValues = $screenDiagonalValues ?? [];
+$currentScreenDiagonal = trim((string) ($chars['screen_diagonal'] ?? ''));
+$formPlaceholders = require __DIR__ . '/_form_create_placeholders.php';
 $currentSupplier = trim((string) ($model->supplier ?? ''));
+$currentInventoryNumber = trim((string) ($model->inventory_number ?? ''));
+$currentEquipmentName = trim((string) ($model->name ?? ''));
+$descriptionPlaceholder = $formPlaceholders['description'];
+if (EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName())) {
+    $descriptionPlaceholder = $formPlaceholders['description_printer'];
+}
+$locationNames = array_values($locations ?? []);
+$currentLocation = trim((string) ($model->location_name ?? ''));
+if ($currentLocation === '' && $model->location) {
+    $currentLocation = trim((string) $model->location->name);
+}
 $isModal = !empty($isModal);
 
 $orgTech = [
     'cartridge_procurement' => '',
-    'printer_comment' => '',
 ];
 if (EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName())) {
     $orgTech['cartridge_procurement'] = EquipmentCharCatalog::parseCartridgeProcurementCode($model->description);
-    $orgTech['printer_comment'] = EquipmentCharCatalog::formatPrinterComment($model->description);
+    $model->description = EquipmentCharCatalog::formatPrinterComment($model->description);
 }
 
-$orgTechFields = [
-    ['name' => 'ip', 'label' => 'IP-адрес / подключение', 'part' => 'Принтер', 'char' => 'IP адрес', 'widget' => 'ip-datalist'],
+$orgTechFields = array_merge(EquipmentCharCatalog::getPrinterMfuFormFieldDefinitions(), [
     [
         'name' => 'cartridge_procurement',
         'label' => 'Учёт для закупки картриджей',
         'widget' => 'cartridge-select',
     ],
-    ['name' => 'printer_comment', 'label' => 'Комментарий', 'widget' => 'printer-comment'],
-];
+]);
 
 if ($isModal) {
     echo $this->render('_form_modal', [
@@ -71,6 +85,15 @@ if ($isModal) {
         'supplierNames' => $supplierNames,
         'ipAddresses' => $ipAddresses,
         'currentSupplier' => $currentSupplier,
+        'locationNames' => $locationNames,
+        'currentLocation' => $currentLocation,
+        'upsBatteryModels' => $upsBatteryModels,
+        'inventoryNumbers' => $inventoryNumbers,
+        'currentInventoryNumber' => $currentInventoryNumber,
+        'equipmentNames' => $equipmentNames,
+        'currentEquipmentName' => $currentEquipmentName,
+        'screenDiagonalValues' => $screenDiagonalValues,
+        'currentScreenDiagonal' => $currentScreenDiagonal,
     ]);
     echo $this->render('_form_scripts', [
         'model' => $model,
@@ -95,6 +118,7 @@ $formId = 'arm-equipment-form';
     <?php $form = ActiveForm::begin([
         'id' => $formId,
         'options' => ['class' => 'arm-form__body'],
+        'scrollToError' => false,
         'fieldConfig' => [
             'options' => ['class' => 'mb-3'],
             'labelOptions' => ['class' => 'form-label'],
@@ -108,12 +132,24 @@ $formId = 'arm-equipment-form';
                 <h2 class="arm-form-section__title h6 text-uppercase text-muted">Основные сведения</h2>
                 <?= $form->field($model, 'name')->textInput([
                     'maxlength' => true,
-                    'placeholder' => 'Например: ПК Lenovo ThinkCentre M720',
+                    'list' => 'arm-name-datalist',
+                    'autocomplete' => 'off',
+                    'class' => 'form-control js-equipment-name-datalist',
+                    'placeholder' => $formPlaceholders['name'],
                 ]) ?>
-                <?= $form->field($model, 'inventory_number')->textInput(['maxlength' => true]) ?>
-                <?= $form->field($model, 'serial_number')->textInput(['maxlength' => true]) ?>
+                <?= $form->field($model, 'inventory_number')->textInput([
+                    'maxlength' => true,
+                    'list' => 'arm-inventory-datalist',
+                    'autocomplete' => 'off',
+                    'class' => 'form-control js-inventory-datalist',
+                    'placeholder' => $formPlaceholders['inventory_number'],
+                ]) ?>
+                <?= $form->field($model, 'serial_number')->textInput([
+                    'maxlength' => true,
+                    'placeholder' => $formPlaceholders['serial_number'],
+                ]) ?>
                 <?= $form->field($model, 'equipment_type')->dropDownList($equipmentTypes, [
-                    'prompt' => '— выберите тип техники —',
+                    'prompt' => $formPlaceholders['equipment_type_prompt'],
                     'id' => 'equipment-type-select',
                     'required' => true,
                 ]) ?>
@@ -127,6 +163,15 @@ $formId = 'arm-equipment-form';
                 'ipAddresses' => $ipAddresses,
                 'supplierNames' => $supplierNames,
                 'currentSupplier' => $currentSupplier,
+                'locationNames' => $locationNames,
+                'currentLocation' => $currentLocation,
+                'upsBatteryModels' => $upsBatteryModels,
+                'inventoryNumbers' => $inventoryNumbers,
+                'currentInventoryNumber' => $currentInventoryNumber,
+                'equipmentNames' => $equipmentNames,
+                'currentEquipmentName' => $currentEquipmentName,
+                'screenDiagonalValues' => $screenDiagonalValues,
+                'currentScreenDiagonal' => $currentScreenDiagonal,
             ]) ?>
 
             <section id="dynamic-fields-block" class="arm-form-section arm-form-section--chars d-none">
@@ -139,13 +184,20 @@ $formId = 'arm-equipment-form';
                 <?= $form->field($model, 'responsible_user_id')->dropDownList($users, [
                     'prompt' => 'Не закреплять',
                     'class' => 'form-select js-user-select-search',
-                    'data-placeholder' => 'Не закреплять',
+                    'data-placeholder' => $formPlaceholders['responsible_user'],
                 ]) ?>
-                <?= $form->field($model, 'location_id')->dropDownList($locations, [
-                    'prompt' => 'Выберите местоположение',
+                <?= $form->field($model, 'location_name')->textInput([
+                    'maxlength' => true,
+                    'list' => 'arm-location-datalist',
+                    'autocomplete' => 'off',
+                    'id' => 'equipment-location-name',
+                    'class' => 'form-control js-location-datalist',
+                    'placeholder' => $formPlaceholders['location_name'],
                 ]) ?>
                 <?= $form->field($model, 'status_id')->dropDownList($statuses ?? [], [
-                    'prompt' => '— выберите статус —',
+                    'prompt' => $formPlaceholders['status'],
+                    'class' => 'form-select js-user-select-search',
+                    'data-placeholder' => $formPlaceholders['status'],
                 ]) ?>
             </section>
 
@@ -155,31 +207,24 @@ $formId = 'arm-equipment-form';
                     'maxlength' => true,
                     'list' => 'arm-supplier-datalist',
                     'autocomplete' => 'off',
-                    'placeholder' => 'Выберите из списка или введите поставщика вручную',
-                ])->hint('Можно выбрать известного поставщика или указать нового — он сохранится в учёте.') ?>
+                    'placeholder' => $formPlaceholders['supplier'],
+                ]) ?>
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <?= $form->field($model, 'purchase_date', ['options' => ['class' => 'mb-0']])->input('date', [
                             'id' => 'equipment-purchase-date',
                             'class' => 'form-control js-warranty-base-date',
                         ]) ?>
                     </div>
-                    <div class="col-md-4">
-                        <?= $form->field($model, 'commissioning_date', ['options' => ['class' => 'mb-0']])->input('date', [
-                            'id' => 'equipment-commissioning-date',
-                            'class' => 'form-control js-warranty-base-date',
-                        ]) ?>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <?= $form->field($model, 'warranty_years', ['options' => ['class' => 'mb-0']])->input('number', [
                             'id' => 'equipment-warranty-years',
                             'class' => 'form-control',
                             'min' => 0,
                             'max' => 50,
                             'step' => '0.5',
-                            'placeholder' => 'Например: 3',
+                            'placeholder' => $formPlaceholders['warranty_years'],
                         ]) ?>
-                        <div id="equipment-warranty-until-preview" class="form-text text-muted mt-1"></div>
                     </div>
                 </div>
             </section>
@@ -188,7 +233,7 @@ $formId = 'arm-equipment-form';
                 <h2 class="arm-form-section__title h6 text-uppercase text-muted">Примечание</h2>
                 <?= $form->field($model, 'description', ['options' => ['class' => 'mb-0']])->textarea([
                     'rows' => 4,
-                    'placeholder' => 'Комментарий, комплектация',
+                    'placeholder' => $descriptionPlaceholder,
                 ]) ?>
             </section>
 

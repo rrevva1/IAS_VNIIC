@@ -180,7 +180,8 @@
                 bindCommandBar();
             },
         };
-        agGrid.createGrid(container, gridOpts);
+        var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
+        (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(container, gridOpts);
     }
 
     window.refreshAuditGrid = function() {

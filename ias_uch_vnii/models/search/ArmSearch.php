@@ -16,9 +16,8 @@ use yii\db\Query;
  */
 class ArmSearch extends Model
 {
-    /** Типы записей «рабочее место / ПК» (вкладка «АРМ» в UI). */
+    /** Типы записей «хост» (системный блок, ноутбук, моноблок и т.п.). */
     private const KIT_HOST_EQUIPMENT_TYPES = [
-        'АРМ',
         'ПК',
         'Системный блок',
         'Ноутбук',
@@ -150,6 +149,7 @@ class ArmSearch extends Model
         $or = [
             'or',
             ['ilike', 'equipment.name', $q],
+            ['ilike', 'equipment.equipment_type', $q],
             ['ilike', 'equipment.inventory_number', $q],
             ['ilike', new Expression('CAST(equipment.purchase_date AS TEXT)'), $q],
             ['ilike', 'equipment.description', $q],
@@ -214,7 +214,7 @@ class ArmSearch extends Model
     }
 
     /**
-     * Вкладка «АРМ»: системные блоки, ноутбуки, моноблоки и записи с типом «АРМ»/«ПК».
+     * Все типы «хост» (системный блок, ноутбук, моноблок, ПК, сервер).
      */
     private function applyKitHostTypesFilter($query): void
     {

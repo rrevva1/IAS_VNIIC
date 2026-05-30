@@ -176,7 +176,8 @@
                     .catch(function(err) { console.error('AG Grid (справочник): ошибка загрузки', err); });
             },
         };
-        agGrid.createGrid(container, gridOpts);
+        var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
+        (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(container, gridOpts);
     }
 
     function init() {

@@ -231,7 +231,8 @@
             },
         };
 
-        agGrid.createGrid(container, gridOptions);
+        var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
+        (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(container, gridOptions);
     }
 
     if (document.readyState === 'loading') {

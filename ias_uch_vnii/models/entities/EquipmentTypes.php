@@ -14,9 +14,29 @@ use yii\db\Query;
  */
 class EquipmentTypes
 {
+    /** Типы, не используемые при создании записи (АРМ — комплект СБ+монитор+ИБП, не отдельный актив). */
+    private const EXCLUDED_TYPE_NAMES = [
+        'АРМ',
+    ];
+
+    /**
+     * Типы для формы создания/редактирования (всегда в списке, даже если в БД ещё нет строк).
+     * @var string[]
+     */
+    private const CANONICAL_TYPE_NAMES = [
+        'Системный блок',
+        'Ноутбук',
+        'Моноблок',
+        'Монитор',
+        'Принтер',
+        'МФУ',
+        'ИБП',
+        'Сканер',
+        'Сервер',
+    ];
+
     /** Подписи вкладок «Учёт ТС» (множественное число); ключ — значение equipment_type в БД. */
     private const TAB_LABELS_PLURAL = [
-        'АРМ' => 'АРМ',
         'ПК' => 'ПК',
         'МФУ' => 'МФУ',
         'ИБП' => 'ИБП',
@@ -31,7 +51,6 @@ class EquipmentTypes
 
     /** Порядок вкладок на странице «Учёт ТС». */
     private const PREFERRED_TAB_TYPES = [
-        'АРМ',
         'Системный блок',
         'Ноутбук',
         'Моноблок',
@@ -69,11 +88,28 @@ class EquipmentTypes
      */
     public static function getList(): array
     {
-        $types = self::getNames();
-        if ($types === []) {
-            $types = self::defaultTypeNames();
+        $merged = [];
+        foreach (array_merge(self::CANONICAL_TYPE_NAMES, self::getNames()) as $name) {
+            $name = trim((string) $name);
+            if ($name === '' || self::isExcludedTypeName($name)) {
+                continue;
+            }
+            if (!isset($merged[$name])) {
+                $merged[$name] = $name;
+            }
         }
-        return ArrayHelper::map($types, static fn($v) => $v, static fn($v) => $v);
+        if ($merged === []) {
+            foreach (self::defaultTypeNames() as $name) {
+                $merged[$name] = $name;
+            }
+        }
+
+        return $merged;
+    }
+
+    public static function isExcludedTypeName(string $name): bool
+    {
+        return in_array(trim($name), self::EXCLUDED_TYPE_NAMES, true);
     }
 
     /**
@@ -131,6 +167,9 @@ class EquipmentTypes
         $ordered = [];
 
         foreach (self::PREFERRED_TAB_TYPES as $name) {
+            if (self::isExcludedTypeName($name)) {
+                continue;
+            }
             $inDb = in_array($name, $fromDb, true);
             $forced = in_array($name, self::ALWAYS_VISIBLE_TAB_TYPES, true);
             if (!$inDb && !$forced) {
@@ -143,6 +182,9 @@ class EquipmentTypes
         }
 
         foreach ($fromDb as $name) {
+            if (self::isExcludedTypeName($name)) {
+                continue;
+            }
             if (!isset($seen[$name])) {
                 $ordered[] = $name;
                 $seen[$name] = true;

@@ -11,7 +11,7 @@
 .tasks-form-card .form-label {
     font-weight: 600;
     color: #475569;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     margin-bottom: 0.35rem;
 }
 
@@ -19,7 +19,7 @@
 .tasks-form-card .form-select {
     border-radius: 8px;
     border-color: #e2e8f0;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     padding: 0.5rem 0.75rem;
 }
 
@@ -85,7 +85,7 @@
     margin-bottom: 0.75rem;
     color: #0f172a;
     font-weight: 600;
-    font-size: 0.9375rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
 }
 
 .tasks-form-card .section-header i {

@@ -17,6 +17,7 @@ class UsersGridAsset extends AssetBundle
         'css/ag-grid-filter.css',
         'css/tasks/ag-grid.css',
         'css/users/page.css',
+        'css/users/profile.css',
     ];
 
     public $js = [
@@ -25,6 +26,7 @@ class UsersGridAsset extends AssetBundle
         'js/ag-grid-filter-config.js',
         'js/ag-grid-theme-config.js',
         'js/users/page-ui.js',
+        'js/users/users-view.js',
         'js/users/users-create.js',
         'js/users/ag-grid.js',
     ];

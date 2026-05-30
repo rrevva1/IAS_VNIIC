@@ -68,6 +68,7 @@ class ArmController extends Controller
                 'actions' => [
                     'delete' => ['POST'],
                     'update' => ['GET', 'POST'],
+                    'update-modal' => ['GET', 'POST'],
                     'archive' => ['POST'],
                     'reassign' => ['POST'],
                     'get-selected-info' => ['POST'],
@@ -146,7 +147,7 @@ class ArmController extends Controller
                 $params['ArmSearch']['quick_search'] = $quickSearch;
             }
 
-            $limit = max(1, min(5000, (int)($params['limit'] ?? 20)));
+            $limit = max(1, min(500, (int)($params['limit'] ?? 20)));
             $offset = max(0, (int)($params['offset'] ?? 0));
             $page = (int) floor($offset / $limit);
 
@@ -156,6 +157,8 @@ class ArmController extends Controller
                 $dataProvider->pagination->pageSize = $limit;
                 $dataProvider->pagination->page = $page;
             }
+
+            $showTypeWithNameInGrid = trim((string) $searchModel->equipment_type) === '';
 
             $total = (int) $dataProvider->getTotalCount();
             $models = $dataProvider->getModels();
@@ -187,7 +190,9 @@ class ArmController extends Controller
                     'ram' => $chars['ram'] ?? '',
                     'disk' => $diskLines !== [] ? implode("\n", $diskLines) : '',
                     'disk_lines' => $diskLines,
-                    'system_block' => $model->name ?? '',
+                    'system_block' => $showTypeWithNameInGrid
+                        ? $this->formatEquipmentTypeAndNameForGrid($model)
+                        : (string) ($model->name ?? ''),
                     'inventory_number' => $model->inventory_number ?? '',
                     'purchase_date' => $this->formatPurchaseDateForGrid($model),
                     'monitor' => EquipmentCharCatalog::formatMonitorColumnValue(
@@ -268,7 +273,11 @@ class ArmController extends Controller
                     "OR LOWER(sp.name) LIKE '%ssd%' " .
                     "OR LOWER(sp.name) LIKE '%монитор%' " .
                     "OR LOWER(sp.name) LIKE '%пк%' " .
-                    "OR LOWER(sp.name) LIKE '%компьют%'" .
+                    "OR LOWER(sp.name) LIKE '%компьют%' " .
+                    "OR sp.name = 'Принтер' " .
+                    "OR sp.name = 'ИБП' " .
+                    "OR LOWER(sp.name) LIKE '%ибп%' " .
+                    "OR LOWER(sp.name) LIKE '%ups%'" .
                     ")"
                 ))
                 ->all($db);
@@ -322,12 +331,23 @@ class ArmController extends Controller
                 $out[$id]['ip'] = $val;
                 continue;
             }
-            if ($part === 'Принтер' && $char === 'IP адрес') {
-                $out[$id]['ip'] = $val;
-                continue;
+            if ($part === 'Принтер') {
+                $printerKeys = EquipmentCharCatalog::getPrinterMfuPartCharKeyByCharName();
+                if (isset($printerKeys[$char])) {
+                    $out[$id][$printerKeys[$char]] = $val;
+                    continue;
+                }
+                if ($char === 'IP адрес') {
+                    $out[$id]['ip'] = $val;
+                    continue;
+                }
             }
             if ($part === 'ПК' && $char === 'ОС') {
                 $out[$id]['os'] = $val;
+                continue;
+            }
+            if ($part === 'ИБП' && $char === 'Модель аккумулятора') {
+                $out[$id]['ups_battery'] = $val;
                 continue;
             }
             // ЦП (как в гриде) — в БД может быть: ЦП, Процессор, CPU и т.д.
@@ -349,6 +369,8 @@ class ArmController extends Controller
                 $out[$id]['ip'] = $val;
             } elseif ($c === 'ос' || strpos($c, 'операционн') !== false) {
                 $out[$id]['os'] = $val;
+            } elseif (($p === 'ибп' || $p === 'ups' || strpos($p, 'ибп') !== false) && strpos($c, 'аккумулятор') !== false) {
+                $out[$id]['ups_battery'] = $val;
             }
         }
         return $out;
@@ -528,7 +550,36 @@ class ArmController extends Controller
             ];
         }
 
-        return $this->renderAjax('_form', $this->getCreateFormViewParams($model, true));
+        return $this->renderAjax('_form', $this->getEquipmentFormViewParams($model, true));
+    }
+
+    /**
+     * Редактирование техники в модальном окне (GET — форма, POST — JSON).
+     */
+    public function actionUpdateModal($id)
+    {
+        $model = $this->findModel((int) $id);
+        $this->ensureCanEditEquipment($model);
+
+        if (Yii::$app->request->isPost) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            $result = $this->persistUpdatedEquipment($model, Yii::$app->request->post());
+            if ($result['success']) {
+                return [
+                    'success' => true,
+                    'message' => $result['message'],
+                    'equipment_id' => $result['equipment_id'],
+                ];
+            }
+
+            return [
+                'success' => false,
+                'errors' => $result['errors'] ?? [],
+                'message' => $result['message'],
+            ];
+        }
+
+        return $this->renderAjax('_form', $this->getEquipmentFormViewParams($model, true));
     }
 
     /**
@@ -575,8 +626,14 @@ class ArmController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function getCreateFormViewParams(Equipment $model, bool $isModal = false): array
+    private function getEquipmentFormViewParams(Equipment $model, bool $isModal = false): array
     {
+        $chars = [];
+        if (!$model->isNewRecord) {
+            $loaded = $this->loadPartCharValuesByEquipment([$model->id]);
+            $chars = $loaded[$model->id] ?? [];
+        }
+
         return [
             'model' => $model,
             'users' => ArrayHelper::map(
@@ -593,14 +650,87 @@ class ArmController extends Controller
             ),
             'statuses' => DicEquipmentStatus::getList(),
             'equipmentTypes' => EquipmentTypes::getList(),
-            'chars' => [],
+            'chars' => $chars,
             'cpuModels' => EquipmentCharCatalog::getDistinctCpuModels(),
             'ramModels' => EquipmentCharCatalog::getDistinctRamValues(),
             'osModels' => EquipmentCharCatalog::getDistinctOsValues(),
             'diskModels' => EquipmentCharCatalog::getDistinctDiskModels(),
             'supplierNames' => EquipmentCharCatalog::getDistinctSuppliers(),
             'ipAddresses' => EquipmentCharCatalog::getDistinctIpAddresses(),
+            'upsBatteryModels' => EquipmentCharCatalog::getDistinctUpsBatteryModels(),
+            'inventoryNumbers' => EquipmentCharCatalog::getDistinctInventoryNumbers(),
+            'equipmentNames' => EquipmentCharCatalog::getDistinctEquipmentNames(),
+            'screenDiagonalValues' => EquipmentCharCatalog::getDistinctScreenDiagonalValues(),
             'isModal' => $isModal,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $post
+     * @return array{success: bool, message: string, equipment_id?: int, errors?: array}
+     */
+    private function persistUpdatedEquipment(Equipment $model, array $post): array
+    {
+        if (!$model->load($post)) {
+            return [
+                'success' => false,
+                'message' => 'Не удалось загрузить данные формы.',
+                'errors' => $model->errors,
+            ];
+        }
+
+        $this->applyOrgTechDescriptionFromPost($model);
+        $oldStatus = $model->getOldAttribute('status_id');
+        $oldLocation = $model->getOldAttribute('location_id');
+        $oldResponsible = $model->getOldAttribute('responsible_user_id');
+
+        if (!$model->save()) {
+            $firstErrors = $model->getFirstErrors();
+
+            return [
+                'success' => false,
+                'message' => 'Не удалось сохранить изменения'
+                    . ($firstErrors ? ': ' . implode(' ', $firstErrors) : ''),
+                'errors' => $model->errors,
+            ];
+        }
+
+        $this->savePartCharValuesFromPost($model->id, $post['PartChar'] ?? []);
+
+        if (!EquipHistory::idsEqual($oldLocation, $model->location_id)) {
+            EquipHistory::log($model->id, 'move', ['location_id' => $oldLocation], ['location_id' => $model->location_id]);
+            UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
+        }
+        if (!EquipHistory::idsEqual($oldResponsible, $model->responsible_user_id)) {
+            EquipHistory::log(
+                $model->id,
+                $model->responsible_user_id ? 'assign' : 'unassign',
+                ['responsible_user_id' => $oldResponsible],
+                ['responsible_user_id' => $model->responsible_user_id]
+            );
+            UserEquipmentCardService::invalidateByUserId((int) $oldResponsible);
+            UserEquipmentCardService::ensureCardForUser((int) $oldResponsible);
+            UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
+            UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
+        }
+        if (!EquipHistory::idsEqual($oldStatus, $model->status_id)) {
+            EquipHistory::log($model->id, 'status_change', ['status_id' => $oldStatus], ['status_id' => $model->status_id]);
+        }
+        if (EquipHistory::idsEqual($oldStatus, $model->status_id)
+            && EquipHistory::idsEqual($oldLocation, $model->location_id)
+            && EquipHistory::idsEqual($oldResponsible, $model->responsible_user_id)) {
+            EquipHistory::log($model->id, 'update', null, [
+                'inventory_number' => $model->inventory_number,
+                'name' => $model->name,
+            ]);
+        }
+
+        AuditLog::log('equipment.update', 'equipment', $model->id, 'success');
+
+        return [
+            'success' => true,
+            'message' => 'Данные техники обновлены.',
+            'equipment_id' => (int) $model->id,
         ];
     }
 
@@ -655,69 +785,33 @@ class ArmController extends Controller
     public function actionUpdate($id)
     {
         $model = $this->findModel((int) $id);
-        $this->ensureCanAccessEquipment($model);
-        $users = ArrayHelper::map(
-            Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
-            'id',
-            function (Users $u) { return $u->getDisplayName(); }
-        );
-        $locations = ArrayHelper::map(Location::find()->orderBy(['name' => SORT_ASC])->all(), 'id', 'name');
-        $statuses = DicEquipmentStatus::getList();
-        $equipmentTypes = EquipmentTypes::getList();
-        $chars = $this->loadPartCharValuesByEquipment([$model->id]);
-        if ($model->load(Yii::$app->request->post())) {
-            $this->applyOrgTechDescriptionFromPost($model);
-            $oldStatus = $model->getOldAttribute('status_id');
-            $oldLocation = $model->getOldAttribute('location_id');
-            $oldResponsible = $model->getOldAttribute('responsible_user_id');
-            if ($model->save()) {
-                $this->savePartCharValuesFromPost($model->id, Yii::$app->request->post('PartChar', []));
-                $eventType = 'update';
-                if (!EquipHistory::idsEqual($oldLocation, $model->location_id)) {
-                    EquipHistory::log($model->id, 'move', ['location_id' => $oldLocation], ['location_id' => $model->location_id]);
-                    UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
-                }
-                if (!EquipHistory::idsEqual($oldResponsible, $model->responsible_user_id)) {
-                    EquipHistory::log($model->id, $model->responsible_user_id ? 'assign' : 'unassign', ['responsible_user_id' => $oldResponsible], ['responsible_user_id' => $model->responsible_user_id]);
-                    UserEquipmentCardService::invalidateByUserId((int) $oldResponsible);
-                    UserEquipmentCardService::ensureCardForUser((int) $oldResponsible);
-                    UserEquipmentCardService::invalidateByUserId((int) $model->responsible_user_id);
-                    UserEquipmentCardService::ensureCardForUser((int) $model->responsible_user_id);
-                }
-                if (!EquipHistory::idsEqual($oldStatus, $model->status_id)) {
-                    EquipHistory::log($model->id, 'status_change', ['status_id' => $oldStatus], ['status_id' => $model->status_id]);
-                }
-                if (EquipHistory::idsEqual($oldStatus, $model->status_id)
-                    && EquipHistory::idsEqual($oldLocation, $model->location_id)
-                    && EquipHistory::idsEqual($oldResponsible, $model->responsible_user_id)) {
-                    EquipHistory::log($model->id, 'update', null, ['inventory_number' => $model->inventory_number, 'name' => $model->name]);
-                }
-                AuditLog::log('equipment.update', 'equipment', $model->id, 'success');
-                Yii::$app->session->setFlash('success', 'Данные обновлены.');
-                return $this->redirect(['view', 'id' => $model->id]);
+        $this->ensureCanEditEquipment($model);
+
+        if (Yii::$app->request->isPost) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            $result = $this->persistUpdatedEquipment($model, Yii::$app->request->post());
+            if ($result['success']) {
+                return $result;
             }
+
+            Yii::$app->response->statusCode = 422;
+
+            return [
+                'success' => false,
+                'errors' => $result['errors'] ?? [],
+                'message' => $result['message'],
+            ];
         }
-        return $this->render('update', [
-            'model' => $model,
-            'users' => $users,
-            'locations' => $locations,
-            'statuses' => $statuses,
-            'equipmentTypes' => $equipmentTypes,
-            'chars' => $chars[$model->id] ?? [],
-            'cpuModels' => EquipmentCharCatalog::getDistinctCpuModels(),
-            'ramModels' => EquipmentCharCatalog::getDistinctRamValues(),
-            'osModels' => EquipmentCharCatalog::getDistinctOsValues(),
-            'diskModels' => EquipmentCharCatalog::getDistinctDiskModels(),
-            'supplierNames' => EquipmentCharCatalog::getDistinctSuppliers(),
-            'ipAddresses' => EquipmentCharCatalog::getDistinctIpAddresses(),
-        ]);
+
+        return $this->redirect(['index', 'edit' => $model->id]);
     }
 
     /**
      * Сохраняет значения характеристик из формы PartChar.
      * Маппинг: cpu->(ЦП,Модель), ram->(ОЗУ,Объём), disk->(Накопитель,Объём), monitor->(Монитор,Модель),
      * hostname->(ПК,Имя ПК), ip->(ПК,IP адрес), os->(ПК,ОС), model->(Монитор,Модель),
-     * screen_diagonal->(Монитор,Диагональ экрана), monitor_inv->(Монитор,№ монитора).
+     * screen_diagonal->(Монитор,Диагональ экрана), monitor_inv->(Монитор,№ монитора),
+     * ups_battery->(ИБП,Модель аккумулятора).
      */
     private function applyOrgTechDescriptionFromPost(Equipment $model): void
     {
@@ -741,7 +835,7 @@ class ArmController extends Controller
 
         $model->description = EquipmentCharCatalog::buildPrinterDescription(
             $code,
-            (string) ($orgTech['printer_comment'] ?? '')
+            (string) ($model->description ?? '')
         );
     }
 
@@ -766,7 +860,11 @@ class ArmController extends Controller
             'model' => ['Монитор', 'Модель'],
             'screen_diagonal' => ['Монитор', 'Диагональ экрана'],
             'monitor_inv' => ['Монитор', '№ монитора'],
+            'ups_battery' => ['ИБП', 'Модель аккумулятора'],
         ];
+        if ($isOrgTech) {
+            $map = array_merge($map, EquipmentCharCatalog::getPrinterMfuPartCharSaveMap());
+        }
         foreach ($partChar as $key => $value) {
             $value = is_string($value) ? trim($value) : '';
             if ($value === '') continue;
@@ -951,7 +1049,7 @@ class ArmController extends Controller
             if (count($ids) !== 1) {
                 return [
                     'success' => false,
-                    'message' => 'Для переноса компонента выберите один системный блок (ПК) в таблице.',
+                    'message' => 'Для переноса компонента выберите один монитор, ИБП или системный блок в таблице.',
                 ];
             }
             $moveEquipment = Equipment::findOne((int) $ids[0]);
@@ -961,13 +1059,13 @@ class ArmController extends Controller
             if ($this->isHostEquipment($moveEquipment)) {
                 return [
                     'success' => false,
-                    'message' => 'Укажите в форме, какой монитор или ИБП переносится с выбранного ПК.',
+                    'message' => 'При переносе с ПК укажите в форме, какой монитор или ИБП переносится.',
                 ];
             }
             if (!$this->isLinkableComponentEquipment($moveEquipment)) {
                 return [
                     'success' => false,
-                    'message' => 'Перенос компонента доступен только для мониторов и ИБП с выбранного системного блока.',
+                    'message' => 'Перенос компонента доступен только для мониторов и ИБП.',
                 ];
             }
         } else {
@@ -980,6 +1078,10 @@ class ArmController extends Controller
         $sendToWarehouse = (bool) Yii::$app->request->post('dismissal_to_warehouse', false);
         $targetSystemBlockId = Yii::$app->request->post('target_system_block_id');
         $linkType = (string) Yii::$app->request->post('link_type', '');
+        $linkAction = (string) Yii::$app->request->post('link_action', 'attach');
+        if (!in_array($linkAction, ['attach', 'detach'], true)) {
+            $linkAction = 'attach';
+        }
 
         $updated = 0;
         $responsibleUserChanged = 0;
@@ -1075,32 +1177,14 @@ class ArmController extends Controller
                 }
             }
 
-            if ($operationMode === 'move_component' && $targetSystemBlockId && $linkType !== '') {
-                $targetSystemBlock = Equipment::findOne((int) $targetSystemBlockId);
-                if (!$targetSystemBlock || $targetSystemBlock->is_deleted || $targetSystemBlock->is_archived || !$this->isHostEquipment($targetSystemBlock)) {
-                    throw new \RuntimeException('Целевой ПК не найден или недоступен для привязки компонента.');
-                }
-                foreach ($ids as $childId) {
-                    EquipmentLink::deleteAll([
-                        'child_equipment_id' => (int) $childId,
-                        'link_type' => $linkType,
-                    ]);
-                    $link = new EquipmentLink();
-                    $link->parent_equipment_id = (int) $targetSystemBlockId;
-                    $link->child_equipment_id = (int) $childId;
-                    $link->link_type = $linkType;
-                    $link->created_by = Yii::$app->user->id;
-                    $link->save(false);
-
-                    $child = Equipment::findOne((int) $childId);
-                    if ($child && $this->syncComponentToHost($child, $targetSystemBlock)) {
-                        $updated++;
-                        AuditLog::log('equipment.reassign', 'equipment', $child->id, 'success', [
-                            'mode' => 'move_component_sync',
-                            'parent_id' => (int) $targetSystemBlockId,
-                        ]);
-                    }
-                }
+            if ($operationMode === 'move_component') {
+                $this->applyMoveComponentLinkAction(
+                    $ids,
+                    $linkAction,
+                    $linkType,
+                    $targetSystemBlockId,
+                    $updated
+                );
             }
 
             $transaction->commit();
@@ -1240,6 +1324,23 @@ class ArmController extends Controller
     }
 
     /**
+     * Колонка «Тип/Название техники» на вкладке «Вся техника»: тип, затем наименование.
+     */
+    private function formatEquipmentTypeAndNameForGrid(Equipment $equipment): string
+    {
+        $type = trim((string) ($equipment->resolveEquipmentTypeName() ?? ''));
+        $name = trim((string) ($equipment->name ?? ''));
+        if ($type !== '' && $name !== '') {
+            return $type . ' · ' . $name;
+        }
+        if ($name !== '') {
+            return $name;
+        }
+
+        return $type;
+    }
+
+    /**
      * Дата закупки для грида и экспорта (дд.мм.гггг).
      */
     private function formatPurchaseDateForGrid(Equipment $equipment): string
@@ -1286,7 +1387,7 @@ class ArmController extends Controller
     /** @return string[] */
     private function getKitHostEquipmentTypes(): array
     {
-        return ['АРМ', 'ПК', 'Моноблок', 'Системный блок', 'Ноутбук', 'Сервер'];
+        return ['ПК', 'Моноблок', 'Системный блок', 'Ноутбук', 'Сервер'];
     }
 
     /** @return string[] */
@@ -1318,6 +1419,108 @@ class ArmController extends Controller
         }
 
         return $or;
+    }
+
+    /**
+     * @param int[] $childIds
+     */
+    private function applyMoveComponentLinkAction(
+        array $childIds,
+        string $linkAction,
+        string $linkType,
+        $targetSystemBlockId,
+        int &$updated
+    ): void {
+        if (Yii::$app->db->getTableSchema('equipment_links', true) === null) {
+            throw new \RuntimeException('Таблица связей оборудования недоступна.');
+        }
+
+        foreach ($childIds as $childId) {
+            $child = Equipment::findOne((int) $childId);
+            if (!$child || !$this->isLinkableComponentEquipment($child)) {
+                continue;
+            }
+
+            $resolvedLinkType = $linkType !== ''
+                ? $linkType
+                : $this->detectLinkTypeForEquipment($child);
+            if (!in_array($resolvedLinkType, [EquipmentLink::TYPE_MONITOR, EquipmentLink::TYPE_UPS], true)) {
+                continue;
+            }
+
+            if ($linkAction === 'detach') {
+                $links = EquipmentLink::find()
+                    ->where([
+                        'child_equipment_id' => (int) $childId,
+                        'link_type' => $resolvedLinkType,
+                    ])
+                    ->all();
+                foreach ($links as $link) {
+                    $parentId = (int) $link->parent_equipment_id;
+                    $link->delete();
+                    EquipHistory::log(
+                        (int) $childId,
+                        'update',
+                        ['parent_equipment_id' => $parentId, 'link_type' => $resolvedLinkType],
+                        ['parent_equipment_id' => null],
+                        'move_component_detach'
+                    );
+                    $updated++;
+                    AuditLog::log('equipment.reassign', 'equipment', (int) $childId, 'success', [
+                        'mode' => 'move_component_detach',
+                        'parent_id' => $parentId,
+                    ]);
+                }
+                continue;
+            }
+
+            if (!$targetSystemBlockId) {
+                throw new \RuntimeException('Укажите целевой системный блок для привязки компонента.');
+            }
+
+            $targetSystemBlock = Equipment::findOne((int) $targetSystemBlockId);
+            if (!$targetSystemBlock || $targetSystemBlock->is_deleted || $targetSystemBlock->is_archived || !$this->isHostEquipment($targetSystemBlock)) {
+                throw new \RuntimeException('Целевой ПК не найден или недоступен для привязки компонента.');
+            }
+
+            EquipmentLink::deleteAll([
+                'child_equipment_id' => (int) $childId,
+                'link_type' => $resolvedLinkType,
+            ]);
+
+            $equipmentLink = new EquipmentLink();
+            $equipmentLink->parent_equipment_id = (int) $targetSystemBlockId;
+            $equipmentLink->child_equipment_id = (int) $childId;
+            $equipmentLink->link_type = $resolvedLinkType;
+            $equipmentLink->created_by = Yii::$app->user->id;
+            $equipmentLink->save(false);
+
+            EquipHistory::log(
+                (int) $childId,
+                'update',
+                null,
+                ['parent_equipment_id' => (int) $targetSystemBlockId, 'link_type' => $resolvedLinkType],
+                'move_component_attach'
+            );
+            $updated++;
+
+            if ($this->syncComponentToHost($child, $targetSystemBlock)) {
+                AuditLog::log('equipment.reassign', 'equipment', $child->id, 'success', [
+                    'mode' => 'move_component_sync',
+                    'parent_id' => (int) $targetSystemBlockId,
+                ]);
+            }
+        }
+    }
+
+    private function detectLinkTypeForEquipment(Equipment $equipment): string
+    {
+        $typeLower = mb_strtolower(trim((string) $equipment->equipment_type), 'UTF-8');
+        if (mb_strpos($typeLower, 'ибп', 0, 'UTF-8') !== false || mb_strpos($typeLower, 'ups', 0, 'UTF-8') !== false) {
+            return EquipmentLink::TYPE_UPS;
+        }
+
+        return EquipmentLink::TYPE_MONITOR;
     }
 
     /**
@@ -1462,6 +1665,9 @@ class ArmController extends Controller
             $models = $provider->getModels();
         }
 
+        $showTypeWithNameInGrid = empty($ids)
+            && (!isset($searchModel) || trim((string) $searchModel->equipment_type) === '');
+
         $charsByEquipment = $this->loadPartCharValuesByEquipment(array_map(static fn($m) => (int)$m->id, $models));
         $linksByParent = $this->loadLinkedComponents(array_map(static fn($m) => (int)$m->id, $models));
 
@@ -1475,7 +1681,12 @@ class ArmController extends Controller
                 "\n",
                 EquipmentCharCatalog::formatDiskGridLines((string) ($chars['disk'] ?? ''), $links['disk'] ?? [])
             )],
-            'system_block' => ['Системный блок', static fn($m, $chars, $links) => $m->name ?? ''],
+            'system_block' => [
+                'Тип/Название техники',
+                fn($m, $chars, $links) => $showTypeWithNameInGrid
+                    ? $this->formatEquipmentTypeAndNameForGrid($m)
+                    : (string) ($m->name ?? ''),
+            ],
             'inventory_number' => ['Инв. №', static fn($m, $chars, $links) => $m->inventory_number ?? ''],
             'purchase_date' => ['Дата закупки', fn($m, $chars, $links) => $this->formatPurchaseDateForGrid($m)],
             'monitor' => ['Монитор', static fn($m, $chars, $links) => EquipmentCharCatalog::formatMonitorColumnValue(
@@ -1678,6 +1889,19 @@ class ArmController extends Controller
             return;
         }
         throw new \yii\web\ForbiddenHttpException('Нет доступа к этой карточке актива.');
+    }
+
+    private function ensureCanEditEquipment(Equipment $model): void
+    {
+        $this->ensureCanAccessEquipment($model);
+        $user = Yii::$app->user->identity;
+        if ($user && $user->isAdministrator()) {
+            return;
+        }
+        if ($user && (int) $model->responsible_user_id === (int) $user->id) {
+            return;
+        }
+        throw new \yii\web\ForbiddenHttpException('Нет прав на редактирование этой техники.');
     }
 
     /**

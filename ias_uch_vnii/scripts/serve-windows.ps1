@@ -28,4 +28,4 @@ Set-Location $rootDir
 
 $port = if ($env:PORT) { $env:PORT } else { "8888" }
 Write-Host "Запуск сервера на http://localhost:$port (PHP: $phpExe)" -ForegroundColor Green
-& $phpExe yii serve --port=$port
+& $phpExe yii serve --port=$port --router=web/router.php

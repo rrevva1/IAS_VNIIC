@@ -28,6 +28,8 @@ class EquipHistory extends ActiveRecord
         'dismissal_to_warehouse' => 'Увольнение: передача на склад',
         'dismissal_transfer' => 'Увольнение: передача другому сотруднику',
         'move_component_to_host' => 'Перемещение компонента к системному блоку',
+        'move_component_detach' => 'Снятие привязки компонента к системному блоку',
+        'move_component_attach' => 'Привязка компонента к системному блоку',
     ];
 
     public static function tableName()

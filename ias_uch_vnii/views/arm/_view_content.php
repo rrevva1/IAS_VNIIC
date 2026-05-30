@@ -26,13 +26,18 @@ $equipmentTypeName = $model->resolveEquipmentTypeName() ?: '—';
 $status = $model->equipmentStatus;
 $statusCode = $status ? (string) $status->status_code : '';
 $statusBadgeMap = [
-    'in_use' => 'bg-success',
-    'in_stock' => 'bg-secondary',
-    'in_repair' => 'bg-warning text-dark',
-    'writeoff' => 'bg-danger',
-    'archived' => 'bg-dark',
+    'in_use' => 'arm-view-status--in-use',
+    'in_stock' => 'arm-view-status--stock',
+    'in_repair' => 'arm-view-status--repair',
+    'writeoff' => 'arm-view-status--writeoff',
+    'archived' => 'arm-view-status--archived',
 ];
-$statusBadgeClass = $statusBadgeMap[$statusCode] ?? 'bg-secondary';
+$statusBadgeClass = $statusBadgeMap[$statusCode] ?? 'arm-view-status--stock';
+
+$headerIconClass = EquipmentCharCatalog::resolveEquipmentTypeIconClass(
+    $equipmentTypeName,
+    $model->inventory_number
+);
 
 $canEdit = Yii::$app->user->identity
     && (Yii::$app->user->identity->isAdministrator() || (int) $model->responsible_user_id === (int) Yii::$app->user->id);
@@ -91,7 +96,7 @@ if ($model->warranty_years !== null && $model->warranty_years !== '') {
     $warrantySummary = 'до ' . $model->getWarrantyUntilDisplay();
 }
 
-$charLabels = [
+$charLabels = array_merge([
     'cpu' => 'Процессор',
     'ram' => 'Оперативная память',
     'disk' => 'Накопители',
@@ -101,9 +106,14 @@ $charLabels = [
     'hostname' => 'Имя компьютера',
     'ip' => 'IP-адрес',
     'os' => 'Операционная система',
-];
+    'ups_battery' => 'Модель аккумулятора',
+], EquipmentCharCatalog::getPrinterMfuCharDisplayLabels());
+$isMonitorEquipment = str_contains(mb_strtolower(trim($equipmentTypeName)), 'монитор');
 $visibleChars = [];
 foreach ($charLabels as $key => $label) {
+    if ($key === 'monitor_inv' && $isMonitorEquipment) {
+        continue;
+    }
     if (!empty($chars[$key])) {
         $visibleChars[$key] = ['label' => $label, 'value' => $chars[$key]];
     }
@@ -128,55 +138,74 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
 <div class="arm-view" data-equipment-id="<?= (int) $model->id ?>">
     <div id="armViewHeaderSlot">
     <header class="arm-view__header">
-        <h1 class="arm-view__title"><?= Html::encode($displayTitle) ?></h1>
-        <div class="arm-view__meta">
-            <?php if (trim((string) $model->inventory_number) !== ''): ?>
-                <span class="arm-view__meta-item">Инв. № <strong><?= Html::encode($model->inventory_number) ?></strong></span>
-            <?php endif; ?>
-            <?php if (trim((string) $model->serial_number) !== ''): ?>
-                <span class="arm-view__meta-item">Серийный № <strong><?= Html::encode($model->serial_number) ?></strong></span>
-            <?php endif; ?>
-            <span class="arm-view__meta-item"><?= Html::encode($equipmentTypeName) ?></span>
-        </div>
-        <div class="arm-view__badges">
-            <?php if ($status): ?>
-                <span class="badge arm-view-badge-status <?= Html::encode($statusBadgeClass) ?>">
-                    <?= Html::encode($status->status_name) ?>
-                </span>
-            <?php endif; ?>
-            <?php if ($model->is_archived): ?>
-                <span class="badge arm-view-badge-status bg-dark">В архиве</span>
-            <?php endif; ?>
-            <?php if ($cartridgeStatus === EquipmentCharCatalog::CARTRIDGE_ACCOUNTED_LABEL): ?>
-                <span class="badge arm-view-badge-status bg-success"><?= Html::encode($cartridgeStatus) ?></span>
-            <?php elseif ($cartridgeStatus === EquipmentCharCatalog::CARTRIDGE_NOT_ACCOUNTED_LABEL): ?>
-                <span class="badge arm-view-badge-status bg-secondary"><?= Html::encode($cartridgeStatus) ?></span>
-            <?php endif; ?>
+        <div class="arm-view__header-layout">
+            <div class="arm-view__header-icon" aria-hidden="true">
+                <i class="fas <?= Html::encode($headerIconClass) ?>"></i>
+            </div>
+            <div class="arm-view__header-content">
+                <div class="arm-view__header-top">
+                    <span class="arm-view__type"><?= Html::encode($equipmentTypeName) ?></span>
+                    <div class="arm-view__badges">
+                        <?php if ($status): ?>
+                            <span class="arm-view-badge-status <?= Html::encode($statusBadgeClass) ?>">
+                                <?= Html::encode($status->status_name) ?>
+                            </span>
+                        <?php endif; ?>
+                        <?php if ($model->is_archived): ?>
+                            <span class="arm-view-badge-status arm-view-status--archived">В архиве</span>
+                        <?php endif; ?>
+                        <?php if ($cartridgeStatus === EquipmentCharCatalog::CARTRIDGE_ACCOUNTED_LABEL): ?>
+                            <span class="arm-view-badge-status arm-view-badge--cartridge-ok"><?= Html::encode($cartridgeStatus) ?></span>
+                        <?php elseif ($cartridgeStatus === EquipmentCharCatalog::CARTRIDGE_NOT_ACCOUNTED_LABEL): ?>
+                            <span class="arm-view-badge-status arm-view-badge--cartridge-no"><?= Html::encode($cartridgeStatus) ?></span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <h1 class="arm-view__title"><?= Html::encode($displayTitle) ?></h1>
+                <?php if (trim((string) $model->inventory_number) !== '' || trim((string) $model->serial_number) !== ''): ?>
+                <ul class="arm-view__meta" role="list">
+                    <?php if (trim((string) $model->inventory_number) !== ''): ?>
+                    <li class="arm-view__meta-chip">
+                        <span class="arm-view__meta-label">Инв. №</span>
+                        <span class="arm-view__meta-value"><?= Html::encode($model->inventory_number) ?></span>
+                    </li>
+                    <?php endif; ?>
+                    <?php if (trim((string) $model->serial_number) !== ''): ?>
+                    <li class="arm-view__meta-chip">
+                        <span class="arm-view__meta-label">Серийный №</span>
+                        <span class="arm-view__meta-value"><?= Html::encode($model->serial_number) ?></span>
+                    </li>
+                    <?php endif; ?>
+                </ul>
+                <?php endif; ?>
+            </div>
         </div>
     </header>
     </div>
 
     <div class="arm-view__actions">
         <?php if ($canEdit): ?>
-            <?= Html::a('<i class="fas fa-pen" aria-hidden="true"></i> Редактировать', ['update', 'id' => $model->id], [
-                'class' => 'btn btn-primary arm-tool-btn',
+            <?= Html::button('<i class="fas fa-pen" aria-hidden="true"></i> Редактировать', [
+                'class' => 'btn arm-tool-btn arm-view-btn arm-view-btn--edit',
+                'type' => 'button',
+                'data-arm-edit' => (int) $model->id,
             ]) ?>
             <?php if (!$model->is_archived && $isAdmin): ?>
                 <?= Html::a('<i class="fas fa-box-archive" aria-hidden="true"></i> Архивировать', ['archive', 'id' => $model->id], [
-                    'class' => 'btn btn-outline-warning arm-tool-btn',
+                    'class' => 'btn arm-tool-btn arm-view-btn arm-view-btn--archive',
                     'data' => ['method' => 'post', 'confirm' => 'Переместить эту единицу техники в архив?'],
                 ]) ?>
             <?php endif; ?>
         <?php endif; ?>
         <?php if ($isModal): ?>
             <?= Html::button('<i class="fas fa-xmark" aria-hidden="true"></i> Закрыть', [
-                'class' => 'btn btn-outline-secondary arm-tool-btn',
+                'class' => 'btn arm-tool-btn arm-view-btn arm-view-btn--close',
                 'type' => 'button',
                 'data-bs-dismiss' => 'modal',
             ]) ?>
         <?php else: ?>
             <?= Html::a('<i class="fas fa-arrow-left" aria-hidden="true"></i> К списку', ['index'], [
-                'class' => 'btn btn-outline-secondary arm-tool-btn',
+                'class' => 'btn arm-tool-btn arm-view-btn arm-view-btn--close',
             ]) ?>
         <?php endif; ?>
     </div>
@@ -222,10 +251,6 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
                     <div class="arm-view-dl__row">
                         <dt class="arm-view-dl__label">Дата закупки</dt>
                         <dd><?= $renderValue($formatDate($model->purchase_date) ?: null) ?></dd>
-                    </div>
-                    <div class="arm-view-dl__row">
-                        <dt class="arm-view-dl__label">Ввод в эксплуатацию</dt>
-                        <dd><?= $renderValue($formatDate($model->commissioning_date) ?: null) ?></dd>
                     </div>
                     <div class="arm-view-dl__row">
                         <dt class="arm-view-dl__label">Гарантия</dt>
@@ -286,7 +311,7 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
                     <?php endif; ?>
                     <div class="text-muted small"><?= Html::encode($formatDate($t->created_at)) ?></div>
                 </div>
-                <?= Html::a('Открыть', ['/tasks/view', 'id' => $t->id], ['class' => 'btn btn-sm btn-outline-primary']) ?>
+                <?= Html::a('Открыть', ['/tasks/view', 'id' => $t->id], ['class' => 'btn btn-sm arm-view-btn arm-view-btn--link']) ?>
             </li>
             <?php endforeach; ?>
         </ul>

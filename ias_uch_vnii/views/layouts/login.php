@@ -31,15 +31,6 @@ $this->registerLinkTag([
     <?= $content ?>
 </main>
 
-<footer class="login-layout__footer text-center">
-    <small class="text-muted">
-        <?= Html::encode(Yii::$app->name) ?>
-        <?php if (!empty(Yii::$app->params['appVersion'])): ?>
-            · версия <?= Html::encode(Yii::$app->params['appVersion']) ?>
-        <?php endif; ?>
-    </small>
-</footer>
-
 <?php $this->endBody() ?>
 </body>
 </html>

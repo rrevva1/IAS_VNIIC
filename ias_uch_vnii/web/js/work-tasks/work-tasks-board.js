@@ -106,6 +106,31 @@
         return true;
     }
 
+    function setCardExecutor(card, executorName) {
+        var people = card.querySelector('.work-task-card__people');
+        if (!people) {
+            return;
+        }
+        var row = card.querySelector('.work-task-card__person--executor');
+        if (!executorName) {
+            if (row) {
+                row.remove();
+            }
+            return;
+        }
+        if (!row) {
+            row = document.createElement('div');
+            row.className = 'work-task-card__person work-task-card__person--executor';
+            row.innerHTML = '<span class="work-task-card__person-label">Исполнитель</span>'
+                + '<span class="work-task-card__person-name work-task-card__executor-name"></span>';
+            people.appendChild(row);
+        }
+        var nameEl = row.querySelector('.work-task-card__executor-name');
+        if (nameEl) {
+            nameEl.textContent = executorName;
+        }
+    }
+
     function updateCardTimeInStatus(card, res) {
         if (!card || !res) {
             return;
@@ -372,21 +397,7 @@
         updateColumnCounts();
 
         if (res.executor_name !== undefined) {
-            var executorEl = card.querySelector('.work-task-card__executor-name');
-            var executorRow = card.querySelector('.work-task-card__person--executor');
-            if (executorEl) {
-                if (res.executor_name) {
-                    executorEl.textContent = res.executor_name;
-                    if (executorRow) {
-                        executorRow.classList.remove('work-task-card__person--empty');
-                    }
-                } else {
-                    executorEl.innerHTML = '<span class="work-task-card__person-missing">Не назначен</span>';
-                    if (executorRow) {
-                        executorRow.classList.add('work-task-card__person--empty');
-                    }
-                }
-            }
+            setCardExecutor(card, res.executor_name);
         }
 
         var targetColumn = getColumnZone(newCode);

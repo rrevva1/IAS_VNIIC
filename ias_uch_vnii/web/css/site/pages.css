@@ -44,7 +44,7 @@
 }
 
 .section-title {
-    font-size: 1.8rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
     font-weight: 600;
     color: #333;
     margin-bottom: 20px;
@@ -55,7 +55,7 @@
 .section-content {
     color: #555;
     line-height: 1.6;
-    font-size: 1rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .section-content p {
@@ -309,7 +309,7 @@
     }
     
     .section-title {
-        font-size: 1.5rem;
+        font-size: var(--ias-font-section-title, 0.875rem);
     }
     
     .feature-cards {
@@ -331,7 +331,7 @@
     }
     
     .section-title {
-        font-size: 1.3rem;
+        font-size: var(--ias-font-section-title, 0.875rem);
     }
     
     .btn-site {

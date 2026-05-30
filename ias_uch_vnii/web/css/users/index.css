@@ -36,12 +36,12 @@
 .profile-info h2 {
     margin: 0 0 5px 0;
     color: #333;
-    font-size: 1.8rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
 }
 
 .profile-info .profile-role {
     color: #666;
-    font-size: 1rem;
+    font-size: var(--ias-font-body, 0.75rem);
     margin: 0;
 }
 
@@ -85,7 +85,7 @@
 }
 
 .section-title {
-    font-size: 1.2rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
     font-weight: 600;
     color: #333;
     margin-bottom: 15px;
@@ -321,8 +321,8 @@
     box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
 }
 
-/* Стили для модальных окон */
-.modal {
+/* Устаревшие модалки (не Bootstrap 5) — только для старых страниц users/index_ajax */
+.users-index .modal {
     display: none;
     position: fixed;
     z-index: 1000;
@@ -334,13 +334,13 @@
     backdrop-filter: blur(2px);
 }
 
-.modal.show {
+.users-index .modal.show {
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
-.modal-content {
+.users-index .modal-content {
     background: #fff;
     border-radius: 12px;
     padding: 30px;
@@ -351,7 +351,7 @@
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
-.modal-header {
+.users-index .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -360,14 +360,14 @@
     border-bottom: 1px solid #dee2e6;
 }
 
-.modal-title {
+.users-index .modal-title {
     font-size: 1.3rem;
     font-weight: 600;
     color: #333;
     margin: 0;
 }
 
-.modal-close {
+.users-index .modal-close {
     background: none;
     border: none;
     font-size: 1.5rem;
@@ -383,7 +383,7 @@
     transition: background-color 0.3s ease;
 }
 
-.modal-close:hover {
+.users-index .modal-close:hover {
     background: #f8f9fa;
     color: #333;
 }
@@ -438,7 +438,7 @@
         justify-content: center;
     }
     
-    .modal-content {
+    .users-index .modal-content {
         padding: 20px;
     }
 }

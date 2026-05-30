@@ -45,7 +45,7 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
             [['email'], 'email'],
             [['is_active', 'is_locked', 'is_deleted'], 'boolean'],
             [['password_plain'], 'required', 'on' => 'create'],
-            [['password_plain'], 'string', 'min' => 6, 'max' => 255],
+            [['password_plain'], 'string', 'min' => 6, 'max' => 255, 'skipOnEmpty' => true],
             [['role_id'], 'integer'],
             [['role_id'], 'exist', 'skipOnEmpty' => true, 'targetClass' => Roles::class, 'targetAttribute' => ['role_id' => 'id']],
             [['full_name', 'email', 'password_plain'], 'filter', 'filter' => 'trim'],

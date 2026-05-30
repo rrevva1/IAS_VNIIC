@@ -53,8 +53,9 @@ $roleFilter = Yii::$app->request->get('role_id', '');
         </div>
 
         <div class="users-command-bar__tools">
-            <button type="button" class="btn btn-primary users-tool-btn" data-user-create-open
-                    title="Добавить пользователя">
+            <button type="button" class="btn btn-primary users-tool-btn" data-user-create-open="1"
+                    title="Добавить пользователя"
+                    onclick="if (window.openCreateUserModal) { window.openCreateUserModal(); } return false;">
                 <i class="fas fa-plus" aria-hidden="true"></i><span>Добавить</span>
             </button>
             <button type="button" class="btn btn-outline-secondary users-tool-btn"
@@ -70,7 +71,9 @@ $roleFilter = Yii::$app->request->get('role_id', '');
              data-url="<?= Html::encode(Url::to(['users/get-grid-data'])) ?>"
              data-create-modal-url="<?= Html::encode(Url::to(['users/create-modal'])) ?>"
              data-view-url="<?= Html::encode(Url::to(['users/view'])) ?>"
+             data-view-modal-url-template="<?= Html::encode(Url::to(['users/view-modal', 'id' => '__ID__'])) ?>"
              data-update-url="<?= Html::encode(Url::to(['users/update'])) ?>"
+             data-update-modal-url-template="<?= Html::encode(Url::to(['users/update-modal', 'id' => '__ID__'])) ?>"
              data-delete-url="<?= Html::encode(Url::to(['users/delete'])) ?>">
             <div class="users-grid-loading__inner">
                 <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
@@ -80,7 +83,51 @@ $roleFilter = Yii::$app->request->get('role_id', '');
     </div>
 </div>
 
-<?= $this->render('_create_modal', [
-    'model' => new \app\models\entities\Users(),
-    'roleItems' => \app\models\dictionaries\Roles::getList(),
-]) ?>
+<?= $this->render('_view_modal') ?>
+
+<div class="modal fade users-modal users-create-modal" id="userFormModal" tabindex="-1"
+     aria-labelledby="userFormModalLabel" aria-hidden="true"
+     data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header users-create-modal__header">
+                <div>
+                    <h5 class="modal-title" id="userFormModalLabel">Новый пользователь</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body users-create-modal__body" id="userFormModalBody">
+                <div class="users-grid-loading">
+                    <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                    <p>Загрузка формы…</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php
+$this->registerJs(
+    'window.agGridUsersViewModalUrlTemplate = ' . json_encode(Url::to(['users/view-modal', 'id' => '__ID__'])) . ';' .
+    'window.agGridUsersUpdateModalUrlTemplate = ' . json_encode(Url::to(['users/update-modal', 'id' => '__ID__'])) . ';',
+    \yii\web\View::POS_HEAD
+);
+
+$this->registerJs(<<<'JS'
+document.addEventListener('DOMContentLoaded', function() {
+    if (!document.querySelector('.modal.show')) {
+        document.querySelectorAll('.modal-backdrop').forEach(function(el) { el.remove(); });
+        document.body.classList.remove('modal-open');
+    }
+    document.querySelectorAll('[data-user-create-open]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.openCreateUserModal === 'function') {
+                window.openCreateUserModal();
+            }
+        });
+    });
+});
+JS
+, \yii\web\View::POS_END);
+?>

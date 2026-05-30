@@ -74,12 +74,18 @@
     box-sizing: border-box;
 }
 
-/* Ссылки на карточку актива в гриде Учет ТС */
-#agGridArmContainer .arm-link-to-card {
-    color: #0d6efd;
+/* Ссылки на карточку актива в гриде Учет ТС — цвет как у текста ячейки */
+#agGridArmContainer.ag-theme-quartz .ag-cell a,
+#agGridArmContainer .arm-link-to-card,
+#agGridArmContainer .arm-monitor-link,
+#agGridArmContainer .arm-ups-link {
+    color: inherit !important;
     text-decoration: none;
+    font-weight: inherit;
 }
+#agGridArmContainer.ag-theme-quartz .ag-cell a:hover,
 #agGridArmContainer .arm-link-to-card:hover {
+    color: inherit !important;
     text-decoration: underline;
 }
 
@@ -87,8 +93,8 @@
 #agGridArmContainer .arm-ups-cell,
 #agGridArmContainer .arm-disk-cell {
     display: block;
-    line-height: 1.25;
-    padding: 2px 0;
+    line-height: var(--arm-line-grid, 1.4);
+    padding: 1px 0;
     white-space: normal;
     word-break: break-word;
     overflow-wrap: break-word;
@@ -107,7 +113,7 @@
     /* Свои border на .ag-cell; иначе дублируются с темой AG Grid */
     --ag-cell-horizontal-border: solid transparent;
     --ag-header-column-separator-display: none;
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
 }
 
 #agGridArmContainer .ag-header {
@@ -208,7 +214,7 @@
     --ag-row-hover-color: #e3f2fd;
     --ag-selected-row-background-color: #cce7ff;
     --ag-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
     --ag-row-height: 55px;
     --ag-header-height: 55px;
 }
@@ -265,8 +271,14 @@
 /* Заголовки колонок */
 .ag-theme-quartz .ag-header-cell {
     font-weight: 600;
-    font-size: 13px;
+    font-size: var(--ag-font-size, 12px);
     padding: 8px 12px;
+}
+
+#agGridTasksContainer.ag-theme-quartz .ag-header-cell,
+#agGridTasksContainer.ag-theme-quartz .ag-header-group-cell,
+#agGridTasksContainer.ag-theme-quartz .ag-header-cell-text {
+    font-size: var(--ag-font-size, 12px) !important;
 }
 
 /* Ячейки */
@@ -359,6 +371,29 @@
     text-decoration: underline;
 }
 
+/* Таблица заявок: гиперссылки чёрные */
+#agGridTasksContainer.ag-theme-quartz .ag-cell a,
+#agGridTasksContainer .ag-cell a {
+    color: #000 !important;
+    text-decoration: none;
+    font-weight: inherit;
+}
+
+#agGridTasksContainer.ag-theme-quartz .ag-cell a:hover,
+#agGridTasksContainer .ag-cell a:hover {
+    color: #000 !important;
+    text-decoration: underline;
+}
+
+#agGridTasksContainer .tasks-grid-link {
+    color: #000 !important;
+}
+
+#agGridTasksContainer .tasks-grid-link:hover,
+#agGridTasksContainer .tasks-grid-link--description:hover {
+    color: #000 !important;
+}
+
 .ag-theme-quartz .ag-cell .ag-actions a {
     text-decoration: none;
 }
@@ -385,53 +420,129 @@
     width: 100%;
 }
 
-/* Колонка исполнителя: селект занимает всю ячейку */
+/* Колонка «Исполнитель»: не обрезать селект / ФИО глобальным ellipsis ячеек */
 #agGridTasksContainer .ag-cell.tasks-executor-cell {
-    padding: 0 !important;
+    padding: 8px 12px !important;
+    overflow: visible !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
 }
 
 #agGridTasksContainer .tasks-executor-cell .ag-cell-wrapper,
 #agGridTasksContainer .tasks-executor-cell .ag-cell-value {
     width: 100% !important;
-    height: 100% !important;
-    min-height: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    display: flex !important;
+    align-items: center !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+#agGridTasksContainer .tasks-executor-cell.ag-cell {
     display: flex !important;
     align-items: center !important;
 }
 
 #agGridTasksContainer .tasks-executor-cell .ag-cell-wrapper {
-    padding: 0 8px !important;
+    width: 100% !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
 }
 
 #agGridTasksContainer .tasks-executor-cell .ag-cell-value {
-    flex: 1 1 auto !important;
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    align-self: stretch !important;
+}
+
+#agGridTasksContainer .tasks-executor-cell .tasks-executor-select-wrap {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+#agGridTasksContainer .tasks-executor-cell select.executor-change-ag--grid {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    margin: 0 !important;
+    padding: 0.25rem 1.75rem 0.25rem 0.5rem !important;
+    box-sizing: border-box !important;
+    font-size: var(--ag-font-size, 12px) !important;
+    line-height: 1.35 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background-color: #fff !important;
+    color: #0f172a !important;
+}
+
+#agGridTasksContainer .tasks-executor-cell .tasks-executor-readonly,
+#agGridTasksContainer .tasks-executor-cell .tasks-grid-empty {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.35;
 }
 
 #agGridTasksContainer .tasks-executor-cell .executor-change-ag {
     display: block !important;
     width: 100% !important;
     min-width: 0 !important;
-    max-width: none !important;
-    height: 34px !important;
-    min-height: 34px !important;
+    max-width: 100% !important;
+    height: 32px !important;
+    min-height: 32px !important;
     margin: 0 !important;
     border: 1px solid #cbd5e1 !important;
     border-radius: 6px !important;
     background-color: #fff !important;
     padding: 0 28px 0 10px !important;
+    box-sizing: border-box !important;
 }
 
-/* Select2 в колонке исполнителя */
-#agGridTasksContainer .tasks-executor-cell .select2-container.ias-user-select-selection--executor {
+/* Select2 в колонке исполнителя — на всю ширину ячейки */
+#agGridTasksContainer .tasks-executor-cell .select2-container {
+    display: block !important;
     width: 100% !important;
-    min-width: 100%;
+    min-width: 0 !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
 }
 
 #agGridTasksContainer .tasks-executor-cell .select2-container--default .select2-selection--single {
-    min-height: 34px;
-    height: 34px;
+    width: 100% !important;
+    min-height: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+#agGridTasksContainer .tasks-executor-cell .select2-container--default .select2-selection--single.ias-user-select-selection--executor {
+    width: 100% !important;
+}
+
+#agGridTasksContainer .tasks-executor-cell .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 30px;
+    padding-left: 10px;
+    padding-right: 24px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .select2-dropdown.ias-user-select-dropdown--executor {
@@ -471,7 +582,7 @@
 }
 
 .ag-grid-toolbar .btn {
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     padding: 8px 16px;
     border-radius: 4px;
 }
@@ -495,7 +606,7 @@
     border-radius: 4px;
     text-decoration: none;
     transition: all 0.2s ease;
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     color: #495057;
     border: 1px solid #dee2e6;
     background: #f8f9fa;

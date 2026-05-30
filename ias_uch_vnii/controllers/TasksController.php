@@ -6,6 +6,7 @@ use Yii;
 use app\models\entities\Tasks;
 use app\models\entities\Users;
 use app\models\entities\Equipment;
+use app\models\entities\Location;
 use app\models\search\TasksSearch;
 use app\models\dictionaries\DicTaskStatus;
 use app\models\entities\DeskAttachments;
@@ -169,6 +170,7 @@ class TasksController extends Controller
         } else {
             $model->loadDefaultValues();
             $this->prefillTaskContactPhone($model);
+            $this->prefillTaskRoomNumber($model);
         }
 
         return $this->render('create', [
@@ -201,6 +203,55 @@ class TasksController extends Controller
         $user = Yii::$app->user->identity;
         if ($user && !empty($user->phone)) {
             $model->contact_phone = $user->phone;
+        }
+    }
+
+    /**
+     * Подставляет номер помещения по закреплённой за пользователем технике.
+     */
+    private function prefillTaskRoomNumber(Tasks $model): void
+    {
+        if (!empty($model->room_number)) {
+            return;
+        }
+        $room = $this->resolveUserPrimaryRoomNumber();
+        if ($room !== null && $room !== '') {
+            $model->room_number = $room;
+        }
+    }
+
+    /**
+     * Наиболее частое помещение по location_id техники пользователя.
+     */
+    private function resolveUserPrimaryRoomNumber(?int $userId = null): ?string
+    {
+        $userId = $userId ?? (int) Yii::$app->user->id;
+        if ($userId <= 0) {
+            return null;
+        }
+
+        try {
+            $row = (new \yii\db\Query())
+                ->from(['e' => Equipment::tableName()])
+                ->select(['l.name', 'cnt' => 'COUNT(*)'])
+                ->innerJoin(['l' => Location::tableName()], 'l.id = e.location_id')
+                ->where([
+                    'e.responsible_user_id' => $userId,
+                    'e.is_deleted' => false,
+                    'e.is_archived' => false,
+                ])
+                ->groupBy(['l.id', 'l.name'])
+                ->orderBy(['cnt' => SORT_DESC, 'l.name' => SORT_ASC])
+                ->limit(1)
+                ->one();
+
+            $name = $row && !empty($row['name']) ? trim((string) $row['name']) : '';
+
+            return $name !== '' ? $name : null;
+        } catch (\Throwable $e) {
+            Yii::warning('resolveUserPrimaryRoomNumber: ' . $e->getMessage(), 'tasks');
+
+            return null;
         }
     }
 
@@ -273,6 +324,7 @@ class TasksController extends Controller
             /** Если это GET запрос - загружаем значения по умолчанию */
             $model->loadDefaultValues();
             $this->prefillTaskContactPhone($model);
+            $this->prefillTaskRoomNumber($model);
         }
 
         return $this->renderAjax('_form', [

@@ -248,8 +248,9 @@ function initializeAgGrid() {
             if (gridApi && typeof gridApi.resetRowHeights === 'function') {
                 gridApi.resetRowHeights();
             }
+            cleanupExecutorSelect2InGrid();
         },
-        onModelUpdated: initExecutorUserSelectsInGrid,
+        onModelUpdated: cleanupExecutorSelect2InGrid,
         onCellValueChanged: onCellValueChanged,
         // Добавляем обработчик изменения размера страницы для автоматической подстройки высоты
         onPaginationChanged: onPaginationChanged,
@@ -275,14 +276,16 @@ function initializeAgGrid() {
         // Высота строки: по максимальному контенту видимых столбцов
         getRowHeight: function(params) {
             const lines = Math.max(1, Math.min(8, getTasksRowDisplayLines(params)));
-            return Math.min(132, 24 + lines * 14);
+            const base = Math.min(132, 24 + lines * 14);
+            return Math.max(base, getTasksExecutorRowMinHeight(params));
         },
     };
     
     // Создание AG Grid
     try {
         console.log('AG Grid: Создание таблицы с опциями:', gridOptions);
-        gridApi = agGrid.createGrid(gridDiv, gridOptions);
+        var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
+        gridApi = (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(gridDiv, gridOptions);
         window.tasksGridApi = gridApi;
         console.log('AG Grid: Таблица создана успешно, gridApi:', gridApi);
         
@@ -431,11 +434,12 @@ function renderExecutorCell(params) {
         return '<span class="tasks-grid-empty">Не назначен</span>';
     }
 
-    return '<select class="form-select form-select-sm executor-change-ag js-user-select-search"'
+    return '<div class="tasks-executor-select-wrap">'
+        + '<select class="form-select form-select-sm executor-change-ag executor-change-ag--grid"'
         + ' data-task-id="' + params.data.id + '"'
-        + ' data-placeholder="Не назначен">'
+        + ' aria-label="Назначить исполнителя">'
         + buildExecutorOptionsHtml('', '')
-        + '</select>';
+        + '</select></div>';
 }
 
 /** HTML опций исполнителя (только техподдержка + текущий, если уже назначен). */
@@ -522,11 +526,24 @@ function getTasksRowDisplayLines(params) {
         const colId = col.getColId();
         if (!colId || colId === 'ag-Grid-SelectionColumn') return;
         const colDef = typeof col.getColDef === 'function' ? (col.getColDef() || {}) : {};
+        if (colDef.field === 'executor_name') {
+            return;
+        }
         const text = getTasksCellText(params.data, colId, colDef);
         const width = typeof col.getActualWidth === 'function' ? col.getActualWidth() : 120;
         maxLines = Math.max(maxLines, estimateTasksCellLines(text, width));
     });
     return maxLines;
+}
+
+/** Минимальная высота строки под селект исполнителя (Select2). */
+function getTasksExecutorRowMinHeight(params) {
+    if (!isAdmin || !params || !params.data) {
+        return 0;
+    }
+    const canAssign = (window.canAssignTaskExecutor === true || window.canAssignTaskExecutor === 'true')
+        && !params.data.executor_id;
+    return canAssign ? 40 : 0;
 }
 
 /**
@@ -598,8 +615,9 @@ function getColumnDefinitions() {
         columns.push({
             headerName: 'Исполнитель',
             field: 'executor_name',
-            minWidth: 220,
-            maxWidth: 360,
+            flex: 1,
+            minWidth: 200,
+            maxWidth: 420,
             filter: 'agTextColumnFilter',
             wrapText: false,
             cellRenderer: renderExecutorCell,
@@ -613,6 +631,8 @@ function getColumnDefinitions() {
             maxWidth: 220,
             filter: 'agTextColumnFilter',
             wrapText: false,
+            cellRenderer: renderExecutorCell,
+            cellClass: 'tasks-executor-cell',
         });
     }
     
@@ -736,11 +756,15 @@ function getColumnDefinitions() {
 /**
  * Select2 для выпадающего списка исполнителя в ячейках грида.
  */
-function initExecutorUserSelectsInGrid() {
+/** В гриде — только нативный select; снять Select2, если остался от прошлой инициализации. */
+function cleanupExecutorSelect2InGrid() {
     var container = document.getElementById('agGridTasksContainer');
-    if (container && window.IasUserSelect) {
-        window.IasUserSelect.init(container, { force: true });
+    if (!container || !window.jQuery) {
+        return;
     }
+    window.jQuery(container).find('select.executor-change-ag--grid.select2-hidden-accessible').each(function() {
+        window.jQuery(this).select2('destroy');
+    });
 }
 
 /**
@@ -846,9 +870,13 @@ function loadGridData() {
                 syncTasksDeleteButton();
                 setTimeout(function() {
                     fitTasksGridColumns();
+                    if (typeof gridApi.sizeColumnsToFit === 'function') {
+                        gridApi.sizeColumnsToFit();
+                    }
                     if (gridApi && typeof gridApi.resetRowHeights === 'function') {
                         gridApi.resetRowHeights();
                     }
+                    cleanupExecutorSelect2InGrid();
                 }, 0);
             } else {
                 console.error('AG Grid: Ошибка в ответе сервера:', result.error || 'Неизвестная ошибка');

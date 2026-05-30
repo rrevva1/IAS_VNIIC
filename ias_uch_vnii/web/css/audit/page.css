@@ -92,7 +92,7 @@
 }
 
 .audit-page #agGridAuditContainer.ag-theme-quartz {
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
     --ag-font-family: inherit;
     --ag-row-height: 36px;
     --ag-header-height: 48px;

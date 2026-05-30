@@ -238,67 +238,68 @@
         };
     }
 
+    function processGridOptions(options) {
+        var opts = options ? Object.assign({}, options) : {};
+
+        applyGridLocale(opts);
+        attachResetButtonFallback(opts);
+
+        if (opts.columnDefs && Array.isArray(opts.columnDefs)) {
+            opts.columnDefs = opts.columnDefs.map(applySimpleFilterToColDef);
+        }
+
+        if (opts.defaultColDef) {
+            opts.defaultColDef = Object.assign({}, opts.defaultColDef);
+            if (opts.defaultColDef.filter === true || opts.defaultColDef.filter == null) {
+                opts.defaultColDef.filter = 'agTextColumnFilter';
+            }
+
+            var baseParams = opts.defaultColDef.filterParams || {};
+            if (!baseParams.buttons || !baseParams.buttons.length) {
+                baseParams = Object.assign({}, baseParams, { buttons: ['apply', 'reset'] });
+            }
+
+            if (opts.defaultColDef.filter === 'agTextColumnFilter') {
+                opts.defaultColDef.filterParams = Object.assign(
+                    {},
+                    TEXT_FILTER_PARAMS,
+                    baseParams
+                );
+            } else if (opts.defaultColDef.filter === 'agNumberColumnFilter') {
+                opts.defaultColDef.filterParams = Object.assign(
+                    {},
+                    NUMBER_FILTER_PARAMS,
+                    baseParams
+                );
+            } else if (opts.defaultColDef.filter === 'agDateColumnFilter') {
+                opts.defaultColDef.filterParams = Object.assign(
+                    {},
+                    DATE_FILTER_PARAMS,
+                    baseParams
+                );
+            } else {
+                opts.defaultColDef.filterParams = baseParams;
+            }
+
+            if (opts.defaultColDef.floatingFilter == null) {
+                opts.defaultColDef.floatingFilter = false;
+            }
+        }
+
+        return opts;
+    }
+
     function patchCreateGrid() {
         if (typeof agGrid === 'undefined' || typeof agGrid.createGrid !== 'function') {
             return;
         }
-        if (agGrid.createGrid.__iasSimpleFilterPatched) {
-            if (agGrid.createGrid.__iasOriginalCreateGrid) {
-                agGrid.createGrid = agGrid.createGrid.__iasOriginalCreateGrid;
-            } else {
-                return;
-            }
+        if (window.__iasCreateGrid) {
+            return;
         }
+
         var original = agGrid.createGrid.bind(agGrid);
-        agGrid.createGrid = function(container, options) {
-            var opts = options ? Object.assign({}, options) : {};
-
-            applyGridLocale(opts);
-            attachResetButtonFallback(opts);
-
-            if (opts.columnDefs && Array.isArray(opts.columnDefs)) {
-                opts.columnDefs = opts.columnDefs.map(applySimpleFilterToColDef);
-            }
-
-            if (opts.defaultColDef) {
-                opts.defaultColDef = Object.assign({}, opts.defaultColDef);
-                if (opts.defaultColDef.filter === true || opts.defaultColDef.filter == null) {
-                    opts.defaultColDef.filter = 'agTextColumnFilter';
-                }
-
-                // Гарантируем наличие кнопки «Сбросить» даже при своих filterParams.
-                var baseParams = opts.defaultColDef.filterParams || {};
-                if (!baseParams.buttons || !baseParams.buttons.length) {
-                    baseParams = Object.assign({}, baseParams, { buttons: ['apply', 'reset'] });
-                }
-
-                if (opts.defaultColDef.filter === 'agTextColumnFilter') {
-                    opts.defaultColDef.filterParams = Object.assign(
-                        {},
-                        TEXT_FILTER_PARAMS,
-                        baseParams
-                    );
-                } else if (opts.defaultColDef.filter === 'agNumberColumnFilter') {
-                    opts.defaultColDef.filterParams = Object.assign(
-                        {},
-                        NUMBER_FILTER_PARAMS,
-                        baseParams
-                    );
-                } else if (opts.defaultColDef.filter === 'agDateColumnFilter') {
-                    opts.defaultColDef.filterParams = Object.assign(
-                        {},
-                        DATE_FILTER_PARAMS,
-                        baseParams
-                    );
-                } else {
-                    opts.defaultColDef.filterParams = baseParams;
-                }
-
-                if (opts.defaultColDef.floatingFilter == null) {
-                    opts.defaultColDef.floatingFilter = false;
-                }
-            }
-
+        var wrapped = function(container, options) {
+            var opts = processGridOptions(options);
             var api = original(container, opts);
             if (api) {
                 window.__iasAgGridApis = window.__iasAgGridApis || [];
@@ -306,8 +307,33 @@
             }
             return api;
         };
-        agGrid.createGrid.__iasSimpleFilterPatched = true;
-        agGrid.createGrid.__iasOriginalCreateGrid = original;
+        wrapped.__iasSimpleFilterPatched = true;
+        wrapped.__iasOriginalCreateGrid = original;
+        window.__iasCreateGrid = wrapped;
+
+        try {
+            agGrid.createGrid = wrapped;
+        } catch (e) {
+            // AG Grid 34+: createGrid только для чтения — используем window.__iasCreateGrid
+        }
+    }
+
+    function iasCreateGrid(container, options) {
+        if (!window.__iasCreateGrid) {
+            patchCreateGrid();
+        }
+        var fn = window.__iasCreateGrid;
+        if (!fn && typeof agGrid !== 'undefined' && typeof agGrid.createGrid === 'function') {
+            fn = agGrid.createGrid.bind(agGrid);
+        }
+        if (!fn) {
+            return null;
+        }
+        if (fn.__iasSimpleFilterPatched) {
+            return fn(container, options);
+        }
+        var opts = processGridOptions(options);
+        return fn(container, opts);
     }
 
     var globalGetLocaleText = createGetLocaleText();
@@ -325,7 +351,9 @@
             floatingFilter: false,
         },
         patchCreateGrid: patchCreateGrid,
+        iasCreateGrid: iasCreateGrid,
     };
 
     patchCreateGrid();
+    window.iasCreateGrid = iasCreateGrid;
 })();

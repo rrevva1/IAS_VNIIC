@@ -30,6 +30,26 @@
         }
     }
 
+    /** Высота строки: база и шаг — в CSS (#agGridArmContainer, --arm-grid-row-*). */
+    function getArmGridRowHeight(lines) {
+        var el = document.getElementById('agGridArmContainer');
+        var style = el ? getComputedStyle(el) : null;
+        var base = style ? parseFloat(style.getPropertyValue('--arm-grid-row-base')) : NaN;
+        var step = style ? parseFloat(style.getPropertyValue('--arm-grid-row-step')) : NaN;
+        var max = style ? parseFloat(style.getPropertyValue('--arm-grid-row-max')) : NaN;
+        if (!Number.isFinite(base)) {
+            base = 18;
+        }
+        if (!Number.isFinite(step)) {
+            step = 12;
+        }
+        if (!Number.isFinite(max)) {
+            max = 84;
+        }
+        var n = Math.max(1, Math.min(6, lines || 1));
+        return Math.min(max, base + n * step);
+    }
+
     /** Подгонка ширины видимых колонок под область таблицы. */
     function scheduleFitArmColumns(force) {
         clearTimeout(armFitColumnsTimer);
@@ -49,13 +69,14 @@
             } catch (e) {
                 console.warn('AG Grid (Учет ТС): sizeColumnsToFit', e);
             }
+            scheduleArmGridRowHeights();
         }, 50);
     }
 
     const COLUMN_PRESETS = {
         /** Вся техника */
         all: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'],
-        /** Вкладки АРМ, ПК */
+        /** Устаревшие типы «АРМ»/«ПК» — как системный блок */
         arm: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
         /** Вкладка «Системные блоки» */
         systemBlock: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
@@ -750,10 +771,7 @@
         if (raw.indexOf('монитор') >= 0) {
             return COLUMN_PRESETS.monitor;
         }
-        if (raw === 'арм' || raw === 'пк') {
-            return COLUMN_PRESETS.arm;
-        }
-        if (raw.indexOf('систем') >= 0 && raw.indexOf('блок') >= 0) {
+        if (raw === 'арм' || raw === 'пк' || (raw.indexOf('систем') >= 0 && raw.indexOf('блок') >= 0)) {
             return COLUMN_PRESETS.systemBlock;
         }
         if (raw.indexOf('ноут') >= 0) {
@@ -1111,13 +1129,14 @@
                 return String(params.data.id);
             },
             getRowHeight: function(params) {
-                var extraLines = getRowDisplayLines(params.data, params);
-                var lines = Math.max(1, Math.min(6, extraLines || 1));
-                return Math.min(108, 24 + lines * 14);
+                return getArmGridRowHeight(getRowDisplayLines(params.data, params));
             },
             localeText: localeTextRu,
             sideBar: false,
-            onFirstDataRendered: scheduleFitArmColumns,
+            onFirstDataRendered: function() {
+                scheduleFitArmColumns();
+                scheduleArmGridRowHeights();
+            },
             onGridReady: function(params) {
                 gridApi = params.api;
                 window.armGridApi = params.api;
@@ -1141,11 +1160,14 @@
                 syncSelectionChrome();
             },
             onDisplayedColumnsChanged: scheduleArmGridRowHeights,
-            onColumnResized: function() {
+            onColumnResized: function(event) {
                 markArmColumnUserResize();
-                scheduleArmGridRowHeights();
+                if (event && event.finished) {
+                    scheduleArmGridRowHeights();
+                }
             },
             onGridSizeChanged: function() {
+                scheduleArmGridRowHeights();
                 if (shouldSkipFitArmColumns()) {
                     return;
                 }
@@ -1155,7 +1177,8 @@
                 }
             },
         };
-        agGrid.createGrid(container, gridOpts);
+        var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
+        (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(container, gridOpts);
         window.addEventListener('resize', function() {
             armSuppressFitUntil = 0;
             scheduleFitArmColumns(true);

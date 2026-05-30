@@ -1,0 +1,81 @@
+/**
+ * Единая типографика ИАС.
+ * Основной текст — 12px, подписи полей — 13px, названия разделов — 14px.
+ */
+:root {
+    --ias-font-body: 0.75rem; /* 12px */
+    --ias-font-heading: 0.8125rem; /* 13px */
+    --ias-font-section-title: 0.875rem; /* 14px — заголовок страницы и блока раздела */
+    --ias-font-caption: 0.6875rem; /* 11px — вспомогательные подписи */
+    --ias-font-display: var(--ias-font-section-title);
+}
+
+/* Базовый размер в рабочей области приложения */
+body.app-body {
+    font-size: var(--ias-font-body);
+}
+
+body.app-body .main-content {
+    font-size: var(--ias-font-body);
+}
+
+/* Подписи полей */
+body.app-body .form-label,
+body.app-body label.col-form-label {
+    font-size: var(--ias-font-heading);
+}
+
+/* Названия разделов: страница, блок, модальное окно */
+body.app-body .arm-page__title,
+body.app-body .tasks-page__title,
+body.app-body .users-page__title,
+body.app-body .profile-page__title,
+body.app-body .section-title,
+body.app-body .arm-view-card__title,
+body.app-body .arm-view-section__title,
+body.app-body .arm-form-section__title,
+body.app-body .arm-reassign-section__title,
+body.app-body .arm-reassign-summary__title,
+body.app-body .arm-reassign-preview__title,
+body.app-body .tasks-panel__title,
+body.app-body .tasks-kpi-panel__title,
+body.app-body .profile-card__title,
+body.app-body .ref-hub-card__title,
+body.app-body .about-card__header,
+body.app-body .work-task-create-section .work-task-card__title,
+body.app-body .work-task-create-section__label,
+body.app-body .tasks-form-card .section-header,
+body.app-body .modal-title,
+body.app-body .offcanvas-title {
+    font-size: var(--ias-font-section-title);
+}
+
+body.app-body .form-control,
+body.app-body .form-select,
+body.app-body .input-group-text,
+body.app-body textarea.form-control,
+body.app-body .select2-container--bootstrap-5 .select2-selection {
+    font-size: var(--ias-font-body);
+}
+
+body.app-body .btn {
+    font-size: var(--ias-font-body);
+}
+
+body.app-body .form-text,
+body.app-body small.text-muted,
+body.app-body .text-muted.small {
+    font-size: var(--ias-font-caption);
+}
+
+/* AG Grid — единый размер ячеек и заголовков */
+body.app-body .ag-theme-quartz {
+    --ag-font-size: 12px;
+    font-size: var(--ias-font-body);
+}
+
+body.app-body .ag-theme-quartz .ag-header-cell,
+body.app-body .ag-theme-quartz .ag-header-group-cell,
+body.app-body .ag-theme-quartz .ag-header-cell-text {
+    font-size: var(--ag-font-size, var(--ias-font-body, 0.75rem)) !important;
+}

@@ -14,6 +14,7 @@ class ArmGridAsset extends AssetBundle
     public $baseUrl = '@web';
 
     public $css = [
+        'css/common/typography.css',
         'ag-grid-community/styles/ag-theme-quartz.css',
         'css/ag-grid-filter.css',
         'css/tasks/ag-grid.css',

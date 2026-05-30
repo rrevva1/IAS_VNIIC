@@ -85,6 +85,12 @@
             opts.dropdownCssClass = 'ias-user-select-dropdown--executor';
             opts.selectionCssClass = 'ias-user-select-selection--executor';
         }
+        if ($select.closest('#createArmModal, #reassignArmModal').length) {
+            opts.dropdownCssClass = (opts.dropdownCssClass ? opts.dropdownCssClass + ' ' : '') +
+                'arm-modal-select2-dropdown';
+            opts.selectionCssClass = (opts.selectionCssClass ? opts.selectionCssClass + ' ' : '') +
+                'arm-modal-select2-selection';
+        }
         return opts;
     }
 
@@ -114,9 +120,49 @@
         });
     }
 
+    function getExecutorGridCellWidth($select) {
+        var cell = $select.closest('#agGridTasksContainer .ag-cell.tasks-executor-cell')[0];
+        if (!cell) {
+            return 0;
+        }
+        return Math.max(0, Math.floor(cell.getBoundingClientRect().width) - 16);
+    }
+
+    function applyExecutorGridSelectWidth($select) {
+        var $el = $select instanceof $ ? $select : $($select);
+        if (!$el.length || !$el.hasClass('executor-change-ag')) {
+            return;
+        }
+        if (!$el.closest('#agGridTasksContainer').length) {
+            return;
+        }
+        var w = getExecutorGridCellWidth($el);
+        if (w < 48) {
+            return;
+        }
+        $el.closest('.tasks-executor-select-wrap').css({ width: '100%', display: 'block' });
+        var $container = $el.next('.select2-container');
+        if ($container.length) {
+            $container.css({ width: w + 'px', maxWidth: '100%' });
+        }
+    }
+
+    function resolveSelect2Width($select) {
+        if ($select.hasClass('executor-change-ag') && $select.closest('#agGridTasksContainer').length) {
+            var w = getExecutorGridCellWidth($select);
+            if (w >= 48) {
+                return w;
+            }
+        }
+        return '100%';
+    }
+
     function initOne(selectEl) {
         var $select = $(selectEl);
         if (!$select.length) {
+            return;
+        }
+        if ($select.hasClass('executor-change-ag--grid')) {
             return;
         }
         if ($select.hasClass('select2-hidden-accessible')) {
@@ -125,8 +171,16 @@
         if ($select.closest('.modal').length) {
             ensureBootstrapModalSelect2FocusFix();
         }
-        $select.select2(buildOptions($select));
+        var opts = buildOptions($select);
+        opts.width = resolveSelect2Width($select);
+        $select.select2(opts);
         bindSelect2Events($select);
+        if ($select.hasClass('executor-change-ag') && $select.closest('#agGridTasksContainer').length) {
+            applyExecutorGridSelectWidth($select);
+            requestAnimationFrame(function() {
+                applyExecutorGridSelectWidth($select);
+            });
+        }
     }
 
     function shouldInitInPlace($select) {
@@ -149,6 +203,9 @@
             }
             $root.find('select.js-user-select-search').each(function () {
                 var $select = $(this);
+                if ($select.hasClass('executor-change-ag--grid')) {
+                    return;
+                }
                 if (!context && !options.force && !shouldInitInPlace($select)) {
                     return;
                 }
@@ -164,6 +221,16 @@
             $root.find('select.js-user-select-search.select2-hidden-accessible').each(function () {
                 $(this).off('select2:opening.iasUserSelect');
                 $(this).select2('destroy');
+            });
+        },
+
+        syncExecutorGridWidthsIn: function (context) {
+            var $root = context ? $(context) : $('#agGridTasksContainer');
+            if (!$root.length) {
+                return;
+            }
+            $root.find('select.executor-change-ag').each(function () {
+                applyExecutorGridSelectWidth($(this));
             });
         },
 

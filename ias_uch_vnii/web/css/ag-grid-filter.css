@@ -25,7 +25,7 @@
 .ag-filter-filter .ag-input-field-input,
 .ag-filter-filter .ag-picker-field-wrapper {
     min-height: 2rem;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     border-radius: 8px;
 }
 

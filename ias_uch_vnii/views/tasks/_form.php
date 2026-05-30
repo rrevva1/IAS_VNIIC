@@ -47,6 +47,21 @@ use yii\widgets\ActiveForm;
         <p class="tasks-create-form__hint">Укажите номер, если удобнее связаться по телефону</p>
     </div>
 
+    <div class="tasks-create-form__section">
+        <label class="tasks-create-form__label" for="tasks-room_number">
+            <i class="fas fa-door-open" aria-hidden="true"></i>
+            Номер помещения <span class="tasks-create-form__optional">(необязательно)</span>
+        </label>
+        <?= $form->field($model, 'room_number', ['options' => ['class' => 'mb-0']])->textInput([
+            'id' => 'tasks-room_number',
+            'class' => 'form-control',
+            'maxlength' => true,
+            'placeholder' => 'Например: 303',
+            'autocomplete' => 'off',
+        ])->label(false) ?>
+        <p class="tasks-create-form__hint">Кабинет или помещение, где находится техника</p>
+    </div>
+
     <?= $this->render('_form_attachments', [
         'form' => $form,
         'model' => $model,

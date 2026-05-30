@@ -13,37 +13,64 @@ use yii\helpers\Url;
 /** @var string[] $ipAddresses */
 /** @var bool $isModal */
 
-$pcFields = [
+$configPlaceholders = require __DIR__ . '/_form_config_field_placeholders.php';
+
+$withPlaceholder = static function (array $field) use ($configPlaceholders): array {
+    $name = (string) ($field['name'] ?? '');
+    if ($name !== '' && isset($configPlaceholders[$name]) && !isset($field['placeholder'])) {
+        $field['placeholder'] = $configPlaceholders[$name];
+    }
+
+    return $field;
+};
+
+$pcFields = array_map($withPlaceholder, [
     ['name' => 'cpu', 'label' => 'Процессор (ЦП)', 'part' => 'ЦП', 'char' => 'Модель', 'widget' => 'cpu-datalist'],
     ['name' => 'ram', 'label' => 'Оперативная память (ОЗУ)', 'part' => 'ОЗУ', 'char' => 'Объём', 'widget' => 'ram-datalist'],
     ['name' => 'disk', 'label' => 'Накопители (диски)', 'part' => 'Накопитель', 'char' => 'Модель', 'widget' => 'disk-datalist-multi'],
     ['name' => 'hostname', 'label' => 'Имя компьютера', 'part' => 'ПК', 'char' => 'Имя ПК'],
     ['name' => 'ip', 'label' => 'IP-адрес', 'part' => 'ПК', 'char' => 'IP адрес', 'widget' => 'ip-datalist'],
     ['name' => 'os', 'label' => 'Операционная система', 'part' => 'ПК', 'char' => 'ОС', 'widget' => 'os-datalist'],
-];
+]);
+$portablePcFields = array_merge($pcFields, [
+    $withPlaceholder([
+        'name' => 'screen_diagonal',
+        'label' => 'Диагональ экрана',
+        'part' => 'Монитор',
+        'char' => 'Диагональ экрана',
+        'widget' => 'screen-diagonal-datalist',
+    ]),
+]);
+
+$orgTechFields = array_map($withPlaceholder, $orgTechFields ?? []);
+
 $fieldTemplates = [
-    'АРМ' => $pcFields,
     'ПК' => $pcFields,
     'Системный блок' => $pcFields,
-    'Ноутбук' => array_merge($pcFields, [
-        ['name' => 'monitor', 'label' => 'Встроенный монитор (модель)', 'part' => 'Монитор', 'char' => 'Модель'],
-        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
-    ]),
-    'Моноблок' => array_merge($pcFields, [
-        ['name' => 'monitor', 'label' => 'Встроенный монитор (модель)', 'part' => 'Монитор', 'char' => 'Модель'],
-        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
-    ]),
+    'Ноутбук' => $portablePcFields,
+    'Моноблок' => $portablePcFields,
     'Монитор' => [
-        ['name' => 'monitor', 'label' => 'Модель монитора', 'part' => 'Монитор', 'char' => 'Модель'],
-        ['name' => 'screen_diagonal', 'label' => 'Диагональ экрана', 'part' => 'Монитор', 'char' => 'Диагональ экрана'],
-        ['name' => 'monitor_inv', 'label' => '№ монитора (инв.)', 'part' => 'Монитор', 'char' => '№ монитора'],
+        $withPlaceholder([
+            'name' => 'screen_diagonal',
+            'label' => 'Диагональ экрана',
+            'part' => 'Монитор',
+            'char' => 'Диагональ экрана',
+            'widget' => 'screen-diagonal-datalist',
+        ]),
     ],
     'Принтер' => $orgTechFields,
     'МФУ' => $orgTechFields,
     'ИБП' => [
-        ['name' => 'model', 'label' => 'Марка и модель ИБП', 'part' => 'Монитор', 'char' => 'Модель'],
+        $withPlaceholder([
+            'name' => 'ups_battery',
+            'label' => 'Модель аккумулятора',
+            'part' => 'ИБП',
+            'char' => 'Модель аккумулятора',
+            'widget' => 'ups-battery-datalist',
+        ]),
     ],
 ];
+
 $armFormConfigPayload = json_encode([
     'templates' => $fieldTemplates,
     'chars' => $chars,

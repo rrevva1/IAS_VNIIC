@@ -152,7 +152,8 @@
                     .catch(function(err) { console.error('AG Grid (ПО): ошибка загрузки', err); });
             },
         };
-        agGrid.createGrid(container, gridOpts);
+        var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
+        (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(container, gridOpts);
 
         var form = document.getElementById('software-filter-form');
         var applyBtn = document.getElementById('softwareApplyFilters');

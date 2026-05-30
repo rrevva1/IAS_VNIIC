@@ -47,4 +47,53 @@ class Location extends ActiveRecord
             'description' => 'Описание',
         ];
     }
+
+    /**
+     * Находит помещение по наименованию или создаёт запись в справочнике (тип «кабинет»).
+     */
+    public static function resolveOrCreateByName(string $name): ?int
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return null;
+        }
+
+        $location = static::find()->where(['name' => $name])->one();
+        if ($location !== null) {
+            return (int) $location->id;
+        }
+
+        $location = new static();
+        $location->name = $name;
+        $location->location_type = 'кабинет';
+        if (!$location->save()) {
+            return null;
+        }
+
+        return (int) $location->id;
+    }
+
+    /**
+     * Подпись помещения для интерфейса (списки, карточки, таблица).
+     */
+    public function getDisplayLabel(): string
+    {
+        return static::formatDisplayLabel($this->name);
+    }
+
+    /**
+     * @param string $emptyLabel Текст, если помещение не задано
+     */
+    public static function formatDisplayLabel(?string $name, string $emptyLabel = 'Помещение не указано'): string
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return $emptyLabel;
+        }
+        if (preg_match('/^помещение\s*(№|#|n)?\s*/ui', $name)) {
+            return $name;
+        }
+
+        return 'Помещение № ' . $name;
+    }
 }

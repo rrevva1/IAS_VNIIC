@@ -22,8 +22,8 @@
 }
 
 .arm-form-section__title {
-    font-size: 1rem;
-    font-weight: 600;
+    font-size: var(--ias-font-section-title, 0.875rem);
+    font-weight: 500;
     margin: 0 0 1rem;
     color: #212529;
 }
@@ -50,7 +50,15 @@
 
 .arm-form-dynamic-fields .form-label {
     margin-bottom: 0.35rem;
+    font-size: var(--ias-font-heading, 0.8125rem);
     font-weight: 500;
+    color: #212529;
+}
+
+.arm-form .form-label,
+.arm-create .form-label,
+.arm-update .form-label {
+    color: #212529;
 }
 
 .arm-form-dynamic-fields .form-text {
@@ -111,16 +119,126 @@
     max-width: none;
 }
 
-#createArmModal.modal {
-    --arm-modal-font: 0.875rem;
-    --arm-modal-font-sm: 0.8125rem;
-    --arm-modal-text: #334155;
-    --arm-modal-text-muted: #64748b;
-}
-
 #createArmModal .arm-create-modal__body.arm-view-modal__body {
     overflow-y: auto;
-    background: #f4f6f9;
+    background: #f1f5f9;
+}
+
+/* Заголовки секций — как в модалке переназначения, не как в карточке просмотра */
+#createArmModal .arm-view-card__title {
+    font-size: var(--arm-modal-font-title);
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--arm-modal-text-heading);
+    line-height: 1.35;
+    padding: 0.75rem 1rem;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--arm-border, #e2e8f0);
+}
+
+#createArmModal .arm-create-modal__header .text-muted.small {
+    font-size: var(--arm-modal-font-sm);
+    font-weight: 400;
+    line-height: var(--arm-modal-line);
+    color: var(--arm-modal-text-muted);
+}
+
+#createArmModal .arm-form-create__lead {
+    font-size: var(--arm-modal-font);
+    color: var(--arm-modal-text-muted);
+}
+
+#createArmModal .arm-form-create__field .form-control,
+#createArmModal .arm-form-create__field .form-select,
+#createArmModal .arm-form-create__config-fields .form-control,
+#createArmModal .arm-form-create__config-fields .form-select {
+    font-size: var(--arm-modal-font);
+    font-weight: 400;
+    line-height: var(--arm-modal-line);
+    min-height: var(--arm-control-height);
+}
+
+#createArmModal .arm-tool-btn {
+    font-size: var(--arm-modal-font);
+    font-weight: 500;
+}
+
+#createArmModal .arm-form-create__field .invalid-feedback,
+#createArmModal .arm-dynamic-field .invalid-feedback {
+    display: block !important;
+    color: #dc2626 !important;
+    font-size: var(--arm-modal-font-sm);
+    margin-top: 0.35rem;
+    line-height: 1.35;
+    font-weight: 500;
+}
+
+@keyframes arm-field-error-shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20%,
+    60% {
+        transform: translateX(-5px);
+    }
+
+    40%,
+    80% {
+        transform: translateX(5px);
+    }
+}
+
+@keyframes arm-field-error-glow {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45);
+    }
+
+    70% {
+        box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+    }
+}
+
+#createArmModal .arm-form-create__field.has-error.arm-field--error-animate,
+#createArmModal .arm-form-create__field.arm-field--error-animate,
+#createArmModal .arm-dynamic-field.arm-field--error-animate,
+#createArmModal .arm-field--error.arm-field--error-animate {
+    animation: arm-field-error-shake 0.5s ease;
+}
+
+#createArmModal .arm-form-create__field.has-error .form-label,
+#createArmModal .arm-form-create__field:has(.is-invalid) .form-label,
+#createArmModal .arm-field--error .form-label {
+    color: #b91c1c !important;
+    font-weight: 600;
+}
+
+#createArmModal .arm-form-create__field .form-control.is-invalid,
+#createArmModal .arm-form-create__field .form-select.is-invalid,
+#createArmModal .arm-form-create__field.has-error .form-control,
+#createArmModal .arm-form-create__field.has-error .form-select,
+#createArmModal .arm-dynamic-field .form-control.is-invalid,
+#createArmModal .arm-field--error .form-control,
+#createArmModal .arm-field--error .form-select,
+#createArmModal .arm-field--error textarea.form-control {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+    animation: arm-field-error-glow 1s ease;
+}
+
+#createArmModal .arm-form-create__field.has-error .select2-container--default .select2-selection--single,
+#createArmModal .arm-form-create__field.arm-field--error .select2-container--default .select2-selection--single,
+#createArmModal .select2-container.is-invalid .select2-selection--single,
+#createArmModal .select2-container.arm-select2--invalid .select2-selection--single {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+    animation: arm-field-error-glow 1s ease;
 }
 
 #createArmModal .arm-form-create {
@@ -188,10 +306,10 @@
     display: block;
     width: 100%;
     margin-bottom: 0.35rem;
-    font-size: var(--arm-modal-font-sm, 0.8125rem);
+    font-size: var(--ias-font-heading, 0.8125rem);
     font-weight: 500;
     line-height: 1.35;
-    color: var(--arm-modal-text-muted, #64748b);
+    color: var(--arm-modal-text-heading, #0f172a);
 }
 
 #createArmModal .arm-form-create__field .form-control,
@@ -208,23 +326,13 @@
     margin-bottom: 0;
 }
 
-#createArmModal .arm-form-create__warranty-preview {
-    margin: 0.5rem 0 0;
-    min-height: 1.25rem;
-}
-
 #createArmModal .arm-form-create__card-fields > .help-block {
     display: none;
 }
 
-#createArmModal .arm-form-create .invalid-feedback,
-#createArmModal .arm-form-create .help-block.arm-create-error {
-    font-size: 0.8125rem;
-}
-
 .arm-form-create__lead {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: #64748b;
     line-height: 1.45;
 }
@@ -254,10 +362,6 @@
     margin-bottom: 0;
 }
 
-#createArmModal .arm-form-create__field .form-text,
-#createArmModal .arm-form-create__field .invalid-feedback {
-    margin-top: 0.35rem;
-}
 
 .arm-form-create__config-grid {
     display: grid;
@@ -313,9 +417,9 @@
 #createArmModal .arm-form-create__config-fields .form-label {
     display: block;
     margin-bottom: 0.35rem;
-    font-size: var(--arm-modal-font-sm, 0.8125rem);
+    font-size: var(--ias-font-heading, 0.8125rem);
     font-weight: 500;
-    color: var(--arm-modal-text-muted, #64748b);
+    color: var(--arm-modal-text-heading, #0f172a);
 }
 
 #createArmModal .arm-form-create__config-fields .form-control,
@@ -323,11 +427,6 @@
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-}
-
-#createArmModal .arm-form-create__config-fields .form-text {
-    margin-top: 0.35rem;
-    margin-bottom: 0;
 }
 
 #createArmModal .arm-form-create__config-fields .arm-disk-add {

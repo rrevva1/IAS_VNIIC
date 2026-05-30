@@ -9,9 +9,9 @@
     --tasks-text: #334155;
     --tasks-text-muted: #64748b;
     --tasks-radius: 12px;
-    --tasks-font-base: 0.875rem;
-    --tasks-font-title: 1.125rem;
-    --tasks-font-control: 0.875rem;
+    --tasks-font-base: var(--ias-font-body, 0.75rem);
+    --tasks-font-title: var(--ias-font-section-title, 0.875rem);
+    --tasks-font-control: var(--ias-font-body, 0.75rem);
     --tasks-line: 1.45;
     --tasks-control-height: 38px;
     max-width: 100%;
@@ -456,7 +456,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
 
 /* Таблица заявок */
 .tasks-page #agGridTasksContainer.ag-theme-quartz {
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
     --ag-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --ag-grid-line-color: #cbd5e1;
     --ag-header-background-color: #e8eef4;
@@ -473,9 +473,14 @@ body.app-body.modal-open:has(.tasks-page--grid) {
     --tasks-row-selected-accent: #2563eb;
 }
 
+.tasks-page #agGridTasksContainer .ag-header-cell,
+.tasks-page #agGridTasksContainer .ag-header-group-cell {
+    font-size: var(--ag-font-size, 12px) !important;
+}
+
 .tasks-page #agGridTasksContainer .ag-header-cell-text {
     font-weight: 600;
-    font-size: 0.8125rem;
+    font-size: var(--ag-font-size, 12px);
     letter-spacing: 0.01em;
 }
 
@@ -483,7 +488,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
     border-top: 1px solid var(--tasks-border);
     background: #f8fafc;
     padding: 8px 12px;
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     color: #475569;
     flex-shrink: 0;
 }
@@ -495,7 +500,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
 .tasks-page #agGridTasksContainer .ag-paging-description,
 .tasks-page #agGridTasksContainer .ag-paging-row-summary-panel,
 .tasks-page #agGridTasksContainer .ag-paging-page-summary-panel {
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     font-weight: 400;
     color: #475569;
 }
@@ -534,7 +539,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
 }
 
 .tasks-page #agGridTasksContainer .ag-overlay-no-rows-center {
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: var(--tasks-text-muted);
     padding: 2rem 1rem;
     line-height: 1.5;
@@ -643,7 +648,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
 
 .tasks-grid-link {
     font-weight: 600;
-    color: var(--tasks-accent) !important;
+    color: #000;
     text-decoration: none;
 }
 
@@ -656,7 +661,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
 }
 
 .tasks-grid-link--description:hover {
-    color: var(--tasks-accent);
+    color: #000;
     text-decoration: underline;
 }
 
@@ -674,7 +679,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
 
 .tasks-grid-link:hover {
     text-decoration: underline;
-    color: #1d4ed8 !important;
+    color: #000;
 }
 
 .tasks-grid-empty {
@@ -730,6 +735,11 @@ body.app-body.modal-open:has(.tasks-page--grid) {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+}
+
+#agGridTasksContainer .executor-change-ag--grid {
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 /* Кнопка «техника» */
@@ -845,7 +855,7 @@ body.app-body.modal-open:has(.tasks-page--grid) {
 }
 
 .tasks-panel__title {
-    font-size: 0.9375rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
     font-weight: 600;
     color: #0f172a;
     margin: 0 0 0.75rem;

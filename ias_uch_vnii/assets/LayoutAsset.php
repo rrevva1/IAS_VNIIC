@@ -13,6 +13,7 @@ class LayoutAsset extends AssetBundle
     public $baseUrl = '@web';
     
     public $css = [
+        'css/common/typography.css',
         'layouts/css/main.css',
     ];
     

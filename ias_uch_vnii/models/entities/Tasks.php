@@ -23,6 +23,7 @@ use yii\web\UploadedFile;
  * @property string|null $closed_at
  * @property string|null $comment
  * @property string|null $contact_phone
+ * @property string|null $room_number
  * @property string|null $created_at
  * @property string|null $updated_at
  *
@@ -54,6 +55,9 @@ class Tasks extends ActiveRecord
         if (!in_array('contact_phone', $parent, true)) {
             $parent[] = 'contact_phone';
         }
+        if (!in_array('room_number', $parent, true)) {
+            $parent[] = 'room_number';
+        }
 
         return $parent;
     }
@@ -78,9 +82,9 @@ class Tasks extends ActiveRecord
             [['description', 'comment'], 'string'],
             [['title'], 'string', 'max' => 250],
             [['task_number'], 'string', 'max' => 50],
-            [['contact_phone'], 'string', 'max' => 50],
-            [['contact_phone'], 'trim'],
-            [['contact_phone'], 'default', 'value' => null],
+            [['contact_phone', 'room_number'], 'string', 'max' => 50],
+            [['contact_phone', 'room_number'], 'trim'],
+            [['contact_phone', 'room_number'], 'default', 'value' => null],
             [['priority'], 'in', 'range' => ['low', 'medium', 'high', 'critical']],
             [['due_at', 'closed_at', 'created_at', 'updated_at'], 'safe'],
             [['status_id'], 'exist', 'targetClass' => DicTaskStatus::class, 'targetAttribute' => ['status_id' => 'id']],
@@ -106,6 +110,7 @@ class Tasks extends ActiveRecord
             'closed_at' => 'Закрыта',
             'comment' => 'Комментарий',
             'contact_phone' => 'Телефон для обратной связи',
+            'room_number' => 'Номер помещения',
             'created_at' => 'Дата создания',
             'updated_at' => 'Обновлено',
             'uploadFiles' => 'Файлы',
@@ -214,17 +219,14 @@ class Tasks extends ActiveRecord
         if (empty($this->uploadFiles) || !is_array($this->uploadFiles)) {
             return true;
         }
-        $uploadDir = Yii::getAlias('@webroot/uploads/tasks/');
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
+        DeskAttachments::ensureUploadDirectory('tasks');
         foreach ($this->uploadFiles as $file) {
             if (!$file instanceof UploadedFile) {
                 continue;
             }
             $fileName = time() . '_' . uniqid() . '_' . $file->baseName . '.' . $file->extension;
-            $relativePath = '/uploads/tasks/' . $fileName;
-            $fullPath = Yii::getAlias('@webroot') . $relativePath;
+            $relativePath = DeskAttachments::buildStoragePath('tasks', $fileName);
+            $fullPath = DeskAttachments::resolveStoragePath($relativePath);
             if (!$file->saveAs($fullPath)) {
                 continue;
             }
@@ -253,6 +255,12 @@ class Tasks extends ActiveRecord
         }
         if ($this->contact_phone === '') {
             $this->contact_phone = null;
+        }
+        if ($this->room_number !== null && $this->room_number !== '') {
+            $this->room_number = trim($this->room_number);
+        }
+        if ($this->room_number === '') {
+            $this->room_number = null;
         }
 
         return true;

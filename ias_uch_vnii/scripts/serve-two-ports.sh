@@ -21,9 +21,9 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 echo "Запуск портала на портах $PORT1 и $PORT2..."
-php yii serve --port="$PORT1" &
+php yii serve --port="$PORT1" --router=web/router.php &
 P1=$!
-php yii serve --port="$PORT2" &
+php yii serve --port="$PORT2" --router=web/router.php &
 P2=$!
 
 echo ""

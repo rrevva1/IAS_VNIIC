@@ -1,0 +1,7 @@
+
+*
+!.gitignore
+!tasks/
+!tasks/.gitkeep
+!work_tasks/
+!work_tasks/.gitkeep

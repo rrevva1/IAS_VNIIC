@@ -103,6 +103,15 @@ $statusBadgeMap = [
                 },
             ],
             [
+                'attribute' => 'room_number',
+                'label' => 'Номер помещения',
+                'value' => static function ($model) {
+                    $room = trim((string) ($model->room_number ?? ''));
+
+                    return $room !== '' ? $room : '—';
+                },
+            ],
+            [
                 'attribute' => 'requester_id',
                 'label' => 'Автор',
                 'value' => $model->requester ? $model->requester->full_name : '—',

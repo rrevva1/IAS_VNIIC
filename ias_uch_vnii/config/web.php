@@ -19,6 +19,8 @@ $config = [
     'aliases' => [
         '@bower' => '@vendor/bower-asset',
         '@npm'   => '@vendor/npm-asset',
+        /** Вложения вне document root (недоступны по прямому URL) */
+        '@uploads' => dirname(__DIR__) . '/storage/uploads',
     ],
     'components' => [
         'request' => [
@@ -99,12 +101,23 @@ if (YII_ENV_DEV) {
         $config['modules']['debug'] = [
             'class' => 'yii\debug\Module',
             'allowedIPs' => ['127.0.0.1', '::1', '192.168.*.*', '10.*.*.*'],
+            'checkAccessCallback' => static function ($action) {
+                $controller = Yii::$app->controller;
+                if ($controller !== null && $controller->id === 'site') {
+                    $actionId = $action !== null ? $action->id : ($controller->action->id ?? null);
+                    if ($actionId === 'login') {
+                        return false;
+                    }
+                }
+                return true;
+            },
         ];
     }
     if (class_exists('yii\gii\Module')) {
         $config['bootstrap'][] = 'gii';
         $config['modules']['gii'] = [
             'class' => 'yii\gii\Module',
+            'allowedIPs' => ['127.0.0.1', '::1'],
         ];
     }
 }

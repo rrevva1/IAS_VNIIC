@@ -76,7 +76,7 @@ body.app-body:has(.tasks-page--stats) {
 
 .tasks-page--stats .tasks-kpi-grid.ag-theme-quartz {
     --ag-font-family: inherit;
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
     --ag-header-height: 48px;
     --ag-row-height: 74px;
     --ag-grid-line-color: #cbd5e1;
@@ -107,7 +107,7 @@ body.app-body:has(.tasks-page--stats) {
     border-top: 1px solid var(--arm-border, #e2e8f0);
     background: #f8fafc;
     padding: 8px 12px;
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     color: #475569;
 }
 
@@ -120,7 +120,7 @@ body.app-body:has(.tasks-page--stats) {
 .tasks-page--stats .tasks-kpi-grid.ag-theme-quartz .ag-paging-page-summary-panel,
 .tasks-page--stats .tasks-kpi-grid.ag-theme-quartz .ag-paging-number,
 .tasks-page--stats .tasks-kpi-grid.ag-theme-quartz .ag-paging-button {
-    font-size: 14px !important;
+    font-size: var(--ias-font-body, 12px) !important;
     color: #475569 !important;
 }
 
@@ -179,7 +179,7 @@ body.app-body:has(.tasks-page--stats) {
 
 .tasks-page--stats .tasks-kpi-grid.ag-theme-quartz .ag-header-cell-text {
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     line-height: 1.4;
     color: #1e293b;
     white-space: nowrap !important;
@@ -206,7 +206,7 @@ body.app-body:has(.tasks-page--stats) {
 .tasks-page--stats .tasks-kpi-grid.ag-theme-quartz .ag-cell,
 .tasks-page--stats .tasks-kpi-grid.ag-theme-quartz .ag-ltr .ag-cell:not(.ag-cell-inline-editing) {
     padding: 12px !important;
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     line-height: 1.4 !important;
     color: #334155;
     overflow: hidden !important;
@@ -271,9 +271,62 @@ body.app-body:has(.tasks-page--stats) {
     gap: 0.5rem;
 }
 
+/* Поиск по таблице перемещений — в одной строке с периодом */
+.tasks-kpi-filter--movements .tasks-kpi-filter__fields {
+    grid-template-columns: auto auto minmax(11rem, 18rem) auto auto;
+}
+
+.tasks-kpi-filter__field--search {
+    min-width: 0;
+}
+
+.tasks-kpi-filter__field--search .tasks-kpi-filter__search,
+.tasks-kpi-filter__field--search .arm-search {
+    position: relative;
+    width: 100%;
+    min-width: 11rem;
+    max-width: 18rem;
+    box-sizing: border-box;
+}
+
+.tasks-kpi-filter__field--search .arm-search__input {
+    width: 100%;
+    height: 32px;
+    min-height: 32px;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    font-size: var(--ias-font-body, 0.75rem);
+    box-sizing: border-box;
+}
+
+.tasks-kpi-filter__field--search .arm-search__input:disabled {
+    background: #f1f5f9;
+    cursor: not-allowed;
+}
+
+.tasks-kpi-filter__field--search .arm-search__icon {
+    left: 10px;
+}
+
+.tasks-kpi-filter__field--search .arm-search__clear {
+    right: 4px;
+}
+
 @media (max-width: 900px) {
     .tasks-kpi-filter__fields {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tasks-kpi-filter--movements .tasks-kpi-filter__fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tasks-kpi-filter__field--search {
+        grid-column: 1 / -1;
+    }
+
+    .tasks-kpi-filter__field--search .arm-search {
+        max-width: none;
     }
 
     .tasks-kpi-filter .tasks-tool-btn {
@@ -413,7 +466,7 @@ body.app-body:has(.tasks-page--stats) {
 
 .tasks-kpi-panel__title {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
     font-weight: 600;
     color: #0f172a;
     display: flex;
@@ -427,7 +480,7 @@ body.app-body:has(.tasks-page--stats) {
 
 .tasks-kpi-panel__empty {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: #94a3b8;
 }
 
@@ -692,7 +745,7 @@ body.app-body:has(.tasks-page--stats) {
 }
 
 .tasks-page--stats-movements #agGridStatisticsMovementContainer.ag-theme-quartz {
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
     --ag-font-family: inherit;
     --ag-row-height: 74px;
     --ag-header-height: 48px;
@@ -761,7 +814,7 @@ body.app-body:has(.tasks-page--stats) {
 #agGridStatisticsMovementContainer.ag-theme-quartz .ag-paging-row-summary-panel,
 #agGridStatisticsMovementContainer.ag-theme-quartz .ag-paging-page-summary-panel {
     color: #475569 !important;
-    font-size: 14px !important;
+    font-size: var(--ias-font-body, 12px) !important;
     font-weight: 400 !important;
 }
 
@@ -782,7 +835,7 @@ body.app-body:has(.tasks-page--stats) {
 #agGridStatisticsRequesterContainer.ag-theme-quartz .ag-picker-field-display,
 #agGridStatisticsMovementContainer.ag-theme-quartz .ag-picker-field-display {
     color: #475569 !important;
-    font-size: 14px !important;
+    font-size: var(--ias-font-body, 12px) !important;
     font-weight: 400 !important;
 }
 
@@ -790,7 +843,7 @@ body.app-body:has(.tasks-page--stats) {
 #agGridStatisticsExecutorContainer.ag-theme-quartz,
 #agGridStatisticsRequesterContainer.ag-theme-quartz,
 #agGridStatisticsMovementContainer.ag-theme-quartz {
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
     --ag-font-family: inherit;
     --ag-header-height: 48px;
     --ag-grid-line-color: #cbd5e1;
@@ -880,7 +933,7 @@ body.app-body:has(.tasks-page--stats) {
 #agGridStatisticsRequesterContainer.ag-theme-quartz .ag-header-cell-text,
 #agGridStatisticsMovementContainer.ag-theme-quartz .ag-header-cell-text {
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     line-height: 1.4;
     color: #1e293b;
 }
@@ -892,7 +945,7 @@ body.app-body:has(.tasks-page--stats) {
 #agGridStatisticsMovementContainer.ag-theme-quartz .ag-cell,
 #agGridStatisticsMovementContainer.ag-theme-quartz .ag-ltr .ag-cell:not(.ag-cell-inline-editing) {
     padding: 12px !important;
-    font-size: 14px;
+    font-size: var(--ias-font-body, 12px);
     line-height: 1.4 !important;
     color: #334155;
 }

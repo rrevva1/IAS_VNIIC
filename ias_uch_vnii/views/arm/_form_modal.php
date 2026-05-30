@@ -15,7 +15,18 @@ use yii\widgets\ActiveForm;
 /** @var string[] $diskModels */
 /** @var string[] $supplierNames */
 /** @var string[] $ipAddresses */
+/** @var string[] $upsBatteryModels */
 /** @var string $currentSupplier */
+/** @var string[] $locationNames */
+/** @var string $currentLocation */
+/** @var string[] $inventoryNumbers */
+/** @var string $currentInventoryNumber */
+/** @var string[] $equipmentNames */
+/** @var string $currentEquipmentName */
+/** @var string[] $screenDiagonalValues */
+/** @var string $currentScreenDiagonal */
+
+$formPlaceholders = require __DIR__ . '/_form_create_placeholders.php';
 
 $fieldOptions = [
     'options' => ['class' => 'arm-form-create__field'],
@@ -31,6 +42,7 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
         'id' => 'arm-create-form',
         'options' => ['class' => 'arm-view arm-form-create'],
         'fieldConfig' => $fieldOptions,
+        'scrollToError' => false,
     ]); ?>
 
     <?= $this->render('_form_datalists', [
@@ -41,6 +53,15 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
         'ipAddresses' => $ipAddresses,
         'supplierNames' => $supplierNames,
         'currentSupplier' => $currentSupplier,
+        'locationNames' => $locationNames,
+        'currentLocation' => $currentLocation,
+        'upsBatteryModels' => $upsBatteryModels,
+        'inventoryNumbers' => $inventoryNumbers ?? [],
+        'currentInventoryNumber' => $currentInventoryNumber ?? '',
+        'equipmentNames' => $equipmentNames ?? [],
+        'currentEquipmentName' => $currentEquipmentName ?? '',
+        'screenDiagonalValues' => $screenDiagonalValues ?? [],
+        'currentScreenDiagonal' => $currentScreenDiagonal ?? '',
     ]) ?>
 
     <div class="row g-3 arm-form-create__primary-row">
@@ -52,25 +73,36 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                         'options' => ['class' => 'arm-form-create__field arm-form-create__field--wide'],
                     ])->textInput([
                         'maxlength' => true,
-                        'placeholder' => 'Например: ПК Lenovo ThinkCentre M720',
-                        'class' => 'form-control form-control-lg',
+                        'list' => 'arm-name-datalist',
+                        'autocomplete' => 'off',
+                        'placeholder' => $formPlaceholders['name'],
+                        'class' => 'form-control js-equipment-name-datalist',
                         'id' => 'arm-create-name',
                     ]) ?>
                     <div class="row g-3 arm-form-create__identity-row">
                         <div class="col-sm-6">
                             <?= $form->field($model, 'inventory_number', ['options' => ['class' => 'arm-form-create__field mb-0']])
-                                ->textInput(['maxlength' => true, 'placeholder' => 'Инв. №']) ?>
+                                ->textInput([
+                                    'maxlength' => true,
+                                    'list' => 'arm-inventory-datalist',
+                                    'autocomplete' => 'off',
+                                    'class' => 'form-control js-inventory-datalist',
+                                    'placeholder' => $formPlaceholders['inventory_number'],
+                                ]) ?>
                         </div>
                         <div class="col-sm-6">
                             <?= $form->field($model, 'serial_number', ['options' => ['class' => 'arm-form-create__field mb-0']])
-                                ->textInput(['maxlength' => true, 'placeholder' => 'Серийный №']) ?>
+                                ->textInput([
+                                    'maxlength' => true,
+                                    'placeholder' => $formPlaceholders['serial_number'],
+                                ]) ?>
                         </div>
                         <div class="col-12">
                             <?= $form->field($model, 'equipment_type', [
                                 'options' => ['class' => 'arm-form-create__field mb-0'],
                                 'inputOptions' => ['class' => 'form-select'],
                             ])->dropDownList($equipmentTypes, [
-                                'prompt' => '— тип техники —',
+                                'prompt' => $formPlaceholders['equipment_type_prompt'],
                                 'id' => 'equipment-type-select',
                                 'required' => true,
                             ]) ?>
@@ -88,20 +120,25 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                         'options' => ['class' => 'arm-form-create__field'],
                         'inputOptions' => ['class' => 'form-select js-user-select-search'],
                     ])->dropDownList($users, [
-                        'prompt' => 'Не закреплять',
-                        'data-placeholder' => 'Не закреплять',
+                        'prompt' => $formPlaceholders['responsible_user'],
+                        'data-placeholder' => $formPlaceholders['responsible_user'],
                     ]) ?>
-                    <?= $form->field($model, 'location_id', [
+                    <?= $form->field($model, 'location_name', [
                         'options' => ['class' => 'arm-form-create__field'],
-                        'inputOptions' => ['class' => 'form-select'],
-                    ])->dropDownList($locations, [
-                        'prompt' => 'Выберите местоположение',
+                    ])->textInput([
+                        'maxlength' => true,
+                        'list' => 'arm-location-datalist',
+                        'autocomplete' => 'off',
+                        'id' => 'equipment-location-name',
+                        'class' => 'form-control js-location-datalist',
+                        'placeholder' => $formPlaceholders['location_name'],
                     ]) ?>
                     <?= $form->field($model, 'status_id', [
                         'options' => ['class' => 'arm-form-create__field mb-0'],
-                        'inputOptions' => ['class' => 'form-select'],
+                        'inputOptions' => ['class' => 'form-select js-user-select-search'],
                     ])->dropDownList($statuses ?? [], [
-                        'prompt' => '— статус —',
+                        'prompt' => $formPlaceholders['status'],
+                        'data-placeholder' => $formPlaceholders['status'],
                     ]) ?>
                 </div>
             </section>
@@ -125,10 +162,10 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                         'maxlength' => true,
                         'list' => 'arm-supplier-datalist',
                         'autocomplete' => 'off',
-                        'placeholder' => 'Выберите или введите поставщика',
-                    ])->hint('Сохранится в справочнике учёта.', ['class' => 'form-text']) ?>
+                        'placeholder' => $formPlaceholders['supplier'],
+                    ]) ?>
                 <div class="row g-3 arm-form-create__dates-row">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <?= $form->field($model, 'purchase_date', ['options' => ['class' => 'arm-form-create__field mb-0']])
                             ->label('Дата закупки')
                             ->input('date', [
@@ -136,15 +173,7 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                                 'class' => 'form-control js-warranty-base-date',
                             ]) ?>
                     </div>
-                    <div class="col-md-4">
-                        <?= $form->field($model, 'commissioning_date', ['options' => ['class' => 'arm-form-create__field mb-0']])
-                            ->label('Ввод в эксплуатацию')
-                            ->input('date', [
-                                'id' => 'equipment-commissioning-date',
-                                'class' => 'form-control js-warranty-base-date',
-                            ]) ?>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <?= $form->field($model, 'warranty_years', ['options' => ['class' => 'arm-form-create__field mb-0']])
                             ->label('Гарантия, лет')
                             ->input('number', [
@@ -153,11 +182,10 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                                 'min' => 0,
                                 'max' => 50,
                                 'step' => '0.5',
-                                'placeholder' => '3',
+                                'placeholder' => $formPlaceholders['warranty_years'],
                             ]) ?>
                     </div>
                 </div>
-                <div id="equipment-warranty-until-preview" class="form-text text-muted arm-form-create__warranty-preview"></div>
             </div>
         </section>
         </div>
@@ -169,7 +197,7 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                 <?= $form->field($model, 'description', ['options' => ['class' => 'arm-form-create__field mb-0']])
                     ->textarea([
                         'rows' => 4,
-                        'placeholder' => 'Комментарий, комплектация, особенности эксплуатации',
+                        'placeholder' => $formPlaceholders['description'],
                         'class' => 'form-control',
                     ]) ?>
             </div>

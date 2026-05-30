@@ -1,14 +1,13 @@
 /**
- * Предпросмотр даты окончания гарантии по сроку в годах и базовой дате.
+ * Подсказки по гарантии — только внутри полей (placeholder / title).
  */
 (function () {
     'use strict';
 
-    function resolveBaseDate(commissioningEl, purchaseEl) {
-        var commissioning = commissioningEl && commissioningEl.value ? commissioningEl.value.trim() : '';
-        if (commissioning) {
-            return commissioning;
-        }
+    var YEARS_DEFAULT_PLACEHOLDER = 'Например: 3';
+    var DATE_WARRANTY_PLACEHOLDER = 'Для расчёта гарантии';
+
+    function resolveBaseDate(purchaseEl) {
         return purchaseEl && purchaseEl.value ? purchaseEl.value.trim() : '';
     }
 
@@ -50,33 +49,54 @@
         return d + '.' + m + '.' + y;
     }
 
-    function updatePreview() {
-        var preview = document.getElementById('equipment-warranty-until-preview');
-        if (!preview) {
+    function setDatePlaceholder(el, text) {
+        if (!el) {
             return;
         }
+        if (text) {
+            el.setAttribute('placeholder', text);
+        } else {
+            el.removeAttribute('placeholder');
+        }
+    }
+
+    function updatePreview() {
         var yearsEl = document.getElementById('equipment-warranty-years');
-        var commissioningEl = document.getElementById('equipment-commissioning-date');
         var purchaseEl = document.getElementById('equipment-purchase-date');
         var years = parseYears(yearsEl ? yearsEl.value : '');
-        var baseDate = resolveBaseDate(commissioningEl, purchaseEl);
+        var baseDate = resolveBaseDate(purchaseEl);
+
+        setDatePlaceholder(purchaseEl, '');
+
+        if (yearsEl) {
+            yearsEl.placeholder = YEARS_DEFAULT_PLACEHOLDER;
+            yearsEl.title = '';
+        }
 
         if (!Number.isFinite(years)) {
-            preview.textContent = '';
             return;
         }
+
         if (!baseDate) {
-            preview.textContent = 'Укажите дату ввода в эксплуатацию или дату закупки для расчёта.';
+            if (yearsEl) {
+                yearsEl.title = 'Укажите дату закупки';
+            }
+            if (purchaseEl && !purchaseEl.value.trim()) {
+                setDatePlaceholder(purchaseEl, DATE_WARRANTY_PLACEHOLDER);
+            }
             return;
         }
+
         var until = calculateWarrantyUntil(baseDate, years);
-        preview.textContent = until
-            ? 'Гарантия до: ' + until
-            : 'Не удалось рассчитать дату окончания гарантии.';
+        if (yearsEl && until) {
+            yearsEl.title = 'Гарантия до: ' + until;
+        } else if (yearsEl) {
+            yearsEl.title = 'Не удалось рассчитать дату окончания гарантии';
+        }
     }
 
     function bind() {
-        var ids = ['equipment-warranty-years', 'equipment-commissioning-date', 'equipment-purchase-date'];
+        var ids = ['equipment-warranty-years', 'equipment-purchase-date'];
         ids.forEach(function (id) {
             var el = document.getElementById(id);
             if (!el || el.dataset.warrantyPreviewBound === '1') {

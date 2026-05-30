@@ -10,7 +10,7 @@
 .arm-content-panel__lead {
     margin: 0 0 1rem;
     color: #64748b;
-    font-size: 0.95rem;
+    font-size: var(--ias-font-body, 0.75rem);
     line-height: 1.5;
 }
 
@@ -53,6 +53,7 @@
 
 .ref-hub-card__title {
     display: block;
+    font-size: var(--ias-font-section-title, 0.875rem);
     font-weight: 600;
     color: #0f172a;
 }
@@ -75,7 +76,7 @@
     border-bottom: 1px solid #e2e8f0;
     background: #f8fafc;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--ias-font-section-title, 0.875rem);
 }
 
 .about-card__body {
@@ -100,7 +101,7 @@
 .import-protocol__item {
     padding: 0.45rem 0.65rem;
     border-bottom: 1px solid #f1f5f9;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .site-contact-form {

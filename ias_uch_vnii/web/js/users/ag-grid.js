@@ -17,6 +17,25 @@
         return baseUrl + sep + 'id=' + encodeURIComponent(id);
     }
 
+    function escapeHtml(text) {
+        if (text == null) {
+            return '';
+        }
+        var div = document.createElement('div');
+        div.textContent = String(text);
+        return div.innerHTML;
+    }
+
+    function fullNameRenderer(params) {
+        if (!params.data || !params.data.id) {
+            return escapeHtml(params.value || '');
+        }
+        var name = params.value || '—';
+        return '<button type="button" class="users-grid-link" data-users-view="'
+            + params.data.id + '" title="Открыть карточку">'
+            + escapeHtml(name) + '</button>';
+    }
+
     function emailRenderer(params) {
         var value = params.value;
         if (!value) {
@@ -30,16 +49,14 @@
             return '';
         }
         var id = params.data.id;
-        var viewHref = buildUrl(params.context.viewUrl, id);
-        var updateHref = buildUrl(params.context.updateUrl, id);
         var deleteHref = buildUrl(params.context.deleteUrl, id);
 
         return ''
             + '<div class="ag-actions">'
-            + '<a class="btn btn-sm btn-outline-secondary" href="' + viewHref + '"'
-            + ' title="Профиль" aria-label="Профиль"><i class="fas fa-user" aria-hidden="true"></i></a>'
-            + '<a class="btn btn-sm btn-outline-primary" href="' + updateHref + '"'
-            + ' title="Редактировать" aria-label="Редактировать"><i class="fas fa-pen" aria-hidden="true"></i></a>'
+            + '<button type="button" class="btn btn-sm btn-outline-secondary" data-users-view="' + id + '"'
+            + ' title="Профиль" aria-label="Профиль"><i class="fas fa-user" aria-hidden="true"></i></button>'
+            + '<button type="button" class="btn btn-sm btn-outline-primary" data-users-edit="' + id + '"'
+            + ' title="Редактировать" aria-label="Редактировать"><i class="fas fa-pen" aria-hidden="true"></i></button>'
             + '<a class="btn btn-sm btn-outline-danger" href="' + deleteHref + '"'
             + ' title="Удалить" aria-label="Удалить" data-method="post"'
             + ' data-confirm="Удалить пользователя?"><i class="fas fa-xmark" aria-hidden="true"></i></a>'
@@ -49,7 +66,13 @@
     function getColumnDefs() {
         return [
             { headerName: 'ID', field: 'id', minWidth: 64, maxWidth: 120, filter: 'agNumberColumnFilter' },
-            { headerName: 'ФИО', field: 'full_name', minWidth: 120, filter: 'agTextColumnFilter' },
+            {
+                headerName: 'ФИО',
+                field: 'full_name',
+                minWidth: 120,
+                filter: 'agTextColumnFilter',
+                cellRenderer: fullNameRenderer,
+            },
             {
                 headerName: 'Электронная почта',
                 field: 'email',
@@ -201,15 +224,6 @@
                     sortModel: [{ colId: 'full_name', sort: 'asc' }],
                 },
             },
-            getQuickFilterText: function(params) {
-                if (!params.data) {
-                    return '';
-                }
-                var d = params.data;
-                return [d.id, d.full_name, d.email, d.role_name].filter(function(v) {
-                    return v != null && v !== '';
-                }).join(' ');
-            },
             pagination: true,
             paginationPageSize: 20,
             paginationPageSizeSelector: [10, 20, 50, 100],
@@ -254,7 +268,12 @@
             },
         };
 
-        agGrid.createGrid(container, gridOptions);
+        var createGrid = (window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid));
+        if (typeof createGrid === 'function') {
+            createGrid(container, gridOptions);
+        } else {
+            agGrid.createGrid(container, gridOptions);
+        }
 
         window.addEventListener('resize', function() {
             usersSuppressFitUntil = 0;

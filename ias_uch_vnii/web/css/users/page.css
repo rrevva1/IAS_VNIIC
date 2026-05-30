@@ -9,8 +9,8 @@
     --users-text: #334155;
     --users-text-muted: #64748b;
     --users-radius: 12px;
-    --users-font-base: 0.875rem;
-    --users-font-title: 1.125rem;
+    --users-font-base: var(--ias-font-body, 0.75rem);
+    --users-font-title: var(--ias-font-section-title, 0.875rem);
     --users-control-height: 38px;
     max-width: 100%;
     font-size: var(--users-font-base);
@@ -124,7 +124,7 @@ body.app-body.modal-open:has(.users-page--grid) {
     top: 50%;
     transform: translateY(-50%);
     color: #94a3b8;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     pointer-events: none;
 }
 
@@ -334,7 +334,7 @@ body.app-body.modal-open:has(.users-page--grid) {
 }
 
 .users-page #agGridUsersContainer.ag-theme-quartz {
-    --ag-font-size: 14px;
+    --ag-font-size: 12px;
     --ag-font-family: inherit;
     --ag-row-height: 48px;
     --ag-header-height: 44px;
@@ -353,7 +353,7 @@ body.app-body.modal-open:has(.users-page--grid) {
 
 .users-page #agGridUsersContainer .ag-header-cell-text {
     font-weight: 600;
-    font-size: 0.8125rem;
+    font-size: var(--ag-font-size, 12px);
     letter-spacing: 0.01em;
 }
 
@@ -389,11 +389,11 @@ body.app-body.modal-open:has(.users-page--grid) {
     display: flex;
     align-items: center;
     line-height: 1.4;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
 }
 
 .users-page #agGridUsersContainer .ag-overlay-no-rows-center {
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     color: var(--users-text-muted);
     padding: 2rem 1rem;
 }
@@ -468,6 +468,45 @@ body.app-body.modal-open:has(.users-page--grid) {
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
 }
 
+/* Затемнение фона: только форма (создание / редактирование без карточки) */
+body.modal-open:has(#userFormModal.show):not(:has(#usersViewModal.show)) > .modal-backdrop {
+    --bs-backdrop-bg: #000;
+    --bs-backdrop-opacity: 0.5;
+    background-color: #000;
+    opacity: 0.5;
+    z-index: calc(var(--bs-modal-zindex, 1055) - 1);
+}
+
+#userFormModal.modal {
+    z-index: var(--bs-modal-zindex, 1055);
+    background-color: transparent;
+}
+
+#userFormModal.modal .modal-dialog {
+    pointer-events: auto;
+}
+
+#usersViewModal.modal {
+    z-index: var(--bs-modal-zindex, 1055);
+}
+
+/* Карточка + форма редактирования: форма и её backdrop поверх карточки, но не перекрывают друг друга */
+body.modal-open:has(#usersViewModal.show):has(#userFormModal.show) #usersViewModal.modal {
+    z-index: calc(var(--bs-modal-zindex, 1055));
+}
+
+body.modal-open:has(#usersViewModal.show):has(#userFormModal.show) > .modal-backdrop:first-of-type {
+    z-index: calc(var(--bs-modal-zindex, 1055) - 1);
+}
+
+body.modal-open:has(#usersViewModal.show):has(#userFormModal.show) > .modal-backdrop:last-of-type {
+    z-index: calc(var(--bs-modal-zindex, 1055) + 5);
+}
+
+body.modal-open:has(#usersViewModal.show):has(#userFormModal.show) #userFormModal.modal {
+    z-index: calc(var(--bs-modal-zindex, 1055) + 10);
+}
+
 /* Модальное окно создания */
 .users-create-modal .modal-content {
     border: none;
@@ -500,7 +539,7 @@ body.app-body.modal-open:has(.users-page--grid) {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    font-size: 0.875rem;
+    font-size: var(--ias-font-body, 0.75rem);
     font-weight: 600;
     color: #0f172a;
     margin-bottom: 0.4rem;
@@ -540,5 +579,159 @@ body.app-body.modal-open:has(.users-page--grid) {
 @media (max-width: 768px) {
     .users-tool-btn span {
         display: none;
+    }
+}
+
+/* Ссылка на карточку в таблице */
+#agGridUsersContainer .users-grid-link {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: var(--users-text);
+    text-align: left;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+#agGridUsersContainer .users-grid-link:hover,
+#agGridUsersContainer .users-grid-link:focus-visible {
+    color: var(--users-accent);
+    text-decoration: underline;
+    outline: none;
+}
+
+/* Модальное окно карточки пользователя */
+.users-view-modal__dialog {
+    margin: 0;
+    max-width: 100%;
+    height: 100%;
+}
+
+.users-view-modal {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    border: none;
+    border-radius: 0;
+}
+
+.users-view-modal.modal-content .users-view-modal__header.modal-header {
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 0;
+    background: transparent;
+    border-bottom: none;
+    flex-shrink: 0;
+}
+
+.users-view-modal__header .btn-close {
+    position: absolute;
+    top: 0.85rem;
+    right: 0.85rem;
+    z-index: 5;
+    margin: 0;
+    flex-shrink: 0;
+    opacity: 0.92;
+    filter: brightness(0) invert(1);
+}
+
+.users-view-modal__header .btn-close:hover {
+    opacity: 1;
+}
+
+.users-view-modal__header-body {
+    flex: 1 1 0;
+    width: 100%;
+    min-width: 0;
+    display: block;
+}
+
+.users-view-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 1.1rem 1.25rem 1.5rem;
+    background: #f1f5f9;
+}
+
+.users-view-modal__loading {
+    padding: 3rem 1rem;
+}
+
+.users-view__header-slot--in-modal {
+    display: block;
+    width: 100%;
+}
+
+.users-view__header-slot--in-modal .profile-hero {
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100%;
+}
+
+.users-view__header-slot--in-modal .profile-hero__inner {
+    padding: 1rem 3.25rem 1rem 1.25rem;
+}
+
+.users-view__header-slot--in-modal .profile-hero__head {
+    align-items: center;
+}
+
+.users-view-modal__body > .profile-view--modal {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.users-view-modal__body .profile-view__body {
+    width: 100%;
+    padding-top: 0.15rem;
+}
+
+.users-view-modal__body .profile-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    width: 100%;
+    margin-bottom: 1.25rem;
+}
+
+.users-view-modal__body .profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    width: 100%;
+    align-items: stretch;
+}
+
+@media (max-width: 900px) {
+    .users-view-modal__body .profile-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .users-view-modal__body .profile-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .users-view__header-slot--in-modal .profile-hero__inner {
+        padding: 1rem 2.75rem 1rem 1rem;
+    }
+
+    .users-view__header-slot--in-modal .profile-hero__actions {
+        width: 100%;
+        justify-content: flex-start;
     }
 }

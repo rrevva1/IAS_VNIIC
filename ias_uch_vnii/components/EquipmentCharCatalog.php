@@ -22,6 +22,20 @@ class EquipmentCharCatalog
     public const CARTRIDGE_NOT_ACCOUNTED_LABEL = 'Не учтен';
 
     /**
+     * Известные модели аккумуляторов ИБП (часть «ИБП», характеристика «Модель аккумулятора»).
+     *
+     * @return string[]
+     */
+    public static function getDistinctUpsBatteryModels(): array
+    {
+        return self::fetchDistinctCharValues([
+            ['and', ['sp.name' => 'ИБП'], ['sc.name' => 'Модель аккумулятора']],
+            ['and', ['ilike', 'sp.name', 'ибп', false], ['ilike', 'sc.name', 'аккумулятор', false]],
+            ['and', ['ilike', 'sp.name', 'ups', false], ['ilike', 'sc.name', 'battery', false]],
+        ], 'EquipmentCharCatalog::getDistinctUpsBatteryModels');
+    }
+
+    /**
      * Все известные модели процессоров (ЦП + «Модель» и синонимы частей/характеристик).
      *
      * @return string[]
@@ -40,6 +54,88 @@ class EquipmentCharCatalog
                 ['ilike', 'sc.name', 'частот', false],
             ]],
         ], 'EquipmentCharCatalog::getDistinctCpuModels');
+    }
+
+    /**
+     * Известные наименования техники (поле equipment.name).
+     *
+     * @return string[]
+     */
+    public static function getDistinctEquipmentNames(): array
+    {
+        $db = Yii::$app->db;
+        if (!$db->getTableSchema('equipment', true)) {
+            return [];
+        }
+
+        try {
+            $rows = (new Query())
+                ->select(['value' => new Expression('TRIM(name)')])
+                ->from('equipment')
+                ->where(['is_deleted' => false])
+                ->andWhere(['not', ['name' => null]])
+                ->andWhere(['<>', 'name', ''])
+                ->groupBy([new Expression('TRIM(name)')])
+                ->orderBy(['value' => SORT_ASC])
+                ->column($db);
+        } catch (\Throwable $e) {
+            Yii::warning('EquipmentCharCatalog::getDistinctEquipmentNames: ' . $e->getMessage(), __METHOD__);
+
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            $v = trim((string) $row);
+            if ($v !== '' && !in_array($v, $out, true)) {
+                $out[] = $v;
+            }
+        }
+
+        sort($out, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $out;
+    }
+
+    /**
+     * Известные инвентарные номера (для подсказок при создании и редактировании).
+     *
+     * @return string[]
+     */
+    public static function getDistinctInventoryNumbers(): array
+    {
+        $db = Yii::$app->db;
+        if (!$db->getTableSchema('equipment', true)) {
+            return [];
+        }
+
+        try {
+            $rows = (new Query())
+                ->select(['value' => new Expression('TRIM(inventory_number)')])
+                ->from('equipment')
+                ->where(['is_deleted' => false])
+                ->andWhere(['not', ['inventory_number' => null]])
+                ->andWhere(['<>', 'inventory_number', ''])
+                ->groupBy([new Expression('TRIM(inventory_number)')])
+                ->orderBy(['value' => SORT_ASC])
+                ->column($db);
+        } catch (\Throwable $e) {
+            Yii::warning('EquipmentCharCatalog::getDistinctInventoryNumbers: ' . $e->getMessage(), __METHOD__);
+
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            $v = trim((string) $row);
+            if ($v !== '' && !in_array($v, $out, true)) {
+                $out[] = $v;
+            }
+        }
+
+        sort($out, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $out;
     }
 
     /**
@@ -105,6 +201,19 @@ class EquipmentCharCatalog
                 ['ilike', 'sc.name', 'объём', false],
             ]],
         ], __METHOD__);
+    }
+
+    /**
+     * Известные значения диагонали экрана (часть «Монитор», характеристика «Диагональ экрана»).
+     *
+     * @return string[]
+     */
+    public static function getDistinctScreenDiagonalValues(): array
+    {
+        return self::fetchDistinctCharValues([
+            ['and', ['sp.name' => 'Монитор'], ['sc.name' => 'Диагональ экрана']],
+            ['and', ['ilike', 'sp.name', 'монитор', false], ['ilike', 'sc.name', 'диагональ', false]],
+        ], 'EquipmentCharCatalog::getDistinctScreenDiagonalValues');
     }
 
     /**
@@ -444,6 +553,126 @@ class EquipmentCharCatalog
     }
 
     /**
+     * Поля конфигурации принтера / МФУ (форма создания и редактирования).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getPrinterMfuFormFieldDefinitions(): array
+    {
+        $choice = static function (string $name, string $label, string $charName, array $options): array {
+            return [
+                'name' => $name,
+                'label' => $label,
+                'part' => 'Принтер',
+                'char' => $charName,
+                'widget' => 'choice-select',
+                'options' => $options,
+            ];
+        };
+
+        $notSpecified = ['value' => '', 'label' => '— не указано —'];
+
+        return [
+            [
+                'name' => 'ip',
+                'label' => 'IP-адрес / подключение',
+                'part' => 'Принтер',
+                'char' => 'IP адрес',
+                'widget' => 'ip-datalist',
+            ],
+            $choice('paper_size_max', 'Максимальный размер бумаги', 'Максимальный размер бумаги', [
+                $notSpecified,
+                ['value' => 'A6', 'label' => 'A6'],
+                ['value' => 'A5', 'label' => 'A5'],
+                ['value' => 'A4', 'label' => 'A4'],
+                ['value' => 'A3', 'label' => 'A3'],
+                ['value' => 'A2', 'label' => 'A2'],
+                ['value' => 'A1', 'label' => 'A1'],
+                ['value' => 'A0', 'label' => 'A0'],
+            ]),
+            $choice('print_technology', 'Технология печати', 'Технология печати', [
+                $notSpecified,
+                ['value' => 'Лазерный', 'label' => 'Лазерный'],
+                ['value' => 'Струйный', 'label' => 'Струйный'],
+            ]),
+            $choice('print_color', 'Цветность', 'Цветность печати', [
+                $notSpecified,
+                ['value' => 'Чёрно-белый', 'label' => 'Чёрно-белый'],
+                ['value' => 'Цветной', 'label' => 'Цветной'],
+            ]),
+            $choice('connection_type', 'Тип подключения', 'Подключение', [
+                $notSpecified,
+                ['value' => 'Сетевой', 'label' => 'Сетевой'],
+                ['value' => 'USB', 'label' => 'USB'],
+            ]),
+            $choice('printer_wifi', 'Модуль Wi‑Fi', 'Модуль WiFi', [
+                $notSpecified,
+                ['value' => 'Да', 'label' => 'Есть'],
+                ['value' => 'Нет', 'label' => 'Нет'],
+            ]),
+        ];
+    }
+
+    /**
+     * Ключ поля формы PartChar[*] => [часть, характеристика] в spr_*.
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function getPrinterMfuPartCharSaveMap(): array
+    {
+        $map = [];
+        foreach (self::getPrinterMfuFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            $part = (string) ($field['part'] ?? '');
+            $char = (string) ($field['char'] ?? '');
+            if ($name === '' || $part === '' || $char === '') {
+                continue;
+            }
+            $map[$name] = [$part, $char];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Имя характеристики в БД => ключ поля формы.
+     *
+     * @return array<string, string>
+     */
+    public static function getPrinterMfuPartCharKeyByCharName(): array
+    {
+        $out = [];
+        foreach (self::getPrinterMfuFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            $char = (string) ($field['char'] ?? '');
+            if ($name !== '' && $char !== '') {
+                $out[$char] = $name;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Подписи характеристик принтера / МФУ в карточке просмотра.
+     *
+     * @return array<string, string>
+     */
+    public static function getPrinterMfuCharDisplayLabels(): array
+    {
+        $labels = [];
+        foreach (self::getPrinterMfuFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            $labels[$name] = (string) ($field['label'] ?? $name);
+        }
+
+        return $labels;
+    }
+
+    /**
      * @return string[]
      */
     private static function splitDescriptionParts(?string $description): array
@@ -497,5 +726,66 @@ class EquipmentCharCatalog
         }
 
         return trim((string) ($item['inventory_number'] ?? ''));
+    }
+
+    /**
+     * Класс иконки Font Awesome Solid по типу техники (для карточек и списков).
+     * Используются только иконки из free-набора FA 6.0.
+     */
+    public static function getEquipmentTypeIconClass(?string $typeName): string
+    {
+        $t = mb_strtolower(trim((string) $typeName));
+        if ($t === '') {
+            return 'fa-desktop';
+        }
+        if (str_contains($t, 'монитор')) {
+            return 'fa-tv';
+        }
+        if (str_contains($t, 'принтер') || str_contains($t, 'мфу')) {
+            return 'fa-print';
+        }
+        if (str_contains($t, 'сканер')) {
+            return 'fa-file-lines';
+        }
+        if (str_contains($t, 'ибп') || str_contains($t, 'ups')) {
+            return 'fa-battery-full';
+        }
+        if (str_contains($t, 'ноутбук')) {
+            return 'fa-laptop';
+        }
+        if (str_contains($t, 'сервер')) {
+            return 'fa-server';
+        }
+        if (str_contains($t, 'планшет')) {
+            return 'fa-tablet';
+        }
+        if (str_contains($t, 'моноблок') || str_contains($t, 'системный') || str_contains($t, 'компьютер')) {
+            return 'fa-desktop';
+        }
+
+        return 'fa-desktop';
+    }
+
+    /**
+     * Иконка по типу; при пустом типе — эвристика по инвентарному номеру (mon, ups).
+     */
+    public static function resolveEquipmentTypeIconClass(?string $typeName, ?string $inventoryNumber = null): string
+    {
+        $type = trim((string) $typeName);
+        if ($type !== '') {
+            return self::getEquipmentTypeIconClass($type);
+        }
+
+        $inv = mb_strtolower(trim((string) $inventoryNumber));
+        if ($inv !== '') {
+            if (preg_match('/(?:^|[^a-z])mon(?:[^a-z]|$)|-mon-/u', $inv)) {
+                return 'fa-tv';
+            }
+            if (preg_match('/(?:^|[^a-z])ups(?:[^a-z]|$)|-ups-/u', $inv)) {
+                return 'fa-battery-full';
+            }
+        }
+
+        return 'fa-desktop';
     }
 }

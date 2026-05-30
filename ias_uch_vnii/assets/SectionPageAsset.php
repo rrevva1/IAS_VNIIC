@@ -13,6 +13,7 @@ class SectionPageAsset extends AssetBundle
     public $baseUrl = '@web';
 
     public $css = [
+        'css/common/typography.css',
         'css/arm/index.css',
         'css/site/section-page.css',
     ];

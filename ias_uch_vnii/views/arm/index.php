@@ -121,6 +121,7 @@ $isAdmin = $isAdmin ?? false;
         <?php endif; ?>
         <div id="agGridArmContainer" class="ag-theme-quartz arm-grid-loading"
              data-create-modal-url="<?= Html::encode(Url::to(['create-modal'])) ?>"
+             data-update-modal-url-template="<?= Html::encode(Url::to(['update-modal', 'id' => '__ID__'])) ?>"
              data-view-modal-url-template="<?= Html::encode(Url::to(['view-modal', 'id' => '__ID__'])) ?>">
             <div class="arm-grid-loading__inner">
                 <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
@@ -131,9 +132,7 @@ $isAdmin = $isAdmin ?? false;
 </div>
 
 <?= $this->render('_view_modal') ?>
-<?php if ($isAdmin): ?>
 <?= $this->render('_create_modal') ?>
-<?php endif; ?>
 
 <input type="file" id="armImportFileInput" accept=".xlsx,.xls" style="display:none;">
 
@@ -204,7 +203,14 @@ $isAdmin = $isAdmin ?? false;
                     </h6>
 
                     <div class="arm-reassign-panel" id="moveComponentWrap" style="display:none;">
-                        <p class="arm-reassign-panel__caption">Куда перенести компонент</p>
+                        <p class="arm-reassign-panel__caption">Перемещение монитора или ИБП</p>
+                        <div class="mb-3">
+                            <label class="form-label" for="componentLinkAction">Привязка к системному блоку</label>
+                            <select id="componentLinkAction" class="form-select">
+                                <option value="attach">Привязать к системному блоку</option>
+                                <option value="detach">Снять привязку (остаётся без ПК)</option>
+                            </select>
+                        </div>
                         <div class="mb-3">
                             <label class="form-label" for="componentLinkType">Тип компонента</label>
                             <select id="componentLinkType" class="form-select">
@@ -212,6 +218,10 @@ $isAdmin = $isAdmin ?? false;
                                 <option value="ups">ИБП</option>
                             </select>
                         </div>
+                        <p class="form-text text-muted mb-3" id="moveComponentDetachHint" style="display:none;">
+                            Компонент будет отвязан от системного блока. При необходимости укажите ответственного и помещение в полях ниже.
+                        </p>
+                        <div id="moveComponentAttachWrap">
                         <div class="mb-3" id="moveComponentChildWrap" style="display:none;">
                             <label class="form-label" for="moveComponentChildId" id="moveComponentChildLabel">Какой монитор перенести</label>
                             <select id="moveComponentChildId" class="form-select"></select>
@@ -236,6 +246,7 @@ $isAdmin = $isAdmin ?? false;
                             <select id="targetSystemBlockId" class="form-select">
                                 <option value="">— сначала выберите пользователя —</option>
                             </select>
+                        </div>
                         </div>
                     </div>
 
@@ -322,7 +333,8 @@ $isAdmin = $isAdmin ?? false;
 <?php
 $this->registerJs(
     "window.agGridArmDataUrl = " . json_encode(Url::to(['arm/get-grid-data'])) . ";" .
-    "window.agGridArmViewModalUrlTemplate = " . json_encode(Url::to(['view-modal', 'id' => '__ID__'])) . ";",
+    "window.agGridArmViewModalUrlTemplate = " . json_encode(Url::to(['view-modal', 'id' => '__ID__'])) . ";" .
+    "window.agGridArmUpdateModalUrlTemplate = " . json_encode(Url::to(['update-modal', 'id' => '__ID__'])) . ";",
     \yii\web\View::POS_HEAD
 );
 $this->registerJs(
@@ -345,7 +357,7 @@ $this->registerJs("
     var reassignModal, pendingIds = [], equipmentData = [], equipmentSummary = {}, armSystemBlocksCache = {};
     var REASSIGN_MODE_HINTS = {
         reassign: 'Укажите нового ответственного, помещение или статус. При переназначении системного блока связанные монитор и ИБП переназначаются вместе с ним.',
-        move_component: 'Выберите владельца целевого ПК и системный блок. Ответственный и помещение компонента подстроятся автоматически.',
+        move_component: 'Укажите привязку к ПК или снятие привязки. Для привязки выберите целевой системный блок; при снятии можно изменить ответственного и помещение.',
         dismissal: 'Передайте технику другому сотруднику или отправьте на склад со снятием ответственного.',
     };
 
@@ -357,12 +369,40 @@ $this->registerJs("
         }
     }
 
-    /** Перенос компонента — только при выборе одного системного блока (ПК) в таблице. */
+    function getComponentLinkAction() {
+        var el = document.getElementById('componentLinkAction');
+        return el && el.value === 'detach' ? 'detach' : 'attach';
+    }
+
+    /** Перенос компонента: один ПК (с выбором монитора/ИБП) или одна строка монитора/ИБП. */
     function isMoveComponentModeAllowed() {
         if (pendingIds.length !== 1 || !equipmentData || equipmentData.length !== 1) {
             return false;
         }
-        return !!equipmentData[0].is_host;
+        var item = equipmentData[0];
+        if (item.is_host) {
+            return true;
+        }
+        return !!(item.is_component || isMoveComponentEquipment(item));
+    }
+
+    function onComponentLinkActionChanged() {
+        var action = getComponentLinkAction();
+        var attachWrap = document.getElementById('moveComponentAttachWrap');
+        var detachHint = document.getElementById('moveComponentDetachHint');
+        if (attachWrap) {
+            attachWrap.style.display = action === 'attach' ? 'block' : 'none';
+        }
+        if (detachHint) {
+            detachHint.style.display = action === 'detach' ? 'block' : 'none';
+        }
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        var commonWrap = document.getElementById('reassignCommonFieldsWrap');
+        if (commonWrap && mode === 'move_component') {
+            commonWrap.style.display = action === 'detach' ? 'block' : 'none';
+        }
+        updateReassignModalSelectState();
+        scheduleUpdatePreview();
     }
 
     function syncMoveComponentOperationOption() {
@@ -428,7 +468,7 @@ $this->registerJs("
         var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         var ru = document.getElementById('reassignUserId');
         var hint = document.getElementById('reassignUserIdSyncHint');
-        var lockResponsible = mode === 'move_component';
+        var lockResponsible = mode === 'move_component' && getComponentLinkAction() === 'attach';
         if (ru) {
             if (window.IasUserSelect && window.IasUserSelect.setDisabled) {
                 window.IasUserSelect.setDisabled(ru, lockResponsible);
@@ -1010,8 +1050,20 @@ $this->registerJs("
         if (mode === 'move_component') {
             syncMoveComponentChildPicker();
             var moveCandidates = getMoveComponentCandidates();
-            hasAnyChange = targetSystemBlockUserId !== '' && targetSystemBlockId !== ''
-                && moveCandidates.length > 0 && pendingIds.length === 1;
+            var linkAction = getComponentLinkAction();
+            if (moveCandidates.length > 0 && pendingIds.length === 1) {
+                if (linkAction === 'attach') {
+                    hasAnyChange = targetSystemBlockUserId !== '' && targetSystemBlockId !== '';
+                    if (hasAnyChange) {
+                        changes.push('Привязка компонента к выбранному системному блоку');
+                    }
+                } else {
+                    hasAnyChange = true;
+                    changes.push('Снятие привязки компонента к системному блоку');
+                }
+            } else {
+                hasAnyChange = false;
+            }
         } else if (mode === 'dismissal') {
             hasAnyChange = dismissalToWarehouse || dismissalTargetUserId !== '';
         }
@@ -1071,8 +1123,13 @@ $this->registerJs("
         var dismissalToWarehouse = (document.getElementById('dismissalToWarehouse') || {}).checked;
         if (mode === 'move_component') {
             syncMoveComponentChildPicker();
-            return targetSystemBlockUserId !== '' && targetSystemBlockId !== ''
-                && getMoveComponentCandidates().length > 0 && pendingIds.length === 1;
+            if (getMoveComponentCandidates().length === 0 || pendingIds.length !== 1) {
+                return false;
+            }
+            if (getComponentLinkAction() === 'detach') {
+                return true;
+            }
+            return targetSystemBlockUserId !== '' && targetSystemBlockId !== '';
         }
         if (mode === 'dismissal') {
             return dismissalToWarehouse || dismissalTargetUserId !== '';
@@ -1097,17 +1154,24 @@ $this->registerJs("
         }
         if (moveWrap) moveWrap.style.display = mode === 'move_component' ? 'block' : 'none';
         if (dismissalUserWrap) dismissalUserWrap.style.display = mode === 'dismissal' ? 'block' : 'none';
-        if (commonWrap) commonWrap.style.display = mode === 'move_component' ? 'none' : 'block';
-        if (mode === 'move_component' && targetSystemBlockUserId !== '') {
+        if (commonWrap) {
+            commonWrap.style.display = mode === 'move_component'
+                ? (getComponentLinkAction() === 'detach' ? 'block' : 'none')
+                : 'block';
+        }
+        if (mode === 'move_component') {
+            onComponentLinkActionChanged();
+        }
+        if (mode === 'move_component' && getComponentLinkAction() === 'attach' && targetSystemBlockUserId !== '') {
             applyMoveComponentUserDefaults(targetSystemBlockUserId);
             fetchSystemBlocksForUser(targetSystemBlockUserId);
-        } else if (mode === 'move_component') {
+        } else if (mode === 'move_component' && getComponentLinkAction() === 'attach') {
             var sb = document.getElementById('targetSystemBlockId');
             if (sb) {
                 sb.innerHTML = '<option value=\"\">— сначала выберите пользователя —</option>';
             }
         }
-        if (mode === 'move_component') {
+        if (mode === 'move_component' && getComponentLinkAction() === 'attach') {
             applyDefaultLocationFromTargetSystemBlock();
         }
         if (mode === 'reassign') {
@@ -1133,12 +1197,22 @@ $this->registerJs("
     
     // Показ уведомления
     function showNotification(message, type) {
-        var level = type || 'success';
-        if (typeof window.IASNotify === 'function') {
-            window.IASNotify(message, level);
-            return;
-        }
-        console.log(level + ': ' + message);
+        type = type || 'success';
+        var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        var alertHtml = '<div class=\"alert ' + alertClass + ' alert-dismissible fade show\" role=\"alert\" style=\"position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;\">' +
+            escapeHtml(message) +
+            '<button type=\"button\" class=\"btn-close\" data-bs-dismiss=\"alert\" aria-label=\"Закрыть\"></button>' +
+            '</div>';
+        var alertDiv = document.createElement('div');
+        alertDiv.innerHTML = alertHtml;
+        document.body.appendChild(alertDiv.firstElementChild);
+        setTimeout(function() {
+            var alert = document.querySelector('.alert');
+            if (alert) {
+                var bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
     }
     
     // Отправка данных
@@ -1207,11 +1281,11 @@ $this->registerJs("
                 return;
             }
             if (pendingIds.length !== 1) {
-                showNotification('Для переноса компонента выберите один системный блок (ПК) в таблице.', 'error');
+                showNotification('Для переноса компонента выберите один монитор, ИБП или системный блок в таблице.', 'error');
                 return;
             }
-            if (!targetSystemBlockUserId || !targetSystemBlockId) {
-                showNotification('Для переноса компонента выберите пользователя и системный блок.', 'error');
+            if (getComponentLinkAction() === 'attach' && (!targetSystemBlockUserId || !targetSystemBlockId)) {
+                showNotification('Для привязки выберите владельца и целевой системный блок.', 'error');
                 return;
             }
         }
@@ -1227,19 +1301,25 @@ $this->registerJs("
         fd.append('operation_mode', operationMode);
         
         if (operationMode === 'move_component') {
-            var responsibleForMove = targetSystemBlockUserId || userId;
-            if (responsibleForMove !== '') {
-                fd.append('responsible_user_id', responsibleForMove === '0' ? '' : responsibleForMove);
-            }
-            fd.append('target_system_block_id', targetSystemBlockId);
+            var linkAction = getComponentLinkAction();
+            fd.append('link_action', linkAction);
             fd.append('link_type', componentLinkType);
+            if (linkAction === 'attach') {
+                var responsibleForMove = targetSystemBlockUserId || userId;
+                if (responsibleForMove !== '') {
+                    fd.append('responsible_user_id', responsibleForMove === '0' ? '' : responsibleForMove);
+                }
+                fd.append('target_system_block_id', targetSystemBlockId);
+            } else if (userId !== '') {
+                fd.append('responsible_user_id', userId === '0' ? '' : userId);
+            }
         } else if (userId !== '') {
             fd.append('responsible_user_id', userId === '0' ? '' : userId);
         }
-        if (locationId !== '') {
+        if (locationId !== '' && (operationMode !== 'move_component' || getComponentLinkAction() === 'detach')) {
             fd.append('location_id', locationId);
         }
-        if (statusId !== '') {
+        if (statusId !== '' && (operationMode !== 'move_component' || getComponentLinkAction() === 'detach')) {
             fd.append('status_id', statusId);
         }
         if (operationMode === 'dismissal') {
@@ -1487,11 +1567,15 @@ $this->registerJs("
                 scheduleUpdatePreview();
             });
 
-        modalRoot.find('#targetSystemBlockId, #reassignOperationMode, #dismissalToWarehouse, #componentLinkType, #moveComponentChildId')
+        modalRoot.find('#targetSystemBlockId, #reassignOperationMode, #dismissalToWarehouse, #componentLinkType, #componentLinkAction, #moveComponentChildId')
             .off('.reassignArmField')
             .on('change.reassignArmField', function() {
                 if (this.id === 'targetSystemBlockId') {
                     applyDefaultLocationFromTargetSystemBlock();
+                }
+                if (this.id === 'componentLinkAction') {
+                    onComponentLinkActionChanged();
+                    return;
                 }
                 if (this.id === 'componentLinkType' || this.id === 'moveComponentChildId') {
                     syncMoveComponentChildPicker();
