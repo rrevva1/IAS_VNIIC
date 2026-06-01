@@ -622,6 +622,9 @@
         if (armQuickSearchText) {
             query.push('quickSearch=' + encodeURIComponent(armQuickSearchText));
         }
+        if (window.agGridArmLocationScope) {
+            query.push('location_scope=' + encodeURIComponent(window.agGridArmLocationScope));
+        }
         return base + sep + query.join('&');
     }
 
@@ -891,9 +894,12 @@
         var exportBtn = document.getElementById('btnArmExportXlsx');
         if (exportBtn) {
             exportBtn.addEventListener('click', function() {
-                var url = '/index.php?r=arm/export-xlsx';
+                var url = window.agGridArmExportUrl || '/index.php?r=arm/export-xlsx';
                 var query = [];
                 query.push('export_scope=' + encodeURIComponent('visible'));
+                if (window.agGridArmLocationScope) {
+                    query.push('location_scope=' + encodeURIComponent(window.agGridArmLocationScope));
+                }
                 var selectedRows = gridApi ? gridApi.getSelectedRows() : [];
                 if (selectedRows.length > 0) {
                     var ids = selectedRows

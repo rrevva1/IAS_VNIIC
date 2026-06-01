@@ -13,6 +13,8 @@ use yii\helpers\Url;
 /** @var array $timelineSteps */
 /** @var array<int, string[]> $allowedByTask */
 /** @var bool $isManager */
+/** @var bool $canCreateTask */
+/** @var int $pendingReviewCount */
 /** @var array $executors */
 /** @var app\models\entities\WorkTask|null $createModel */
 
@@ -30,6 +32,7 @@ $searchQ = trim((string) $searchModel->q);
 $currentSort = $searchModel->sort ?: WorkTaskSearch::SORT_CLOSED_DESC;
 $closedFrom = $searchModel->closed_from ?: '';
 $closedTo = $searchModel->closed_to ?: '';
+$pendingReviewCount = (int) ($pendingReviewCount ?? 0);
 
 /** Колонки Kanban: активные — без «Закрыта»; закрытые — только финальные колонки. */
 $boardColumns = $timelineSteps;
@@ -76,6 +79,7 @@ $searchFormAction = Yii::$app->request->scriptUrl ?: Url::to(['/']);
 $this->registerJs(
     'window.workTasksBoardConfig = ' . json_encode([
         'transitionUrlTemplate' => Url::to(['transition', 'id' => '__ID__']),
+        'bulkConfirmUrl' => Url::to(['bulk-confirm']),
     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT) . ';'
     . 'window.workTasksViewConfig = ' . json_encode([
         'viewUrlTemplate' => Url::to(['view', 'id' => '__ID__']),
@@ -130,7 +134,7 @@ $this->registerJs(
                    class="form-control form-control-sm work-tasks-period-date"
                    value="<?= Html::encode($closedTo) ?>">
             <?php endif; ?>
-            <?php if ($isManager && $executors): ?>
+            <?php if (!empty($canCreateTask) && $executors): ?>
             <select name="executor_id" class="form-select form-select-sm work-tasks-executor-select"
                     aria-label="Исполнитель">
                 <option value="">Все исполнители</option>
@@ -144,7 +148,18 @@ $this->registerJs(
             <button type="submit" class="btn btn-outline-secondary arm-tool-btn" title="Применить фильтры">
                 <i class="fas fa-filter" aria-hidden="true"></i><span class="arm-btn-label">Применить</span>
             </button>
-            <?php if ($isManager): ?>
+            <?php if ($isManager && !$isClosedTab): ?>
+            <button type="button"
+                    class="btn btn-success arm-tool-btn"
+                    data-work-tasks-bulk-confirm
+                    data-count="<?= $pendingReviewCount ?>"
+                    title="Подтвердить выполнение всех задач в статусе «Выполнена»"
+                    <?= $pendingReviewCount <= 0 ? ' disabled' : '' ?>>
+                <i class="fas fa-check-double" aria-hidden="true"></i>
+                <span class="arm-btn-label">Подтвердить все<?= $pendingReviewCount > 0 ? ' (' . $pendingReviewCount . ')' : '' ?></span>
+            </button>
+            <?php endif; ?>
+            <?php if (!empty($canCreateTask)): ?>
             <button type="button" class="btn btn-primary arm-tool-btn" data-work-task-create-open
                     title="Создать задачу">
                 <i class="fas fa-plus" aria-hidden="true"></i><span class="arm-btn-label">Создать</span>
@@ -195,7 +210,7 @@ $this->registerJs(
                 <div class="work-tasks-board-empty text-muted">
                     <p class="mb-0">
                         <?= $isClosedTab ? 'Закрытых задач нет.' : 'Задач нет.' ?>
-                        <?php if ($isManager && !$isClosedTab): ?>
+                        <?php if (!empty($canCreateTask) && !$isClosedTab): ?>
                             <button type="button" class="btn btn-link work-tasks-link-btn p-0 align-baseline"
                                     data-work-task-create-open>Создайте задачу</button>
                             или дождитесь новой заявки.
@@ -278,7 +293,7 @@ $this->registerJs(
 
 <?= $this->render('_view_modal') ?>
 
-<?php if ($isManager && $createModel): ?>
+<?php if (!empty($canCreateTask) && $createModel): ?>
     <?= $this->render('_create_modal', [
         'model' => $createModel,
         'executors' => $executors,

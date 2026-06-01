@@ -4,23 +4,62 @@
 (function($) {
     'use strict';
 
-    var selectedFiles = [];
+    /** @type {WeakMap<HTMLFormElement, File[]>} */
+    var filesByForm = new WeakMap();
     var activeForm = null;
 
-    function resolveActiveForm(formEl) {
+    function isFormInDocument(form) {
+        return form && document.body.contains(form);
+    }
+
+    function resolveCreateForm(formEl) {
         if (formEl) {
             return formEl;
         }
-        if (activeForm) {
+        if (isFormInDocument(activeForm)) {
             return activeForm;
+        }
+        activeForm = null;
+
+        var createBody = document.getElementById('createTaskModalBody');
+        if (createBody) {
+            var createForm = createBody.querySelector('form#task-form');
+            if (createForm) {
+                return createForm;
+            }
+        }
+
+        var editBody = document.getElementById('editTaskModalBody');
+        if (editBody) {
+            var editForm = editBody.querySelector('form#task-form');
+            if (editForm) {
+                return editForm;
+            }
         }
 
         return document.getElementById('workTaskCreateForm')
             || document.getElementById('task-form');
     }
 
+    function getFilesForForm(form) {
+        if (!form) {
+            return [];
+        }
+        if (!filesByForm.has(form)) {
+            filesByForm.set(form, []);
+        }
+        return filesByForm.get(form);
+    }
+
+    function setFilesForForm(form, files) {
+        if (!form) {
+            return;
+        }
+        filesByForm.set(form, files);
+    }
+
     function getFileContext(formEl) {
-        var form = resolveActiveForm(formEl);
+        var form = resolveCreateForm(formEl);
         if (!form) {
             return null;
         }
@@ -64,9 +103,11 @@
 
     function syncInputFiles(ctx) {
         var input = ctx && ctx.input;
-        if (!input || typeof DataTransfer === 'undefined') {
+        var form = ctx && ctx.form;
+        if (!input || !form || typeof DataTransfer === 'undefined') {
             return;
         }
+        var selectedFiles = getFilesForForm(form);
         var dt = new DataTransfer();
         selectedFiles.forEach(function(file) {
             dt.items.add(file);
@@ -79,6 +120,7 @@
             return;
         }
 
+        var selectedFiles = getFilesForForm(ctx.form);
         var $listContainer = $(ctx.listContainer);
         var $filesList = ctx.filesList ? $(ctx.filesList) : $();
         $listContainer.empty();
@@ -112,9 +154,10 @@
     }
 
     function addFiles(fileList, ctx) {
-        if (!fileList || !fileList.length) {
+        if (!fileList || !fileList.length || !ctx || !ctx.form) {
             return;
         }
+        var selectedFiles = getFilesForForm(ctx.form);
         Array.from(fileList).forEach(function(file) {
             var exists = selectedFiles.some(function(f) {
                 return f.name === file.name && f.size === file.size && f.lastModified === file.lastModified;
@@ -123,6 +166,7 @@
                 selectedFiles.push(file);
             }
         });
+        setFilesForForm(ctx.form, selectedFiles);
         syncInputFiles(ctx);
         displayFilesList(ctx);
     }
@@ -184,19 +228,26 @@
     }
 
     $(document).on('click', '.tasks-files-list__item-remove', function() {
+        var form = this.closest('form');
+        if (!form) {
+            return;
+        }
         var index = $(this).data('index');
+        var selectedFiles = getFilesForForm(form);
         selectedFiles.splice(index, 1);
-        var ctx = getFileContext();
+        setFilesForForm(form, selectedFiles);
+        var ctx = getFileContext(form);
         syncInputFiles(ctx);
         displayFilesList(ctx);
     });
 
     $(document).on('click', '.clear-files-btn', function() {
-        var ctx = getFileContext();
+        var form = this.closest('form');
+        var ctx = getFileContext(form);
         if (!ctx || !ctx.form.contains(this)) {
             return;
         }
-        selectedFiles = [];
+        setFilesForForm(ctx.form, []);
         if (ctx.input) {
             ctx.input.value = '';
         }
@@ -204,15 +255,26 @@
     });
 
     $(document).on('submit', '#task-form', function() {
-        var $btn = $('#submit-task-btn');
+        if (typeof window.tasksFormPrepareSubmit === 'function') {
+            window.tasksFormPrepareSubmit(this);
+        }
+        var $btn = $(this).find('#submit-task-btn');
+        if (!$btn.length) {
+            $btn = $('#submit-task-btn');
+        }
         $btn.html('<i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Отправка…');
         $btn.prop('disabled', true).addClass('form-loading');
     });
 
     window.tasksCreateFormInit = function(formEl) {
-        activeForm = resolveActiveForm(formEl);
-        var ctx = getFileContext(formEl);
-        selectedFiles = [];
+        var form = resolveCreateForm(formEl);
+        if (!form) {
+            return;
+        }
+        activeForm = form;
+
+        setFilesForForm(form, []);
+        var ctx = getFileContext(form);
 
         if (ctx && ctx.input) {
             ctx.input.value = '';
@@ -223,5 +285,14 @@
 
         displayFilesList(ctx);
         initDropZone(ctx);
+    };
+
+    /** Перед AJAX-отправкой формы — перенос выбранных файлов в input[type=file]. */
+    window.tasksFormPrepareSubmit = function(formEl) {
+        var ctx = getFileContext(formEl);
+        if (!ctx) {
+            return;
+        }
+        syncInputFiles(ctx);
     };
 })(jQuery);

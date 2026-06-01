@@ -62,7 +62,6 @@
         return [
             { headerName: '#', field: 'id', width: 90, filter: 'agNumberColumnFilter' },
             { headerName: 'Пользователь', field: 'user_name', flex: 1, minWidth: 250, filter: 'agTextColumnFilter' },
-            { headerName: 'Версия', field: 'version_no', width: 100, filter: 'agNumberColumnFilter' },
             { headerName: 'Статус подписи', field: 'is_signed', width: 150, filter: false, sortable: false, cellRenderer: statusRenderer },
             { headerName: 'Кто подтвердил', field: 'signed_by_admin', width: 180, filter: 'agTextColumnFilter' },
             { headerName: 'Обновлено', field: 'updated_at', width: 180, filter: 'agTextColumnFilter' },

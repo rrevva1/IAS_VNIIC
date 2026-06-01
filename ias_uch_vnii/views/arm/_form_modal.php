@@ -195,6 +195,7 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
             <h2 id="arm-create-section-note" class="arm-view-card__title">Примечание</h2>
             <div class="arm-view-card__body arm-form-create__card-fields">
                 <?= $form->field($model, 'description', ['options' => ['class' => 'arm-form-create__field mb-0']])
+                    ->label('Комментарий к технике')
                     ->textarea([
                         'rows' => 4,
                         'placeholder' => $formPlaceholders['description'],

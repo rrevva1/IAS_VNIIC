@@ -4,6 +4,7 @@ namespace app\models\dictionaries;
 
 use app\models\entities\Tasks;
 use Yii;
+use yii\helpers\Html;
 
 /**
  * Модель для таблицы "dic_task_status" (схема tech_accounting).
@@ -236,5 +237,38 @@ class DicTaskStatus extends \yii\db\ActiveRecord
     {
         return static::resolveIdByCode(self::CODE_RESOLVED)
             ?? static::resolveIdByCode(self::CODE_CLOSED);
+    }
+
+    /**
+     * CSS-модификатор бейджа статуса (согласован с AG Grid и tasks-status-pill).
+     */
+    public static function getPillClassForCode(?string $statusCode): string
+    {
+        $map = [
+            self::CODE_NEW => 'tasks-status-pill--new',
+            self::CODE_EXECUTOR_ASSIGNED => 'tasks-status-pill--assigned',
+            self::CODE_IN_PROGRESS => 'tasks-status-pill--progress',
+            self::CODE_ON_HOLD => 'tasks-status-pill--hold',
+            self::CODE_RESOLVED => 'tasks-status-pill--done',
+            self::CODE_CLOSED => 'tasks-status-pill--done',
+            self::CODE_CANCELLED => 'tasks-status-pill--cancelled',
+        ];
+
+        return $map[$statusCode] ?? 'tasks-status-pill--default';
+    }
+
+    /**
+     * HTML бейджа статуса для карточки заявки.
+     */
+    public static function renderStatusPill(?string $statusCode, ?string $statusName): string
+    {
+        if ($statusName === null || trim($statusName) === '') {
+            return '<span class="text-muted">—</span>';
+        }
+
+        return Html::tag('span', Html::encode($statusName), [
+            'class' => 'tasks-status-pill ' . static::getPillClassForCode($statusCode),
+            'data-status-code' => $statusCode !== null && $statusCode !== '' ? $statusCode : null,
+        ]);
     }
 }

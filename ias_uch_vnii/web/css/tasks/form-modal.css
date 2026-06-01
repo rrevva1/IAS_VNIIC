@@ -1,12 +1,26 @@
 /**
- * Модальное окно создания заявки
+ * Модальные окна создания и редактирования заявки
  */
 
-.tasks-create-modal .modal-content {
+.tasks-create-modal__dialog,
+.tasks-edit-modal__dialog {
+    max-width: min(720px, calc(100vw - 2rem));
+}
+
+.tasks-create-modal .modal-content,
+.tasks-edit-modal .modal-content {
     border: none;
     border-radius: 14px;
     overflow: hidden;
     box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+    max-height: min(90vh, 860px);
+    display: flex;
+    flex-direction: column;
+}
+
+.tasks-create-modal__body,
+.tasks-edit-modal .tasks-create-modal__body {
+    overflow-y: auto;
 }
 
 .tasks-create-modal__header {

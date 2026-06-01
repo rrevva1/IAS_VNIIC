@@ -346,6 +346,50 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
     }
 
     /**
+     * Компактное ФИО для сайдбара: «Кулаков Д.Д.».
+     */
+    public function getSidebarDisplayName(): string
+    {
+        $formatted = self::formatSurnameWithInitials($this->full_name);
+        if ($formatted !== '') {
+            return $formatted;
+        }
+
+        return $this->getDisplayName();
+    }
+
+    /**
+     * @param string|null $fullName полное ФИО (Фамилия Имя Отчество)
+     */
+    public static function formatSurnameWithInitials(?string $fullName): string
+    {
+        $fullName = trim((string) $fullName);
+        if ($fullName === '') {
+            return '';
+        }
+
+        $parts = preg_split('/\s+/u', $fullName, -1, PREG_SPLIT_NO_EMPTY);
+        if ($parts === false || $parts === []) {
+            return '';
+        }
+
+        $surname = array_shift($parts);
+        if ($parts === []) {
+            return $surname;
+        }
+
+        $initials = [];
+        foreach ($parts as $part) {
+            $letter = mb_substr($part, 0, 1, 'UTF-8');
+            if ($letter !== '') {
+                $initials[] = mb_strtoupper($letter, 'UTF-8') . '.';
+            }
+        }
+
+        return $surname . ($initials !== [] ? ' ' . implode('', $initials) : '');
+    }
+
+    /**
      * Назначить одну роль пользователю (для формы: одна роль в выпадающем списке).
      * Создаёт или обновляет запись в user_roles.
      */

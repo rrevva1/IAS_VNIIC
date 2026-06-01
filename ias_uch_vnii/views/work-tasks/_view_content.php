@@ -190,11 +190,17 @@ $fmtDate = static function ($value): string {
                         <i class="fas fa-user-check"></i>
                     </span>
                     <div class="work-task-view__person-text">
-                        <span class="work-task-view__person-label">Исполнитель</span>
+                        <span class="work-task-view__person-label"><?= count($model->getExecutorIds()) > 1 ? 'Исполнители' : 'Исполнитель' ?></span>
                         <span class="work-task-view__person-name">
-                            <?= $model->hasExecutor()
-                                ? Html::encode($model->getExecutorName())
-                                : '<span class="work-task-view__person-missing">Не назначен</span>' ?>
+                            <?php if ($model->hasExecutor()): ?>
+                            <ul class="work-task-view__people-executors list-unstyled mb-0">
+                                <?php foreach ($model->getExecutorNames() as $executorName): ?>
+                                <li><?= Html::encode($executorName) ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <?php else: ?>
+                            <span class="work-task-view__person-missing">Не назначены</span>
+                            <?php endif; ?>
                         </span>
                     </div>
                 </div>
@@ -249,24 +255,10 @@ $fmtDate = static function ($value): string {
             </dl>
 
             <?php if ($isManager && !$model->isFinal()): ?>
-            <form id="workTaskAssignForm"
-                  method="post"
-                  action="<?= Html::encode(Url::to(['assign', 'id' => $model->id])) ?>"
-                  class="work-task-view__assign">
-                <?= Html::hiddenInput(Yii::$app->request->csrfParam, Yii::$app->request->csrfToken) ?>
-                <label class="work-task-view__assign-label" for="workTaskAssignExecutor">Исполнитель</label>
-                <div class="work-task-view__assign-row">
-                    <select id="workTaskAssignExecutor" name="executor_id" class="form-select">
-                        <option value="">Не назначен</option>
-                        <?php foreach ($executors as $eid => $ename): ?>
-                        <option value="<?= (int) $eid ?>"<?= (int) $model->executor_id === (int) $eid ? ' selected' : '' ?>>
-                            <?= Html::encode($ename) ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button type="submit" class="btn btn-primary work-tasks-tool-btn">Сохранить</button>
-                </div>
-            </form>
+            <?= $this->render('_executors_manage', [
+                'model' => $model,
+                'executors' => $executors,
+            ]) ?>
             <?php endif; ?>
             <?php if ($history !== []): ?>
             <details class="work-task-view__history">
@@ -302,10 +294,12 @@ $fmtDate = static function ($value): string {
         <div class="work-task-view__actions" role="group" aria-label="Действия с задачей">
             <?php foreach ($modalTransitions as $code):
                 $label = $transitionLabels[$code] ?? $code;
+                $isTakeInWork = $code === DicWorkTaskStatus::CODE_IN_PROGRESS
+                    && in_array($currentCode, [DicWorkTaskStatus::CODE_QUEUE, DicWorkTaskStatus::CODE_ASSIGNED], true);
                 $btnClass = 'btn work-tasks-tool-btn ';
                 if ($code === DicWorkTaskStatus::CODE_DONE) {
                     $btnClass .= 'btn-success';
-                } elseif ($code === DicWorkTaskStatus::CODE_PENDING_REVIEW) {
+                } elseif ($code === DicWorkTaskStatus::CODE_PENDING_REVIEW || $isTakeInWork) {
                     $btnClass .= 'btn-primary';
                 } else {
                     $btnClass .= 'btn-outline-primary';

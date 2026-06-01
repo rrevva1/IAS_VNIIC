@@ -3,12 +3,14 @@
 use yii\helpers\Html;
 use yii\helpers\Url;
 use app\assets\AgGridAsset;
+use app\assets\TasksAsset;
 use app\models\entities\Users;
 use app\models\dictionaries\DicTaskStatus;
 
 /** @var \app\models\dictionaries\DicTaskStatus[] $taskStatuses */
 
 AgGridAsset::register($this);
+TasksAsset::register($this);
 
 $taskStatuses = $taskStatuses ?? [];
 
@@ -16,7 +18,7 @@ $this->title = 'Заявки';
 $this->params['breadcrumbs'] = [];
 
 $isAdmin = !Yii::$app->user->isGuest && Yii::$app->user->identity && Yii::$app->user->identity->isAdministrator();
-$isRegularUser = !Yii::$app->user->isGuest && Yii::$app->user->identity && Yii::$app->user->identity->isRegularUser();
+$canCreateTask = !empty($canCreateTask);
 
 $usersList = [];
 
@@ -32,6 +34,8 @@ $this->registerJs("
     window.agGridDataUrl = '" . Url::to(['tasks/get-grid-data']) . "';
     window.tasksBulkDeleteUrl = '" . Url::to(['tasks/bulk-delete']) . "';
     window.tasksMinSelectedForDelete = 1;
+    window.agGridTasksViewModalUrlTemplate = " . json_encode(Url::to(['view-modal', 'id' => '__ID__'])) . ";
+    window.agGridTasksUpdateModalUrlTemplate = " . json_encode(Url::to(['update-modal', 'id' => '__ID__'])) . ";
 ", \yii\web\View::POS_HEAD);
 ?>
 
@@ -69,7 +73,7 @@ $this->registerJs("
         </div>
 
         <div class="tasks-command-bar__tools">
-            <?php if ($isRegularUser || $isAdmin): ?>
+            <?php if ($canCreateTask): ?>
                 <?= Html::button('<i class="fas fa-plus" aria-hidden="true"></i><span>Создать заявку</span>', [
                     'class' => 'btn btn-primary tasks-tool-btn',
                     'onclick' => 'openCreateTaskModal()',
@@ -104,7 +108,9 @@ $this->registerJs("
     </div>
 
     <div class="tasks-grid-card">
-        <div id="agGridTasksContainer" class="ag-theme-quartz">
+        <div id="agGridTasksContainer" class="ag-theme-quartz"
+             data-view-modal-url-template="<?= Html::encode(Url::to(['view-modal', 'id' => '__ID__'])) ?>"
+             data-update-modal-url-template="<?= Html::encode(Url::to(['update-modal', 'id' => '__ID__'])) ?>">
             <div class="text-center tasks-grid-loading">
                 <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
                 <p>Загрузка таблицы заявок…</p>
@@ -113,8 +119,28 @@ $this->registerJs("
     </div>
 </div>
 
+<div class="modal fade tasks-modal tasks-edit-modal" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable tasks-edit-modal__dialog">
+        <div class="modal-content">
+            <div class="modal-header tasks-create-modal__header">
+                <div class="tasks-create-modal__header-text">
+                    <h5 class="modal-title" id="editTaskModalLabel">Редактирование заявки</h5>
+                    <p class="tasks-create-modal__lead mb-0">Измените описание, контакты или добавьте вложения</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body tasks-create-modal__body" id="editTaskModalBody">
+                <div class="tasks-create-modal__loading">
+                    <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+                    <p>Загрузка формы…</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade tasks-modal tasks-create-modal" id="createTaskModal" tabindex="-1" aria-labelledby="createTaskModalLabel">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable tasks-create-modal__dialog">
         <div class="modal-content">
             <div class="modal-header tasks-create-modal__header">
                 <div class="tasks-create-modal__header-text">
@@ -131,6 +157,10 @@ $this->registerJs("
         </div>
     </div>
 </div>
+
+<?= $this->render('_view_modal') ?>
+
+<?= $this->render('_view_image_modal') ?>
 
 <div class="modal fade tasks-modal preview-modal" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel">
     <div class="modal-dialog modal-lg modal-dialog-centered">

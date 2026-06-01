@@ -41,7 +41,19 @@
         if (!value) {
             return '';
         }
-        return '<a href="mailto:' + value + '">' + value + '</a>';
+        return '<a href="mailto:' + escapeHtml(value) + '">' + escapeHtml(value) + '</a>';
+    }
+
+    function phoneRenderer(params) {
+        var value = params.value;
+        if (!value) {
+            return '<span class="users-grid-empty">—</span>';
+        }
+        var tel = String(value).replace(/[^\d+]/g, '');
+        if (tel === '') {
+            return escapeHtml(value);
+        }
+        return '<a href="tel:' + escapeHtml(tel) + '">' + escapeHtml(value) + '</a>';
     }
 
     function actionsRenderer(params) {
@@ -79,6 +91,13 @@
                 minWidth: 140,
                 filter: 'agTextColumnFilter',
                 cellRenderer: emailRenderer,
+            },
+            {
+                headerName: 'Номер телефона',
+                field: 'phone',
+                minWidth: 120,
+                filter: 'agTextColumnFilter',
+                cellRenderer: phoneRenderer,
             },
             {
                 headerName: 'Роль',

@@ -17,9 +17,11 @@ $this->registerMetaTag(['name' => 'keywords', 'content' => $this->params['meta_k
 $this->registerLinkTag(['rel' => 'icon', 'type' => 'image/x-icon', 'href' => Yii::getAlias('@web/favicon.ico')]);
 
 $displayName = null;
+$displayNameFull = null;
 if (!Yii::$app->user->isGuest && Yii::$app->user->identity) {
     $u = Yii::$app->user->identity;
-    $displayName = $u->full_name ?: $u->email ?: ('user#' . $u->id);
+    $displayName = $u->getSidebarDisplayName();
+    $displayNameFull = trim((string) $u->full_name) !== '' ? $u->full_name : null;
 }
 
 $sidebarExpanded = !isset($_COOKIE['sidebarExpanded']) || $_COOKIE['sidebarExpanded'] === '1';
@@ -39,6 +41,7 @@ $mainClass = 'main-content d-flex flex-column';
 <?= $this->render('_sidebar', [
     'sidebarExpanded' => $sidebarExpanded,
     'displayName' => $displayName,
+    'displayNameFull' => $displayNameFull,
 ]) ?>
 
 <main class="<?= $mainClass ?>">

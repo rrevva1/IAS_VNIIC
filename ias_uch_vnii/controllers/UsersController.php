@@ -239,6 +239,7 @@ class UsersController extends Controller
                     'id' => $model->id,
                     'full_name' => $model->full_name,
                     'email' => $model->email,
+                    'phone' => $model->phone,
                     'role_name' => $roleNames ? implode(', ', $roleNames) : null,
                     'role_code' => $roleCode,
                 ];

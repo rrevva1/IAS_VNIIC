@@ -1497,6 +1497,28 @@ body.app-body:has(.arm-page) {
     color: var(--arm-modal-text-muted);
 }
 
+.arm-warehouse-kit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.arm-warehouse-kit-host {
+    padding: 0.65rem 0.75rem;
+    border-radius: 8px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+}
+
+.arm-warehouse-kit-check {
+    margin: 0;
+    padding: 0.25rem 0;
+}
+
+.arm-warehouse-kit-check--child {
+    margin-left: 1.35rem;
+}
+
 .arm-reassign-panel__note {
     margin: -0.25rem 0 0.65rem;
     font-size: var(--arm-modal-font-sm);

@@ -106,13 +106,28 @@
         return true;
     }
 
-    function setCardExecutor(card, executorName) {
+    function normalizeExecutorNames(executorNames) {
+        if (Array.isArray(executorNames)) {
+            return executorNames.map(function(name) {
+                return String(name || '').trim();
+            }).filter(Boolean);
+        }
+        if (!executorNames) {
+            return [];
+        }
+        return String(executorNames).split(',').map(function(name) {
+            return name.trim();
+        }).filter(Boolean);
+    }
+
+    function setCardExecutors(card, executorNames) {
         var people = card.querySelector('.work-task-card__people');
         if (!people) {
             return;
         }
+        var names = normalizeExecutorNames(executorNames);
         var row = card.querySelector('.work-task-card__person--executor');
-        if (!executorName) {
+        if (names.length === 0) {
             if (row) {
                 row.remove();
             }
@@ -120,15 +135,36 @@
         }
         if (!row) {
             row = document.createElement('div');
-            row.className = 'work-task-card__person work-task-card__person--executor';
-            row.innerHTML = '<span class="work-task-card__person-label">Исполнитель</span>'
-                + '<span class="work-task-card__person-name work-task-card__executor-name"></span>';
             people.appendChild(row);
         }
-        var nameEl = row.querySelector('.work-task-card__executor-name');
-        if (nameEl) {
-            nameEl.textContent = executorName;
+        row.className = 'work-task-card__person work-task-card__person--executor'
+            + (names.length > 1 ? ' work-task-card__person--executors-multi' : '');
+        while (row.firstChild) {
+            row.removeChild(row.firstChild);
         }
+
+        var label = document.createElement('span');
+        label.className = 'work-task-card__person-label';
+        label.textContent = names.length > 1 ? 'Исполнители' : 'Исполнитель';
+        row.appendChild(label);
+
+        if (names.length === 1) {
+            var single = document.createElement('span');
+            single.className = 'work-task-card__person-name work-task-card__executor-name';
+            single.textContent = names[0];
+            row.appendChild(single);
+            return;
+        }
+
+        var list = document.createElement('ul');
+        list.className = 'work-task-card__executor-names list-unstyled mb-0';
+        names.forEach(function(name) {
+            var item = document.createElement('li');
+            item.className = 'work-task-card__person-name work-task-card__executor-name';
+            item.textContent = name;
+            list.appendChild(item);
+        });
+        row.appendChild(list);
     }
 
     function updateCardTimeInStatus(card, res) {
@@ -176,6 +212,38 @@
         }
     }
 
+    var PENDING_REVIEW_STATUS = 'pending_review';
+
+    function countPendingReviewOnBoard() {
+        var column = board.querySelector(
+            '.work-kanban__column[data-status-code="' + PENDING_REVIEW_STATUS + '"]'
+        );
+        if (!column) {
+            return 0;
+        }
+        var zone = column.querySelector('[data-drop-zone]');
+        if (!zone) {
+            return 0;
+        }
+        return zone.querySelectorAll('.work-task-card--kanban').length;
+    }
+
+    function updateBulkConfirmButton() {
+        var btn = document.querySelector('[data-work-tasks-bulk-confirm]');
+        if (!btn) {
+            return;
+        }
+        var count = countPendingReviewOnBoard();
+        btn.setAttribute('data-count', String(count));
+        btn.disabled = count <= 0;
+        var label = btn.querySelector('.arm-btn-label');
+        if (label) {
+            label.textContent = count > 0
+                ? 'Подтвердить все (' + count + ')'
+                : 'Подтвердить все';
+        }
+    }
+
     function updateColumnCounts() {
         board.querySelectorAll('.work-kanban__column').forEach(function(col) {
             var zone = col.querySelector('[data-drop-zone]');
@@ -184,6 +252,7 @@
                 countEl.textContent = String(zone.querySelectorAll('.work-task-card--kanban').length);
             }
         });
+        updateBulkConfirmButton();
     }
 
     function highlightDropTargets(allowed) {
@@ -370,6 +439,8 @@
         updateColumnCounts();
     };
 
+    window.workTasksBoardUpdateBulkConfirm = updateBulkConfirmButton;
+
     window.workTasksBoardUpdateCard = function(taskId, res) {
         var card = board.querySelector('.work-task-card--kanban[data-task-id="' + taskId + '"]');
         if (!card || !res) {
@@ -396,8 +467,10 @@
         updateCardTimeInStatus(card, res);
         updateColumnCounts();
 
-        if (res.executor_name !== undefined) {
-            setCardExecutor(card, res.executor_name);
+        if (res.executor_names !== undefined) {
+            setCardExecutors(card, res.executor_names);
+        } else if (res.executor_name !== undefined) {
+            setCardExecutors(card, res.executor_name);
         }
 
         var targetColumn = getColumnZone(newCode);

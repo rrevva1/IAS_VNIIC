@@ -7,6 +7,9 @@
  * @var array $chars Характеристики из part_char_values
  * @var app\models\entities\EquipHistory[] $history
  * @var bool $isModal
+ * @var bool $isHost
+ * @var array{monitor?: array, disk?: array, ups?: array} $linkedComponents
+ * @var list<array{type_label: string, icon_class: string, id: ?int, label: string, inventory_number: string}> $linkedComponentRows
  */
 
 use app\components\EquipmentCharCatalog;
@@ -109,9 +112,14 @@ $charLabels = array_merge([
     'ups_battery' => 'Модель аккумулятора',
 ], EquipmentCharCatalog::getPrinterMfuCharDisplayLabels());
 $isMonitorEquipment = str_contains(mb_strtolower(trim($equipmentTypeName)), 'монитор');
+$isHost = !empty($isHost);
+$linkedComponentRows = $linkedComponentRows ?? [];
 $visibleChars = [];
 foreach ($charLabels as $key => $label) {
     if ($key === 'monitor_inv' && $isMonitorEquipment) {
+        continue;
+    }
+    if ($isHost && in_array($key, ['monitor', 'monitor_inv'], true)) {
         continue;
     }
     if (!empty($chars[$key])) {
@@ -267,6 +275,40 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
         </section>
     </div>
 
+    <?php if (!empty($linkedComponentRows)): ?>
+    <section class="arm-view-section" aria-labelledby="arm-view-linked-title">
+        <h2 id="arm-view-linked-title" class="arm-view-section__title">Привязанная техника</h2>
+        <ul class="arm-view-linked-list">
+            <?php foreach ($linkedComponentRows as $linkedRow): ?>
+            <li class="arm-view-linked-list__item">
+                <span class="arm-view-linked-list__type" title="<?= Html::encode($linkedRow['type_label']) ?>">
+                    <i class="fas <?= Html::encode($linkedRow['icon_class']) ?>" aria-hidden="true"></i>
+                    <span class="arm-view-linked-list__type-text"><?= Html::encode($linkedRow['type_label']) ?></span>
+                </span>
+                <div class="arm-view-linked-list__body">
+                    <?php if (!empty($linkedRow['id'])): ?>
+                        <?= Html::button(Html::encode($linkedRow['label']), [
+                            'class' => 'btn btn-link p-0 arm-view-linked-list__link',
+                            'type' => 'button',
+                            'data-arm-view' => (int) $linkedRow['id'],
+                            'title' => 'Открыть карточку: ' . $linkedRow['label'],
+                        ]) ?>
+                    <?php else: ?>
+                        <span class="arm-view-linked-list__label"><?= Html::encode($linkedRow['label']) ?></span>
+                    <?php endif; ?>
+                    <?php
+                    $linkedInv = trim((string) ($linkedRow['inventory_number'] ?? ''));
+                    if ($linkedInv !== '' && $linkedInv !== trim((string) $linkedRow['label'])):
+                    ?>
+                        <span class="arm-view-linked-list__inv text-muted">Инв. № <?= Html::encode($linkedInv) ?></span>
+                    <?php endif; ?>
+                </div>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+    </section>
+    <?php endif; ?>
+
     <?php if (!empty($visibleChars)): ?>
     <section class="arm-view-section" aria-labelledby="arm-view-config-title">
         <h2 id="arm-view-config-title" class="arm-view-section__title">Конфигурация</h2>
@@ -311,7 +353,11 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
                     <?php endif; ?>
                     <div class="text-muted small"><?= Html::encode($formatDate($t->created_at)) ?></div>
                 </div>
-                <?= Html::a('Открыть', ['/tasks/view', 'id' => $t->id], ['class' => 'btn btn-sm arm-view-btn arm-view-btn--link']) ?>
+                <?= Html::a('Открыть', ['/tasks/index', 'task' => $t->id], [
+                    'class' => 'btn btn-sm arm-view-btn arm-view-btn--link',
+                    'target' => '_blank',
+                    'rel' => 'noopener',
+                ]) ?>
             </li>
             <?php endforeach; ?>
         </ul>

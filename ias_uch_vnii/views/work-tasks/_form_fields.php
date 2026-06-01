@@ -45,12 +45,13 @@ $fieldOpts = [
                 </label>
                 <?= $form->field($model, 'executor_id', [
                     'options' => ['class' => 'work-task-form-create__field mb-0'],
-                    'inputOptions' => ['class' => 'form-select'],
+                    'inputOptions' => ['class' => 'form-select js-user-select-search'],
                 ])->dropDownList($executors, [
-                    'prompt' => 'Выбрать позже',
+                    'prompt' => 'Назначить позже в карточке',
                     'id' => 'worktask-executor_id',
+                    'data-placeholder' => 'Назначить позже в карточке',
                 ])->label(false) ?>
-                <p class="work-task-form-create__hint">Можно назначить исполнителя сейчас или позже на доске.</p>
+                <p class="work-task-form-create__hint">Дополнительных исполнителей можно добавить кнопкой «Добавить исполнителя» в карточке задачи.</p>
             </div>
         </section>
 

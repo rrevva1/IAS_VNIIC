@@ -6,6 +6,11 @@ use yii\widgets\ActiveForm;
 /* @var $this yii\web\View */
 /* @var $model app\models\entities\Tasks */
 /* @var $form yii\widgets\ActiveForm */
+/* @var bool $isUpdate */
+/* @var bool $canEditExecutorComment */
+
+$isUpdate = !empty($isUpdate);
+$canEditExecutorComment = !empty($canEditExecutorComment);
 ?>
 
 <div class="tasks-create-form-wrap">
@@ -69,14 +74,35 @@ use yii\widgets\ActiveForm;
         'inputId' => 'file-input-tasks',
     ]) ?>
 
+    <?php if ($isUpdate && $canEditExecutorComment): ?>
+    <div class="tasks-create-form__section">
+        <label class="tasks-create-form__label" for="tasks-comment">
+            <i class="fas fa-comment-dots" aria-hidden="true"></i>
+            Комментарий исполнителя <span class="tasks-create-form__optional">(необязательно)</span>
+        </label>
+        <?= $form->field($model, 'comment', ['options' => ['class' => 'mb-0']])->textarea([
+            'rows' => 4,
+            'id' => 'tasks-comment',
+            'class' => 'form-control tasks-create-form__textarea',
+            'placeholder' => 'Результат работ, что сделано, рекомендации для автора заявки…',
+        ])->label(false) ?>
+        <p class="tasks-create-form__hint">Доступно сотрудникам технической поддержки. Виден автору заявки в карточке.</p>
+    </div>
+    <?php endif; ?>
+
     <div class="tasks-create-form__footer">
         <button type="button" class="btn btn-outline-secondary tasks-tool-btn btn-cancel" data-bs-dismiss="modal">
             Отмена
         </button>
-        <?= Html::submitButton('<i class="fas fa-paper-plane" aria-hidden="true"></i> Отправить заявку', [
-            'class' => 'btn btn-primary tasks-tool-btn',
-            'id' => 'submit-task-btn',
-        ]) ?>
+        <?= Html::submitButton(
+            $isUpdate
+                ? '<i class="fas fa-check" aria-hidden="true"></i> Сохранить'
+                : '<i class="fas fa-paper-plane" aria-hidden="true"></i> Отправить заявку',
+            [
+                'class' => 'btn btn-primary tasks-tool-btn',
+                'id' => 'submit-task-btn',
+            ]
+        ) ?>
     </div>
 
     <?php ActiveForm::end(); ?>

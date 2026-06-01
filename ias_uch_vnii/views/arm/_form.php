@@ -231,7 +231,9 @@ $formId = 'arm-equipment-form';
 
             <section id="arm-form-description-section" class="arm-form-section">
                 <h2 class="arm-form-section__title h6 text-uppercase text-muted">Примечание</h2>
-                <?= $form->field($model, 'description', ['options' => ['class' => 'mb-0']])->textarea([
+                <?= $form->field($model, 'description', ['options' => ['class' => 'mb-0']])
+                    ->label('Комментарий к технике')
+                    ->textarea([
                     'rows' => 4,
                     'placeholder' => $descriptionPlaceholder,
                 ]) ?>

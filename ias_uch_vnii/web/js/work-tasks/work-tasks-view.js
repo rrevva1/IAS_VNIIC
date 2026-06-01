@@ -133,6 +133,12 @@
                 if (commentList) {
                     commentList.scrollTop = commentList.scrollHeight;
                 }
+                if (window.IasUserSelect && typeof window.IasUserSelect.init === 'function') {
+                    window.IasUserSelect.init(bodyEl, { force: true });
+                }
+                if (typeof window.workTasksExecutorsInit === 'function') {
+                    window.workTasksExecutorsInit(bodyEl);
+                }
             })
             .catch(function(err) {
                 var msg = 'Не удалось загрузить задачу.';
@@ -212,6 +218,9 @@
         setTitle('Задача');
         setSubtitle('');
         setLoading();
+        if (window.IasUserSelect && typeof window.IasUserSelect.destroy === 'function') {
+            window.IasUserSelect.destroy(modalEl);
+        }
         var params = new URLSearchParams(window.location.search);
         if (params.has('task')) {
             params.delete('task');

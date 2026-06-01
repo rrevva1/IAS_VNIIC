@@ -5,6 +5,7 @@
  * @var yii\web\View $this
  * @var bool $sidebarExpanded
  * @var string|null $displayName
+ * @var string|null $displayNameFull полное ФИО для подсказки
  */
 
 use yii\helpers\Html;
@@ -93,7 +94,7 @@ $homeUrl = !$isGuest && Yii::$app->user->identity
             <i class="fas fa-user"></i>
         </div>
         <div class="sidebar-user__info">
-            <span class="sidebar-user__name"><?= Html::encode($displayName) ?></span>
+            <span class="sidebar-user__name"<?= !empty($displayNameFull) ? ' title="' . Html::encode($displayNameFull) . '"' : '' ?>><?= Html::encode($displayName) ?></span>
             <?= Html::a('Мой профиль', ['/users/view', 'id' => $userId], ['class' => 'sidebar-user__profile-link']) ?>
         </div>
     </div>
@@ -106,6 +107,9 @@ $homeUrl = !$isGuest && Yii::$app->user->identity
                 <?php if ($canAccessArm): ?>
                 <li class="sidebar-nav__item">
                     <?= $renderLink('fas fa-desktop', 'Учет ТС', ['/arm/index'], ['arm/index', 'arm/view', 'arm/update']) ?>
+                </li>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-warehouse', 'Склад', ['/warehouse/index'], ['warehouse/index']) ?>
                 </li>
                 <?php endif; ?>
                 <li class="sidebar-nav__item">

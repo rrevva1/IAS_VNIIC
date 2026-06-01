@@ -9,7 +9,9 @@ use app\models\entities\Tasks;
 use app\models\entities\Users;
 use app\models\entities\WorkTask;
 use app\models\entities\WorkTaskComment;
+use app\models\entities\WorkTaskExecutor;
 use app\models\entities\WorkTaskHistory;
+use app\models\search\WorkTaskSearch;
 use Yii;
 use yii\web\ForbiddenHttpException;
 
@@ -84,9 +86,14 @@ class WorkTaskService
             return null;
         }
 
+        if ($task->executor_id) {
+            WorkTaskExecutor::syncForTask((int) $task->id, [(int) $task->executor_id]);
+            $task->refresh();
+        }
+
         WorkTaskHistory::log($task->id, 'created_from_request', null, $task->status_id, 'Создана по заявке #' . $request->id);
 
-        if ($task->executor_id) {
+        if ($task->hasExecutor()) {
             $assignedId = DicWorkTaskStatus::resolveIdByCode(DicWorkTaskStatus::CODE_ASSIGNED);
             if ($assignedId !== null) {
                 $this->applyStatus($task, $assignedId, 'Назначен исполнитель из заявки');
@@ -110,12 +117,19 @@ class WorkTaskService
     }
 
     /**
-     * Ручное создание задачи руководителем.
+     * Ручное создание задачи сотрудником техподдержки или руководителем.
+     *
+     * @param int[] $executorIds
      */
-    public function createManual(string $title, string $description, ?int $executorId = null, ?int $requestTaskId = null): WorkTask
-    {
+    public function createManual(
+        string $title,
+        string $description,
+        array $executorIds = [],
+        ?int $requestTaskId = null
+    ): WorkTask {
         $this->assertSupportStaff();
-        $this->assertManager();
+
+        $executorIds = $this->normalizeExecutorIds($executorIds);
 
         $linkedRequest = null;
         if ($requestTaskId !== null) {
@@ -128,7 +142,7 @@ class WorkTaskService
             $linkedRequest = Tasks::findOne((int) $requestTaskId);
         }
 
-        $statusCode = $executorId ? DicWorkTaskStatus::CODE_ASSIGNED : DicWorkTaskStatus::CODE_QUEUE;
+        $statusCode = $executorIds !== [] ? DicWorkTaskStatus::CODE_ASSIGNED : DicWorkTaskStatus::CODE_QUEUE;
         $statusId = DicWorkTaskStatus::resolveIdByCode($statusCode);
         if ($statusId === null) {
             throw new \RuntimeException('Справочник статусов задач не настроен.');
@@ -141,7 +155,7 @@ class WorkTaskService
         $task->creator_id = $linkedRequest && (int) $linkedRequest->requester_id > 0
             ? (int) $linkedRequest->requester_id
             : (int) Yii::$app->user->id;
-        $task->executor_id = $executorId;
+        $task->executor_id = $executorIds[0] ?? null;
         $task->request_task_id = $requestTaskId;
         $task->priority = 'medium';
         $task->is_deleted = false;
@@ -151,6 +165,11 @@ class WorkTaskService
             $errors = $task->getFirstErrors();
             $detail = $errors !== [] ? implode(' ', $errors) : 'Проверьте заполнение полей.';
             throw new \RuntimeException('Не удалось сохранить задачу: ' . $detail);
+        }
+
+        if ($executorIds !== []) {
+            WorkTaskExecutor::syncForTask((int) $task->id, $executorIds);
+            $task->refresh();
         }
 
         WorkTaskHistory::log($task->id, 'created', null, $task->status_id);
@@ -178,6 +197,14 @@ class WorkTaskService
 
     public function assignExecutor(WorkTask $task, ?int $executorId): WorkTask
     {
+        return $this->assignExecutors($task, $executorId !== null ? [(int) $executorId] : []);
+    }
+
+    /**
+     * @param int[] $executorIds
+     */
+    public function assignExecutors(WorkTask $task, array $executorIds): WorkTask
+    {
         $this->assertSupportStaff();
         $this->assertManager();
 
@@ -185,29 +212,171 @@ class WorkTaskService
             throw new ForbiddenHttpException('Задача уже завершена.');
         }
 
-        if ($executorId !== null && !Users::findOne(['id' => $executorId])) {
-            throw new \InvalidArgumentException('Исполнитель не найден.');
-        }
+        $executorIds = $this->normalizeExecutorIds($executorIds);
+        $this->assertValidExecutors($executorIds);
 
         $oldStatus = (int) $task->status_id;
-        $task->executor_id = $executorId;
+        WorkTaskExecutor::syncForTask((int) $task->id, $executorIds);
+        $task->refresh();
 
-        $assignedId = DicWorkTaskStatus::resolveIdByCode(DicWorkTaskStatus::CODE_ASSIGNED);
-        if ($executorId && $assignedId !== null && $task->getStatusCode() === DicWorkTaskStatus::CODE_QUEUE) {
-            $task->status_id = $assignedId;
-            $assignedStatus = DicWorkTaskStatus::findOne($assignedId);
-            if ($assignedStatus !== null) {
-                $task->populateRelation('status', $assignedStatus);
-            }
-            $this->touchStatusChangedAt($task);
+        if ($executorIds !== []) {
+            $this->promoteToAssignedIfNeeded($task);
         }
 
         $task->save(false);
-        WorkTaskHistory::log($task->id, 'assign_executor', $oldStatus, (int) $task->status_id);
+        $historyNote = $executorIds === []
+            ? 'Исполнители сняты'
+            : 'Исполнители: ' . implode(', ', $this->resolveExecutorNames($executorIds));
+        WorkTaskHistory::log($task->id, 'assign_executor', $oldStatus, (int) $task->status_id, $historyNote);
 
         $this->syncLinkedRequestStatus($task);
 
         return $task;
+    }
+
+    public function addExecutor(WorkTask $task, int $executorId): WorkTask
+    {
+        $this->assertSupportStaff();
+        $this->assertManager();
+
+        if ($task->isFinal()) {
+            throw new ForbiddenHttpException('Задача уже завершена.');
+        }
+
+        $executorId = (int) $executorId;
+        if ($executorId <= 0) {
+            throw new \InvalidArgumentException('Выберите исполнителя.');
+        }
+        if ($task->isExecutorUser($executorId)) {
+            throw new \InvalidArgumentException('Этот сотрудник уже назначен исполнителем.');
+        }
+
+        $this->assertValidExecutors([$executorId]);
+
+        $oldStatus = (int) $task->status_id;
+        $executorIds = $task->getExecutorIds();
+        $executorIds[] = $executorId;
+        WorkTaskExecutor::syncForTask((int) $task->id, $executorIds);
+        $task->refresh();
+
+        $this->promoteToAssignedIfNeeded($task);
+        $task->save(false);
+
+        $addedName = $this->resolveExecutorNames([$executorId])[0] ?? '';
+        WorkTaskHistory::log(
+            $task->id,
+            'assign_executor',
+            $oldStatus,
+            (int) $task->status_id,
+            'Добавлен исполнитель: ' . $addedName
+        );
+
+        $this->syncLinkedRequestStatus($task);
+
+        return $task;
+    }
+
+    public function removeExecutor(WorkTask $task, int $executorId): WorkTask
+    {
+        $this->assertSupportStaff();
+        $this->assertManager();
+
+        if ($task->isFinal()) {
+            throw new ForbiddenHttpException('Задача уже завершена.');
+        }
+
+        $executorId = (int) $executorId;
+        if (!$task->isExecutorUser($executorId)) {
+            throw new \InvalidArgumentException('Исполнитель не назначен на эту задачу.');
+        }
+
+        $oldStatus = (int) $task->status_id;
+        $removedName = $this->resolveExecutorNames([$executorId])[0] ?? '';
+        $executorIds = array_values(array_filter(
+            $task->getExecutorIds(),
+            static fn(int $id): bool => $id !== $executorId
+        ));
+
+        WorkTaskExecutor::syncForTask((int) $task->id, $executorIds);
+        $task->refresh();
+
+        if ($executorIds === [] && $task->getStatusCode() === DicWorkTaskStatus::CODE_ASSIGNED) {
+            $queueId = DicWorkTaskStatus::resolveIdByCode(DicWorkTaskStatus::CODE_QUEUE);
+            if ($queueId !== null) {
+                $task->status_id = $queueId;
+                $this->touchStatusChangedAt($task);
+            }
+        }
+
+        $task->save(false);
+        WorkTaskHistory::log(
+            $task->id,
+            'assign_executor',
+            $oldStatus,
+            (int) $task->status_id,
+            'Снят исполнитель: ' . $removedName
+        );
+
+        $this->syncLinkedRequestStatus($task);
+
+        return $task;
+    }
+
+    private function promoteToAssignedIfNeeded(WorkTask $task): void
+    {
+        if (!$task->hasExecutor()) {
+            return;
+        }
+
+        $assignedId = DicWorkTaskStatus::resolveIdByCode(DicWorkTaskStatus::CODE_ASSIGNED);
+        if ($assignedId === null || $task->getStatusCode() !== DicWorkTaskStatus::CODE_QUEUE) {
+            return;
+        }
+
+        $task->status_id = $assignedId;
+        $assignedStatus = DicWorkTaskStatus::findOne($assignedId);
+        if ($assignedStatus !== null) {
+            $task->populateRelation('status', $assignedStatus);
+        }
+        $this->touchStatusChangedAt($task);
+    }
+
+    /**
+     * При «Взять в работу» из очереди назначает текущего сотрудника исполнителем.
+     * Для статуса «Назначена» исполнитель уже должен быть в списке — см. transition().
+     */
+    private function ensureExecutorForTakeInWork(WorkTask $task, Users $user): void
+    {
+        $userId = (int) $user->id;
+        if ($task->isExecutorUser($userId)) {
+            return;
+        }
+
+        if ($task->getStatusCode() !== DicWorkTaskStatus::CODE_QUEUE) {
+            throw new ForbiddenHttpException('Взять в работу может только назначенный исполнитель.');
+        }
+
+        if (!Users::canBeTaskExecutor($userId)) {
+            throw new ForbiddenHttpException('Взять задачу в работу могут только сотрудники технической поддержки.');
+        }
+
+        $oldStatusId = (int) $task->status_id;
+        $executorIds = $task->getExecutorIds();
+        $executorIds[] = $userId;
+        WorkTaskExecutor::syncForTask((int) $task->id, $executorIds);
+        $task->refresh();
+        $this->promoteToAssignedIfNeeded($task);
+
+        $name = trim((string) $user->full_name);
+        WorkTaskHistory::log(
+            $task->id,
+            'assign_executor',
+            $oldStatusId,
+            (int) $task->status_id,
+            'Взята в работу: ' . ($name !== '' ? $name : 'сотрудник #' . $userId)
+        );
+
+        $this->syncLinkedRequestStatus($task);
     }
 
     /**
@@ -229,12 +398,22 @@ class WorkTaskService
             throw new ForbiddenHttpException('Недоступный переход статуса.');
         }
 
-        if ($targetCode === DicWorkTaskStatus::CODE_ASSIGNED && !$task->executor_id) {
+        if ($targetCode === DicWorkTaskStatus::CODE_ASSIGNED && !$task->hasExecutor()) {
             throw new \InvalidArgumentException('Сначала назначьте исполнителя.');
         }
 
+        if ($targetCode === DicWorkTaskStatus::CODE_IN_PROGRESS) {
+            if ($current === DicWorkTaskStatus::CODE_ASSIGNED && !$task->isExecutorUser((int) $user->id)) {
+                throw new ForbiddenHttpException('Взять в работу может только назначенный исполнитель.');
+            }
+            if ($user->isSupportStaff()) {
+                $this->ensureExecutorForTakeInWork($task, $user);
+                $task->refresh();
+            }
+        }
+
         if (in_array($targetCode, [DicWorkTaskStatus::CODE_IN_PROGRESS, DicWorkTaskStatus::CODE_PENDING_REVIEW], true)
-            && (int) $task->executor_id !== (int) $user->id
+            && !$task->isExecutorUser((int) $user->id)
             && !$user->isAdministrator()
         ) {
             throw new ForbiddenHttpException('Действие доступно назначенному исполнителю.');
@@ -265,6 +444,46 @@ class WorkTaskService
         $this->syncLinkedRequestStatus($task);
 
         return $task;
+    }
+
+    /**
+     * Массовое подтверждение задач в статусе «Выполнена» (только руководитель).
+     *
+     * @return array{confirmed: int, failed: int, errors: string[]}
+     */
+    public function confirmAllPendingReview(WorkTaskSearch $search, array $params): array
+    {
+        $this->assertManager();
+
+        $tasks = $search->createPendingReviewQuery($params)->all();
+        $confirmed = 0;
+        $failed = 0;
+        $errors = [];
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            foreach ($tasks as $task) {
+                try {
+                    $this->transition($task, DicWorkTaskStatus::CODE_DONE, 'Массовое подтверждение руководителем');
+                    ++$confirmed;
+                } catch (\Throwable $e) {
+                    ++$failed;
+                    if (count($errors) < 5) {
+                        $errors[] = 'Задача #' . (int) $task->id . ': ' . $e->getMessage();
+                    }
+                }
+            }
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            throw $e;
+        }
+
+        return [
+            'confirmed' => $confirmed,
+            'failed' => $failed,
+            'errors' => $errors,
+        ];
     }
 
     /**
@@ -333,12 +552,16 @@ class WorkTaskService
             return;
         }
 
-        if ((int) $workTask->executor_id === (int) $request->executor_id) {
+        $requestExecutorId = (int) $request->executor_id;
+        if ($workTask->isExecutorUser($requestExecutorId)) {
             return;
         }
 
         $oldStatusId = (int) $workTask->status_id;
-        $workTask->executor_id = (int) $request->executor_id;
+        $executorIds = $workTask->getExecutorIds();
+        $executorIds[] = $requestExecutorId;
+        WorkTaskExecutor::syncForTask((int) $workTask->id, $executorIds);
+        $workTask->refresh();
 
         $assignedId = DicWorkTaskStatus::resolveIdByCode(DicWorkTaskStatus::CODE_ASSIGNED);
         if ($assignedId !== null && $workTask->getStatusCode() === DicWorkTaskStatus::CODE_QUEUE) {
@@ -365,11 +588,12 @@ class WorkTaskService
      */
     private function syncLinkedRequestExecutor(Tasks $request, WorkTask $workTask): bool
     {
-        if (!$workTask->executor_id) {
+        $executorIds = $workTask->getExecutorIds();
+        if ($executorIds === []) {
             return false;
         }
 
-        $newId = (int) $workTask->executor_id;
+        $newId = (int) $executorIds[0];
         $oldId = $request->executor_id ? (int) $request->executor_id : null;
         if ($oldId === $newId) {
             return false;
@@ -468,20 +692,30 @@ class WorkTaskService
         }
 
         $isManager = $user->isAdministrator();
-        $isExecutor = (int) $task->executor_id === (int) $user->id;
+        $isExecutor = $task->isExecutorUser((int) $user->id);
 
         switch ($code) {
             case DicWorkTaskStatus::CODE_QUEUE:
-                return $isManager ? [DicWorkTaskStatus::CODE_ASSIGNED, DicWorkTaskStatus::CODE_CANCELLED] : [];
+                $out = [];
+                if ($user->isSupportStaff()) {
+                    $out[] = DicWorkTaskStatus::CODE_IN_PROGRESS;
+                }
+                if ($isManager) {
+                    $out[] = DicWorkTaskStatus::CODE_ASSIGNED;
+                    $out[] = DicWorkTaskStatus::CODE_CANCELLED;
+                }
+
+                return $out;
 
             case DicWorkTaskStatus::CODE_ASSIGNED:
                 $out = [];
+                if ($isExecutor) {
+                    $out[] = DicWorkTaskStatus::CODE_IN_PROGRESS;
+                }
                 if ($isManager) {
                     $out[] = DicWorkTaskStatus::CODE_CANCELLED;
                 }
-                if ($isExecutor || $isManager) {
-                    $out[] = DicWorkTaskStatus::CODE_IN_PROGRESS;
-                }
+
                 return $out;
 
             case DicWorkTaskStatus::CODE_IN_PROGRESS:
@@ -531,17 +765,70 @@ class WorkTaskService
     public function canAccess(WorkTask $task, ?Users $user = null): bool
     {
         $user = $user ?? Yii::$app->user->identity;
-        if (!$user || !$user->isSupportStaff()) {
-            return false;
-        }
-        if ($user->isAdministrator()) {
-            return true;
-        }
-        if ($user->isOperator() && (int) $task->executor_id === (int) $user->id) {
-            return true;
+
+        return $user !== null && $user->isSupportStaff();
+    }
+
+    /**
+     * @param int[] $executorIds
+     * @return int[]
+     */
+    public function normalizeExecutorIds(array $executorIds): array
+    {
+        $normalized = [];
+        foreach ($executorIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $normalized[$id] = $id;
+            }
         }
 
-        return false;
+        return array_values($normalized);
+    }
+
+    /**
+     * @param int[] $executorIds
+     */
+    private function assertValidExecutors(array $executorIds): void
+    {
+        foreach ($executorIds as $executorId) {
+            if (!Users::findOne(['id' => $executorId])) {
+                throw new \InvalidArgumentException('Исполнитель не найден.');
+            }
+            if (!Users::canBeTaskExecutor($executorId)) {
+                throw new \InvalidArgumentException('Исполнителем может быть только сотрудник технической поддержки.');
+            }
+        }
+    }
+
+    /**
+     * @param int[] $executorIds
+     * @return string[]
+     */
+    private function resolveExecutorNames(array $executorIds): array
+    {
+        if ($executorIds === []) {
+            return [];
+        }
+
+        $rows = Users::find()
+            ->select(['id', 'full_name'])
+            ->where(['id' => $executorIds])
+            ->indexBy('id')
+            ->all();
+
+        $names = [];
+        foreach ($executorIds as $id) {
+            if (!isset($rows[$id])) {
+                continue;
+            }
+            $name = trim((string) $rows[$id]->full_name);
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
     }
 
     public function canComment(WorkTask $task, ?Users $user = null): bool

@@ -729,6 +729,67 @@ class EquipmentCharCatalog
     }
 
     /**
+     * Строки блока «Привязанная техника» на карточке хоста (ПК, системный блок и т.п.).
+     *
+     * @param array{monitor?: array<int, array<string, mixed>>, disk?: array<int, array<string, mixed>>, ups?: array<int, array<string, mixed>>} $linked
+     * @param array<string, string> $chars
+     * @return list<array{type_label: string, icon_class: string, id: ?int, label: string, inventory_number: string}>
+     */
+    public static function buildHostLinkedComponentsViewRows(array $linked, array $chars = []): array
+    {
+        $rows = [];
+        $order = [
+            'monitor' => 'Монитор',
+            'ups' => 'ИБП',
+            'disk' => 'Накопитель',
+        ];
+
+        foreach ($order as $key => $typeLabel) {
+            foreach ($linked[$key] ?? [] as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $label = self::formatLinkedEquipmentLabel($item);
+                if ($label === '') {
+                    continue;
+                }
+                $rows[] = [
+                    'type_label' => $typeLabel,
+                    'icon_class' => self::getLinkedComponentTypeIconClass($typeLabel),
+                    'id' => isset($item['id']) ? (int) $item['id'] : null,
+                    'label' => $label,
+                    'inventory_number' => trim((string) ($item['inventory_number'] ?? '')),
+                ];
+            }
+        }
+
+        $hasMonitorLink = !empty($linked['monitor']);
+        $legacyMonitor = trim((string) ($chars['monitor'] ?? ''));
+        if (!$hasMonitorLink && $legacyMonitor !== '') {
+            $legacyInv = trim((string) ($chars['monitor_inv'] ?? ''));
+            $rows[] = [
+                'type_label' => 'Монитор',
+                'icon_class' => self::getLinkedComponentTypeIconClass('Монитор'),
+                'id' => null,
+                'label' => $legacyMonitor,
+                'inventory_number' => $legacyInv,
+            ];
+        }
+
+        return $rows;
+    }
+
+    public static function getLinkedComponentTypeIconClass(string $typeLabel): string
+    {
+        return match ($typeLabel) {
+            'Монитор' => 'fa-tv',
+            'ИБП' => 'fa-battery-full',
+            'Накопитель' => 'fa-hard-drive',
+            default => 'fa-link',
+        };
+    }
+
+    /**
      * Класс иконки Font Awesome Solid по типу техники (для карточек и списков).
      * Используются только иконки из free-набора FA 6.0.
      */

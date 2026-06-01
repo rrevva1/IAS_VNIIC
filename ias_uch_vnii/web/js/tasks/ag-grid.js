@@ -251,7 +251,6 @@ function initializeAgGrid() {
             cleanupExecutorSelect2InGrid();
         },
         onModelUpdated: cleanupExecutorSelect2InGrid,
-        onCellValueChanged: onCellValueChanged,
         // Добавляем обработчик изменения размера страницы для автоматической подстройки высоты
         onPaginationChanged: onPaginationChanged,
         onDisplayedColumnsChanged: function() {
@@ -397,12 +396,8 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;');
 }
 
-function getTaskViewUrl(id) {
-    return '/index.php?r=tasks/view&id=' + encodeURIComponent(id);
-}
-
 function renderTaskIdLink(id) {
-    return '<a class="tasks-grid-link" href="' + getTaskViewUrl(id) + '">#' + id + '</a>';
+    return '<a href="#" class="tasks-grid-link" data-task-view="' + encodeURIComponent(id) + '">#' + id + '</a>';
 }
 
 function renderTaskDescriptionLink(id, text) {
@@ -410,8 +405,26 @@ function renderTaskDescriptionLink(id, text) {
     if (!id) {
         return escapeHtml(value);
     }
-    return '<a class="tasks-grid-link tasks-grid-link--description" href="' + getTaskViewUrl(id) + '"'
+    return '<a href="#" class="tasks-grid-link tasks-grid-link--description" data-task-view="' + encodeURIComponent(id) + '"'
         + ' title="Открыть заявку">' + escapeHtml(value) + '</a>';
+}
+
+function getTaskExecutorNames(data) {
+    if (!data) {
+        return [];
+    }
+    if (Array.isArray(data.executor_names) && data.executor_names.length) {
+        return data.executor_names.map(function(name) {
+            return name == null ? '' : String(name).trim();
+        }).filter(Boolean);
+    }
+    const legacy = data.executor_name == null ? '' : String(data.executor_name).trim();
+    if (!legacy) {
+        return [];
+    }
+    return legacy.split(',').map(function(name) {
+        return name.trim();
+    }).filter(Boolean);
 }
 
 /** Ячейка «Исполнитель»: выбор только руководителем, пока исполнитель не назначен. */
@@ -421,17 +434,26 @@ function renderExecutorCell(params) {
     }
 
     const executorId = params.data.executor_id;
-    const executorName = params.data.executor_name || '';
+    const executorNames = getTaskExecutorNames(params.data);
     const canAssign = (window.canAssignTaskExecutor === true || window.canAssignTaskExecutor === 'true')
         && !executorId;
 
     if (!canAssign) {
-        if (executorName) {
-            return '<span class="tasks-executor-readonly" title="Изменение — в разделе «Задачи»">'
-                + escapeHtml(executorName) + '</span>';
+        if (executorNames.length === 0) {
+            return '<span class="tasks-grid-empty">Не назначен</span>';
         }
-
-        return '<span class="tasks-grid-empty">Не назначен</span>';
+        if (executorNames.length === 1) {
+            return '<span class="tasks-executor-readonly tasks-executor-readonly--single"'
+                + ' title="Изменение — в разделе «Задачи»">'
+                + escapeHtml(executorNames[0]) + '</span>';
+        }
+        let listHtml = '<ul class="tasks-executor-list list-unstyled mb-0"'
+            + ' title="Изменение — в разделе «Задачи»">';
+        executorNames.forEach(function(name) {
+            listHtml += '<li class="tasks-executor-readonly">' + escapeHtml(name) + '</li>';
+        });
+        listHtml += '</ul>';
+        return listHtml;
     }
 
     return '<div class="tasks-executor-select-wrap">'
@@ -527,6 +549,14 @@ function getTasksRowDisplayLines(params) {
         if (!colId || colId === 'ag-Grid-SelectionColumn') return;
         const colDef = typeof col.getColDef === 'function' ? (col.getColDef() || {}) : {};
         if (colDef.field === 'executor_name') {
+            const executorNames = getTaskExecutorNames(params.data);
+            if (executorNames.length > 1) {
+                maxLines = Math.max(maxLines, Math.min(8, executorNames.length));
+            } else {
+                const text = executorNames.length === 1 ? executorNames[0] : getTasksCellText(params.data, colId, colDef);
+                const width = typeof col.getActualWidth === 'function' ? col.getActualWidth() : 120;
+                maxLines = Math.max(maxLines, estimateTasksCellLines(text, width));
+            }
             return;
         }
         const text = getTasksCellText(params.data, colId, colDef);
@@ -554,7 +584,7 @@ function getColumnDefinitions() {
 
     if (isAdmin) {
         columns.push({
-            headerName: 'ID',
+            headerName: '№ заявки',
             field: 'id',
             minWidth: 64,
             maxWidth: 96,
@@ -619,20 +649,31 @@ function getColumnDefinitions() {
             minWidth: 200,
             maxWidth: 420,
             filter: 'agTextColumnFilter',
-            wrapText: false,
+            wrapText: true,
+            autoHeight: false,
             cellRenderer: renderExecutorCell,
             cellClass: 'tasks-executor-cell',
+            cellClassRules: {
+                'tasks-executor-cell--multi': function(params) {
+                    return getTaskExecutorNames(params.data).length > 1;
+                },
+            },
         });
     } else {
         columns.push({
             headerName: 'Исполнитель',
             field: 'executor_name',
-            minWidth: 100,
-            maxWidth: 220,
+            minWidth: 140,
+            maxWidth: 280,
             filter: 'agTextColumnFilter',
-            wrapText: false,
+            wrapText: true,
             cellRenderer: renderExecutorCell,
             cellClass: 'tasks-executor-cell',
+            cellClassRules: {
+                'tasks-executor-cell--multi': function(params) {
+                    return getTaskExecutorNames(params.data).length > 1;
+                },
+            },
         });
     }
     
@@ -697,7 +738,7 @@ function getColumnDefinitions() {
                 const iconClass = attachment.icon;
                 if (attachment.is_previewable) {
                     html += `<a href="javascript:void(0);" 
-                        class="tasks-attachment-chip tasks-attachment-chip--preview" 
+                        class="tasks-attachment-chip tasks-attachment-chip--preview preview-link" 
                         title="${escapeHtml(attachment.name)}" 
                         data-ag-attachment-id="${attachment.id}"
                         data-ag-filename="${escapeHtml(attachment.name)}"
@@ -717,37 +758,31 @@ function getColumnDefinitions() {
         }
     });
     
-    // Комментарий
+    const commentColumn = {
+        headerName: 'Комментарий исполнителя',
+        field: 'comment',
+        filter: 'agTextColumnFilter',
+        editable: false,
+        cellRenderer: function(params) {
+            const text = params.value || '';
+            if (!text) {
+                return '<span class="tasks-grid-empty">—</span>';
+            }
+            return text.length > 50 ? escapeHtml(text.substring(0, 50) + '…') : escapeHtml(text);
+        },
+        tooltipField: 'comment',
+    };
     if (isAdmin) {
-        columns.push({
-            headerName: 'Комментарий',
-            field: 'comment',
+        columns.push(Object.assign({}, commentColumn, {
             flex: 1,
             minWidth: 140,
             maxWidth: 320,
-            filter: 'agTextColumnFilter',
-            editable: true,
-            cellEditor: 'agLargeTextCellEditor',
-            cellEditorPopup: true,
-            cellRenderer: function(params) {
-                const text = params.value || '';
-                return text.length > 50 ? text.substring(0, 50) + '...' : text;
-            },
-            tooltipField: 'comment',
-        });
+        }));
     } else {
-        columns.push({
-            headerName: 'Комментарий',
-            field: 'comment',
+        columns.push(Object.assign({}, commentColumn, {
             minWidth: 120,
             maxWidth: 280,
-            filter: 'agTextColumnFilter',
-            cellRenderer: function(params) {
-                const text = params.value || '';
-                return text.length > 50 ? text.substring(0, 50) + '...' : text;
-            },
-            tooltipField: 'comment',
-        });
+        }));
     }
     
     return columns;
@@ -915,7 +950,7 @@ function setupEventHandlers() {
     
     // Обработчик кликов по вложениям
     document.addEventListener('click', function(e) {
-        const previewLink = e.target.closest('.preview-link');
+        const previewLink = e.target.closest('.preview-link, .tasks-attachment-chip--preview');
         
         if (previewLink) {
             e.preventDefault();
@@ -985,42 +1020,6 @@ function assignExecutor(taskId, executorId) {
             console.error('Error:', error);
             loadGridData();
         });
-}
-
-/**
- * Обработчик изменения значения ячейки
- */
-function onCellValueChanged(params) {
-    if (params.colDef.field === 'comment') {
-        const taskId = params.data.id;
-        const comment = params.newValue;
-        updateComment(taskId, comment);
-    }
-}
-
-/**
- * Обновление комментария
- */
-function updateComment(taskId, comment) {
-    const formData = new FormData();
-    formData.append('comment', comment);
-    formData.append('_csrf', getCsrfToken());
-    
-    const url = `/index.php?r=tasks/update-comment&id=${taskId}`;
-    fetch(url, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (!data.success) {
-            loadGridData();
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        loadGridData();
-    });
 }
 
 /**
@@ -1147,26 +1146,36 @@ function exportToCsv() {
 /**
  * Открывает модальное окно для создания новой заявки
  */
+let createTaskModalRequestId = 0;
+
 function openCreateTaskModal() {
     const modalElement = document.getElementById('createTaskModal');
     if (!modalElement) {
         return;
     }
-    
-    const modal = new bootstrap.Modal(modalElement);
+
+    const requestId = ++createTaskModalRequestId;
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
     modal.show();
     
     $.ajax({
         url: '/index.php?r=tasks/create-modal',
         type: 'GET',
         success: function(response) {
+            if (requestId !== createTaskModalRequestId) {
+                return;
+            }
             $('#createTaskModalBody').html(response);
+            const form = document.querySelector('#createTaskModalBody form#task-form');
             if (typeof window.tasksCreateFormInit === 'function') {
-                window.tasksCreateFormInit();
+                window.tasksCreateFormInit(form);
             }
             initTaskFormSubmit();
         },
         error: function(xhr, status, error) {
+            if (requestId !== createTaskModalRequestId) {
+                return;
+            }
             $('#createTaskModalBody').html(
                 '<div class="alert alert-danger">' +
                 '<i class="fas fa-circle-exclamation"></i> ' +
@@ -1185,7 +1194,11 @@ function initTaskFormSubmit() {
     
     $form.off('submit').on('submit', function(e) {
         e.preventDefault();
-        
+
+        if (typeof window.tasksFormPrepareSubmit === 'function') {
+            window.tasksFormPrepareSubmit(this);
+        }
+
         var formData = new FormData(this);
         
         var $submitBtn = $form.find('#submit-task-btn');
@@ -1197,6 +1210,7 @@ function initTaskFormSubmit() {
             url: '/index.php?r=tasks/create-modal',
             type: 'POST',
             data: formData,
+            dataType: 'json',
             processData: false,
             contentType: false,
             success: function(response) {
@@ -1269,6 +1283,7 @@ function showNotification(type, message) {
 const modalElement = document.getElementById('createTaskModal');
 if (modalElement) {
     modalElement.addEventListener('hidden.bs.modal', function () {
+        createTaskModalRequestId += 1;
         $('#createTaskModalBody').html(
             '<div class="tasks-create-modal__loading">' +
             '<i class="fas fa-spinner fa-spin" aria-hidden="true"></i>' +

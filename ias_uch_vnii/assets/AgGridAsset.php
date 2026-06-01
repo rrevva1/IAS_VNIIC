@@ -31,6 +31,7 @@ class AgGridAsset extends AssetBundle
         'js/tasks/page-ui.js',
         'js/tasks/form-modal.js',
         'js/tasks/ag-grid.js',
+        'js/tasks/tasks-edit-modal.js',
     ];
     
     public $depends = [

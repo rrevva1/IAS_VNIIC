@@ -46,6 +46,14 @@ class ArmSearch extends Model
     public $ag_sort_model;
     /** @var string|null Быстрый поиск по основным полям таблицы */
     public $quick_search;
+    /**
+     * Ограничение по типу помещения:
+     * exclude_warehouse — учёт ТС (без складов);
+     * warehouse_only — только складские помещения.
+     *
+     * @var string|null
+     */
+    public $location_scope;
 
     /** @var string|null кэш имени FK equipment в part_char_values: equipment_id | id_arm | пусто */
     private static ?string $partCharEquipmentFkColumn = null;
@@ -55,7 +63,8 @@ class ArmSearch extends Model
         return [
             [['id', 'responsible_user_id', 'location_id', 'status_id'], 'integer'],
             [['is_archived'], 'boolean'],
-            [['name', 'description', 'inventory_number', 'equipment_type', 'status_group', 'ag_filter_model', 'ag_sort_model', 'quick_search'], 'safe'],
+            [['name', 'description', 'inventory_number', 'equipment_type', 'status_group', 'ag_filter_model', 'ag_sort_model', 'quick_search', 'location_scope'], 'safe'],
+            [['location_scope'], 'in', 'range' => ['', 'exclude_warehouse', 'warehouse_only']],
         ];
     }
 
@@ -101,12 +110,17 @@ class ArmSearch extends Model
             'equipment.is_deleted' => false,
         ]);
 
+        $this->applyLocationScopeFilter($query);
+
         $eqType = $this->equipment_type !== null ? trim((string) $this->equipment_type) : '';
         if ($eqType !== '') {
             $this->applyEquipmentTypeFilter($query, $eqType);
         } else {
             // Вкладка «Вся техника»: комплект показывается строкой ПК; дочерние монитор/ИБП — в колонках связей.
-            $this->excludeKitLinkedMonitorsAndUps($query);
+            // На складе единицы комплекта учитываются отдельно (связи снимаются при перемещении).
+            if (trim((string) $this->location_scope) !== 'warehouse_only') {
+                $this->excludeKitLinkedMonitorsAndUps($query);
+            }
         }
 
         $query->andFilterWhere(['ilike', 'equipment.name', $this->name])
@@ -244,6 +258,36 @@ class ArmSearch extends Model
             ['ilike', 'equipment.equipment_type', 'моноблок'],
             ['ilike', 'equipment.equipment_type', 'пк'],
         ]);
+    }
+
+    /**
+     * Фильтр по складским помещениям (locations.location_type = «склад»).
+     */
+    private function applyLocationScopeFilter($query): void
+    {
+        $scope = trim((string) $this->location_scope);
+        if ($scope === '') {
+            return;
+        }
+
+        $warehouseLocationIds = (new Query())
+            ->select('id')
+            ->from('locations')
+            ->where(['location_type' => 'склад']);
+
+        if ($scope === 'warehouse_only') {
+            $query->andWhere(['equipment.location_id' => $warehouseLocationIds]);
+
+            return;
+        }
+
+        if ($scope === 'exclude_warehouse') {
+            $query->andWhere([
+                'or',
+                ['equipment.location_id' => null],
+                ['not in', 'equipment.location_id', $warehouseLocationIds],
+            ]);
+        }
     }
 
     /**

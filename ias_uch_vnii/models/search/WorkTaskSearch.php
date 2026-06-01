@@ -4,10 +4,12 @@ namespace app\models\search;
 
 use app\models\dictionaries\DicWorkTaskStatus;
 use app\models\entities\WorkTask;
+use app\models\entities\WorkTaskExecutor;
 use Yii;
 use yii\base\Model;
 use yii\data\ActiveDataProvider;
 use yii\db\Expression;
+use yii\db\Query;
 
 class WorkTaskSearch extends Model
 {
@@ -89,12 +91,7 @@ class WorkTaskSearch extends Model
         $query = WorkTask::find()
             ->alias('wt')
             ->where(['wt.is_deleted' => false])
-            ->with(['status', 'executor', 'creator', 'requestTask.requester']);
-
-        $user = Yii::$app->user->identity;
-        if ($user && $user->isOperator() && !$user->isAdministrator()) {
-            $query->andWhere(['wt.executor_id' => (int) $user->id]);
-        }
+            ->with(['status', 'executor', 'executors', 'creator', 'requestTask.requester']);
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
@@ -114,7 +111,7 @@ class WorkTaskSearch extends Model
         $this->validate();
 
         if ($this->executor_id !== null) {
-            $query->andWhere(['wt.executor_id' => $this->executor_id]);
+            $this->applyExecutorFilter($query, (int) $this->executor_id);
         }
 
         $q = trim((string) $this->q);
@@ -141,12 +138,7 @@ class WorkTaskSearch extends Model
         $query = WorkTask::find()
             ->alias('wt')
             ->where(['wt.is_deleted' => false])
-            ->with(['status', 'executor', 'creator', 'requestTask.requester']);
-
-        $user = Yii::$app->user->identity;
-        if ($user && $user->isOperator() && !$user->isAdministrator()) {
-            $query->andWhere(['wt.executor_id' => (int) $user->id]);
-        }
+            ->with(['status', 'executor', 'executors', 'creator', 'requestTask.requester']);
 
         $this->applyRequestParams($params);
         if (!$this->validate()) {
@@ -154,7 +146,7 @@ class WorkTaskSearch extends Model
         }
 
         if ($this->executor_id !== null) {
-            $query->andWhere(['wt.executor_id' => $this->executor_id]);
+            $this->applyExecutorFilter($query, (int) $this->executor_id);
         }
 
         $q = trim((string) $this->q);
@@ -204,6 +196,50 @@ class WorkTaskSearch extends Model
         }
 
         return ['tasks' => $tasks, 'byStatus' => $byStatus];
+    }
+
+    /**
+     * Задачи в статусе «Выполнена» (pending_review) с учётом поиска и фильтра исполнителя.
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function createPendingReviewQuery(array $params)
+    {
+        $query = WorkTask::find()
+            ->alias('wt')
+            ->where(['wt.is_deleted' => false]);
+
+        $this->applyRequestParams($params);
+        $this->validate();
+
+        $pendingId = DicWorkTaskStatus::resolveIdByCode(DicWorkTaskStatus::CODE_PENDING_REVIEW);
+        if ($pendingId === null) {
+            $query->andWhere('0=1');
+
+            return $query;
+        }
+
+        $query->andWhere(['wt.status_id' => $pendingId]);
+
+        if ($this->executor_id !== null) {
+            $this->applyExecutorFilter($query, (int) $this->executor_id);
+        }
+
+        $q = trim((string) $this->q);
+        if ($q !== '') {
+            $query->andWhere([
+                'or',
+                ['ilike', 'wt.title', $q],
+                ['ilike', 'wt.description', $q],
+            ]);
+        }
+
+        return $query->orderBy(['wt.updated_at' => SORT_ASC, 'wt.id' => SORT_ASC]);
+    }
+
+    public function countPendingReview(array $params): int
+    {
+        return (int) $this->createPendingReviewQuery($params)->count();
     }
 
     /**
@@ -336,5 +372,23 @@ class WorkTaskSearch extends Model
             ['dwt_status' => DicWorkTaskStatus::tableName()],
             'dwt_status.id = wt.status_id'
         );
+    }
+
+    /**
+     * @param \yii\db\ActiveQuery $query
+     */
+    private function applyExecutorFilter($query, int $executorId): void
+    {
+        $query->andWhere([
+            'or',
+            ['wt.executor_id' => $executorId],
+            [
+                'exists',
+                (new Query())
+                    ->from(['wte' => WorkTaskExecutor::tableName()])
+                    ->where('wte.work_task_id = wt.id')
+                    ->andWhere(['wte.user_id' => $executorId]),
+            ],
+        ]);
     }
 }

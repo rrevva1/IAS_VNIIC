@@ -30,6 +30,7 @@ use yii\web\UploadedFile;
  * @property DicTaskStatus $status
  * @property Users $requester
  * @property Users $executor
+ * @property WorkTask|null $linkedWorkTask связанная внутренняя задача
  * @property DeskAttachments[] $taskAttachments через task_attachments
  * @property Equipment[] $equipments через task_equipment
  */
@@ -98,7 +99,7 @@ class Tasks extends ActiveRecord
     public function attributeLabels()
     {
         return [
-            'id' => 'ID',
+            'id' => '№ заявки',
             'task_number' => 'Номер',
             'title' => 'Тема',
             'status_id' => 'Статус',
@@ -108,7 +109,7 @@ class Tasks extends ActiveRecord
             'priority' => 'Приоритет',
             'due_at' => 'Срок',
             'closed_at' => 'Закрыта',
-            'comment' => 'Комментарий',
+            'comment' => 'Комментарий исполнителя',
             'contact_phone' => 'Телефон для обратной связи',
             'room_number' => 'Номер помещения',
             'created_at' => 'Дата создания',
@@ -130,6 +131,47 @@ class Tasks extends ActiveRecord
     public function getExecutor()
     {
         return $this->hasOne(Users::class, ['id' => 'executor_id']);
+    }
+
+    /**
+     * Внутренняя задача, созданная по этой заявке.
+     */
+    public function getLinkedWorkTask()
+    {
+        return $this->hasOne(WorkTask::class, ['request_task_id' => 'id'])
+            ->andWhere(['work_tasks.is_deleted' => false]);
+    }
+
+    /**
+     * Исполнители для отображения: полный список из связанной задачи, иначе один из заявки.
+     *
+     * @return string[]
+     */
+    public function getDisplayExecutorNames(): array
+    {
+        $workTask = $this->linkedWorkTask;
+        if ($workTask !== null) {
+            $names = $workTask->getExecutorNames();
+            if ($names !== []) {
+                return $names;
+            }
+        }
+
+        if ($this->executor_id && $this->executor) {
+            $name = trim((string) $this->executor->full_name);
+            if ($name !== '') {
+                return [$name];
+            }
+        }
+
+        return [];
+    }
+
+    public function getDisplayExecutorNamesString(): string
+    {
+        $names = $this->getDisplayExecutorNames();
+
+        return $names !== [] ? implode(', ', $names) : '';
     }
 
     /**
@@ -189,7 +231,7 @@ class Tasks extends ActiveRecord
 
     public function addAttachment($attachmentId)
     {
-        if ((int) $attachmentId <= 0) {
+        if ((int) $attachmentId <= 0 || (int) $this->id <= 0) {
             return;
         }
         $exists = TaskAttachments::find()
@@ -197,8 +239,9 @@ class Tasks extends ActiveRecord
             ->exists();
         if (!$exists) {
             $ta = new TaskAttachments();
-            $ta->task_id = $this->id;
+            $ta->task_id = (int) $this->id;
             $ta->attachment_id = (int) $attachmentId;
+            $ta->linked_by = Yii::$app->user->isGuest ? null : (int) Yii::$app->user->id;
             $ta->linked_at = date('Y-m-d H:i:s');
             $ta->save(false);
         }
@@ -209,9 +252,25 @@ class Tasks extends ActiveRecord
         TaskAttachments::deleteAll(['task_id' => $this->id, 'attachment_id' => $attachmentId]);
     }
 
-    public function getAllAttachments()
+    public function getAllAttachments(): array
     {
-        return $this->getTaskAttachments()->all();
+        if ((int) $this->id <= 0) {
+            return [];
+        }
+
+        if ($this->isRelationPopulated('taskAttachments')) {
+            return $this->taskAttachments;
+        }
+
+        return DeskAttachments::find()
+            ->alias('da')
+            ->innerJoin(
+                ['ta' => TaskAttachments::tableName()],
+                'ta.attachment_id = da.id'
+            )
+            ->where(['ta.task_id' => (int) $this->id])
+            ->orderBy(['ta.id' => SORT_ASC])
+            ->all();
     }
 
     public function uploadFiles()

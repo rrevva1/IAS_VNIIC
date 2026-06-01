@@ -1,12 +1,25 @@
 (function() {
     'use strict';
 
+    function appendFormValue(body, key, value) {
+        if (value === undefined || value === null) {
+            return;
+        }
+        if (Array.isArray(value)) {
+            value.forEach(function(item) {
+                if (item !== undefined && item !== null && item !== '') {
+                    body.append(key.endsWith('[]') ? key : key + '[]', item);
+                }
+            });
+            return;
+        }
+        body.append(key, value);
+    }
+
     function postForm(url, data) {
         var body = new FormData();
         Object.keys(data).forEach(function(key) {
-            if (data[key] !== undefined && data[key] !== null) {
-                body.append(key, data[key]);
-            }
+            appendFormValue(body, key, data[key]);
         });
         if (window.yii && typeof yii.getCsrfParam === 'function') {
             body.append(yii.getCsrfParam(), yii.getCsrfToken());
@@ -95,6 +108,54 @@
     });
 
     document.addEventListener('click', function(e) {
+        var bulkBtn = e.target.closest('[data-work-tasks-bulk-confirm]');
+        if (bulkBtn && !bulkBtn.disabled) {
+            e.preventDefault();
+            var count = parseInt(bulkBtn.getAttribute('data-count'), 10) || 0;
+            if (count <= 0) {
+                return;
+            }
+            var config = window.workTasksBoardConfig || {};
+            var bulkUrl = config.bulkConfirmUrl || '/index.php?r=work-tasks/bulk-confirm';
+            var confirmText = 'Подтвердить выполнение всех задач (' + count
+                + ') в статусе «Выполнена»? Они будут переведены в статус «Закрыта».';
+            if (!window.confirm(confirmText)) {
+                return;
+            }
+
+            var form = document.querySelector('.work-tasks-command-form');
+            var payload = { filter: 'active' };
+            if (form) {
+                var qInput = form.querySelector('[name="q"]');
+                if (qInput && qInput.value.trim() !== '') {
+                    payload.q = qInput.value.trim();
+                }
+                var executorSelect = form.querySelector('[name="executor_id"]');
+                if (executorSelect && executorSelect.value !== '') {
+                    payload.executor_id = executorSelect.value;
+                }
+            }
+
+            bulkBtn.disabled = true;
+            postForm(bulkUrl, payload)
+                .then(function(res) {
+                    if (res.success || (res.confirmed && res.confirmed > 0)) {
+                        showToast(res.message || 'Готово', false);
+                        window.setTimeout(function() {
+                            window.location.reload();
+                        }, 600);
+                    } else {
+                        showToast(res.message || 'Не удалось подтвердить задачи', true);
+                        bulkBtn.disabled = false;
+                    }
+                })
+                .catch(function() {
+                    showToast('Ошибка сети', true);
+                    bulkBtn.disabled = false;
+                });
+            return;
+        }
+
         var deleteBtn = e.target.closest('[data-work-task-delete]');
         if (!deleteBtn || deleteBtn.disabled) {
             return;
@@ -165,26 +226,5 @@
             return;
         }
 
-        var assignForm = e.target.closest('#workTaskAssignForm');
-        if (!assignForm) {
-            return;
-        }
-        e.preventDefault();
-        var url = assignForm.getAttribute('action');
-        var executorId = assignForm.querySelector('[name="executor_id"]').value;
-        postForm(url, { executor_id: executorId })
-            .then(function(res) {
-                if (res.success) {
-                    var taskId = window.WorkTasksView && window.WorkTasksView.getTaskId();
-                    updateBoardCard(res, taskId);
-                    closeViewModal();
-                    showToast(res.message || 'Исполнитель обновлён', false);
-                } else {
-                    showToast(res.message || 'Ошибка', true);
-                }
-            })
-            .catch(function() {
-                showToast('Ошибка сети', true);
-            });
     });
 })();

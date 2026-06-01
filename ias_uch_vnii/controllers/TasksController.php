@@ -11,6 +11,7 @@ use app\models\search\TasksSearch;
 use app\models\dictionaries\DicTaskStatus;
 use app\models\entities\DeskAttachments;
 use app\models\entities\TaskAttachments;
+use app\components\TaskHistoryFormatter;
 use app\models\entities\TaskHistory;
 use app\models\entities\WorkTask;
 use app\models\entities\WorkTaskAttachments;
@@ -102,13 +103,25 @@ class TasksController extends Controller
 
         return $this->render('index', [
             'taskStatuses' => $taskStatuses,
+            'canCreateTask' => $this->canUserCreateTask(),
         ]);
     }
 
     /**
-     * Отображает одну заявку.
+     * Создание заявки: пользователи предприятия и сотрудники техподдержки.
+     */
+    private function canUserCreateTask(): bool
+    {
+        $user = Yii::$app->user->identity;
+
+        return $user && ($user->isRegularUser() || $user->isSupportStaff());
+    }
+
+    /**
+     * Открытие карточки заявки (редирект на список с модальным окном).
+     *
      * @param int $id
-     * @return string
+     * @return \yii\web\Response
      * @throws NotFoundHttpException если модель не найдена
      */
     public function actionView($id)
@@ -117,9 +130,53 @@ class TasksController extends Controller
         if (!$this->canUserAccessTask($model)) {
             throw new \yii\web\ForbiddenHttpException('Нет доступа к этой заявке.');
         }
-        return $this->render('view', [
+
+        return $this->redirect(['index', 'task' => (int) $model->id]);
+    }
+
+    /**
+     * Карточка заявки для модального окна (GET — HTML).
+     *
+     * @param int $id
+     * @return string
+     * @throws NotFoundHttpException если модель не найдена
+     */
+    public function actionViewModal($id)
+    {
+        $model = $this->findModel($id);
+        if (!$this->canUserAccessTask($model)) {
+            throw new \yii\web\ForbiddenHttpException('Нет доступа к этой заявке.');
+        }
+
+        return $this->renderAjax('_view_content', array_merge(
+            $this->getTaskViewParams($model),
+            ['isModal' => true]
+        ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function getTaskViewParams(Tasks $model): array
+    {
+        $model = Tasks::find()
+            ->where(['id' => $model->id])
+            ->with(['status', 'requester', 'executor', 'linkedWorkTask.executors', 'taskAttachments'])
+            ->one() ?? $model;
+
+        $taskHistory = TaskHistory::find()
+            ->where(['task_id' => $model->id])
+            ->with('changedByUser')
+            ->orderBy(['changed_at' => SORT_DESC, 'id' => SORT_DESC])
+            ->limit(30)
+            ->all();
+
+        return [
             'model' => $model,
-        ]);
+            'taskHistory' => $taskHistory,
+            'taskHistoryItems' => (new TaskHistoryFormatter($taskHistory))->formatAll($taskHistory),
+            'canEditExecutorComment' => $this->canUserEditExecutorComment(),
+        ];
     }
 
     /**
@@ -129,6 +186,10 @@ class TasksController extends Controller
      */
     public function actionCreate()
     {
+        if (!$this->canUserCreateTask()) {
+            throw new \yii\web\ForbiddenHttpException('Создание заявки недоступно для вашей роли.');
+        }
+
         $model = new Tasks();
 
         if ($this->request->isPost) {
@@ -143,9 +204,9 @@ class TasksController extends Controller
                 Yii::info('=== КОНТРОЛЛЕР actionCreate ===', 'tasks');
                 Yii::info('$_FILES: ' . json_encode($_FILES), 'tasks');
                 
-                $model->uploadFiles = UploadedFile::getInstances($model, 'uploadFiles');
-                
-                Yii::info('UploadedFile::getInstances вернул: ' . (is_array($model->uploadFiles) ? count($model->uploadFiles) : 'не массив') . ' файлов', 'tasks');
+                $model->uploadFiles = $this->resolveTaskUploadFiles($model);
+
+                Yii::info('resolveTaskUploadFiles вернул: ' . (is_array($model->uploadFiles) ? count($model->uploadFiles) : 'не массив') . ' файлов', 'tasks');
                 if (is_array($model->uploadFiles)) {
                     foreach ($model->uploadFiles as $i => $file) {
                         Yii::info("  Файл #{$i}: {$file->name}", 'tasks');
@@ -263,6 +324,10 @@ class TasksController extends Controller
      */
     public function actionCreateModal()
     {
+        if (!$this->canUserCreateTask()) {
+            throw new \yii\web\ForbiddenHttpException('Создание заявки недоступно для вашей роли.');
+        }
+
         $model = new Tasks();
 
         /** Если это POST запрос (отправка формы) */
@@ -279,8 +344,8 @@ class TasksController extends Controller
                 }
                 
                 /** Загружаем файлы из запроса */
-                $model->uploadFiles = UploadedFile::getInstances($model, 'uploadFiles');
-                
+                $model->uploadFiles = $this->resolveTaskUploadFiles($model);
+
                 /** Логируем информацию о файлах для отладки */
                 Yii::info('POST данные: ' . json_encode($this->request->post()), 'tasks');
                 Yii::info('Загружено файлов: ' . (is_array($model->uploadFiles) ? count($model->uploadFiles) : 0), 'tasks');
@@ -305,7 +370,7 @@ class TasksController extends Controller
                             (is_array($model->uploadFiles) && count($model->uploadFiles) > 0 ? 
                             ' Загружено файлов: ' . count($model->uploadFiles) : ''),
                         'task_id' => $model->id,
-                        'attachments_count' => count($model->getAttachmentsArray())
+                        'attachments_count' => count($model->getAllAttachments())
                     ];
                 } else {
                     /** Возвращаем ошибки валидации в JSON формате */
@@ -329,6 +394,69 @@ class TasksController extends Controller
 
         return $this->renderAjax('_form', [
             'model' => $model,
+            'isUpdate' => false,
+        ]);
+    }
+
+    /**
+     * Редактирование заявки в модальном окне (GET — HTML формы, POST — JSON).
+     *
+     * @param int $id
+     * @return string|array|\yii\web\Response
+     * @throws NotFoundHttpException
+     * @throws \yii\web\ForbiddenHttpException
+     */
+    public function actionUpdateModal($id)
+    {
+        $model = $this->findModel($id);
+        if (!$this->canUserAccessTask($model)) {
+            throw new \yii\web\ForbiddenHttpException('Нет доступа к этой заявке.');
+        }
+
+        if ($this->request->isPost) {
+            $oldComment = $model->comment;
+            $post = $this->request->post();
+            if (!$this->canUserEditExecutorComment()) {
+                unset($post['Tasks']['comment']);
+            }
+            if ($model->load($post)) {
+                $model->uploadFiles = $this->resolveTaskUploadFiles($model);
+                if ($model->save()) {
+                    $model->uploadFiles();
+                    if ($this->canUserEditExecutorComment() && (string) $model->comment !== (string) $oldComment) {
+                        TaskHistory::log($model->id, 'comment', (string) $oldComment, (string) $model->comment);
+                    }
+                    AuditLog::log('task.update', 'task', $model->id, 'success');
+                    Yii::$app->response->format = Response::FORMAT_JSON;
+
+                    return [
+                        'success' => true,
+                        'message' => 'Заявка №' . $model->id . ' успешно обновлена.',
+                        'task_id' => (int) $model->id,
+                    ];
+                }
+
+                Yii::$app->response->format = Response::FORMAT_JSON;
+
+                return [
+                    'success' => false,
+                    'errors' => $model->errors,
+                    'message' => 'Не удалось сохранить изменения',
+                ];
+            }
+
+            Yii::$app->response->format = Response::FORMAT_JSON;
+
+            return [
+                'success' => false,
+                'message' => 'Не удалось принять данные формы.',
+            ];
+        }
+
+        return $this->renderAjax('_form', [
+            'model' => $model,
+            'isUpdate' => true,
+            'canEditExecutorComment' => $this->canUserEditExecutorComment(),
         ]);
     }
 
@@ -345,19 +473,30 @@ class TasksController extends Controller
         if (!$this->canUserAccessTask($model)) {
             throw new \yii\web\ForbiddenHttpException('Нет доступа к этой заявке.');
         }
-        if ($this->request->isPost && $model->load($this->request->post())) {
-            $model->uploadFiles = UploadedFile::getInstances($model, 'uploadFiles');
-            if ($model->save()) {
-                $model->uploadFiles();
-                AuditLog::log('task.update', 'task', $model->id, 'success');
-                Yii::$app->session->setFlash('success', 'Заявка успешно обновлена.');
-                return $this->redirect(['view', 'id' => $model->id]);
+        if ($this->request->isPost) {
+            $oldComment = $model->comment;
+            $post = $this->request->post();
+            if (!$this->canUserEditExecutorComment()) {
+                unset($post['Tasks']['comment']);
+            }
+            if ($model->load($post)) {
+                $model->uploadFiles = $this->resolveTaskUploadFiles($model);
+                if ($model->save()) {
+                    $model->uploadFiles();
+                    if ($this->canUserEditExecutorComment() && (string) $model->comment !== (string) $oldComment) {
+                        TaskHistory::log($model->id, 'comment', (string) $oldComment, (string) $model->comment);
+                    }
+                    AuditLog::log('task.update', 'task', $model->id, 'success');
+                    Yii::$app->session->setFlash('success', 'Заявка успешно обновлена.');
+                    return $this->redirect(['view', 'id' => $model->id]);
+                }
             }
         }
 
         return $this->render('update', [
             'model' => $model,
             'equipmentList' => $this->getEquipmentList(),
+            'canEditExecutorComment' => $this->canUserEditExecutorComment(),
         ]);
     }
 
@@ -523,6 +662,18 @@ class TasksController extends Controller
         }
         $identity = Yii::$app->user->identity;
         return $identity && ($identity->isAdministrator() || $identity->isOperator());
+    }
+
+    /**
+     * Комментарий исполнителя в заявке — только сотрудник техподдержки (роли admin/operator).
+     */
+    private function canUserEditExecutorComment(): bool
+    {
+        if (Yii::$app->user->isGuest) {
+            return false;
+        }
+
+        return Users::canBeTaskExecutor((int) Yii::$app->user->id);
     }
 
     /**
@@ -719,6 +870,7 @@ class TasksController extends Controller
             }
 
             $oldExecutor = $model->executor_id;
+            $oldStatusId = $model->status_id;
             $model->executor_id = (int) $executorId;
             $model->updated_at = date('Y-m-d H:i:s');
 
@@ -729,6 +881,15 @@ class TasksController extends Controller
 
             if ($model->save(false)) {
                 TaskHistory::log($model->id, 'executor_id', (string) $oldExecutor, (string) $model->executor_id);
+                if ($assignedStatusId !== null && (int) $oldStatusId !== (int) $model->status_id) {
+                    TaskHistory::log(
+                        $model->id,
+                        'status_id',
+                        (string) $oldStatusId,
+                        (string) $model->status_id,
+                        'Статус при назначении исполнителя'
+                    );
+                }
                 AuditLog::log('task.assign_executor', 'task', $model->id, 'success', ['executor_id' => $model->executor_id]);
 
                 try {
@@ -774,6 +935,12 @@ class TasksController extends Controller
             $model = $this->findModel($id);
             if (!$this->canUserAccessTask($model)) {
                 return ['success' => false, 'message' => 'Нет доступа к этой заявке.'];
+            }
+            if (!$this->canUserEditExecutorComment()) {
+                return [
+                    'success' => false,
+                    'message' => 'Комментарий исполнителя может изменять только сотрудник технической поддержки.',
+                ];
             }
             if ($this->request->isPost) {
             $comment = $this->request->post('comment');
@@ -920,7 +1087,8 @@ class TasksController extends Controller
                     'user_id' => $model->requester_id,
                     'user_name' => $model->requester ? $model->requester->full_name : '',
                     'executor_id' => $model->executor_id,
-                    'executor_name' => $model->executor ? $model->executor->full_name : '',
+                    'executor_names' => $model->getDisplayExecutorNames(),
+                    'executor_name' => $model->getDisplayExecutorNamesString(),
                     'date' => $model->created_at ? Yii::$app->formatter->asDatetime($model->created_at, 'php:d.m.Y H:i') : '',
                     'last_time_update' => $model->updated_at ? Yii::$app->formatter->asDatetime($model->updated_at, 'php:d.m.Y H:i') : '',
                     'comment' => $model->comment,
@@ -1350,6 +1518,48 @@ class TasksController extends Controller
     /**
      * Создаёт внутреннюю задачу в очереди техподдержки по заявке пользователя.
      */
+    /**
+     * Извлекает загруженные файлы из POST (в т.ч. при имени Tasks[uploadFiles][]).
+     *
+     * @return UploadedFile[]
+     */
+    private function resolveTaskUploadFiles(Tasks $model): array
+    {
+        $files = UploadedFile::getInstances($model, 'uploadFiles');
+        if ($files !== []) {
+            return $files;
+        }
+
+        $files = UploadedFile::getInstancesByName('Tasks[uploadFiles][]');
+        if ($files !== []) {
+            return $files;
+        }
+
+        $files = UploadedFile::getInstancesByName('Tasks[uploadFiles]');
+        if ($files !== []) {
+            return $files;
+        }
+
+        if (!empty($_FILES['Tasks']['name']['uploadFiles'])) {
+            $names = $_FILES['Tasks']['name']['uploadFiles'];
+            if (!is_array($names)) {
+                $names = [$names];
+            }
+            $resolved = [];
+            foreach (array_keys($names) as $index) {
+                $file = UploadedFile::getInstanceByName('Tasks[uploadFiles][' . $index . ']');
+                if ($file !== null) {
+                    $resolved[] = $file;
+                }
+            }
+            if ($resolved !== []) {
+                return $resolved;
+            }
+        }
+
+        return [];
+    }
+
     private function ensureLinkedWorkTask(Tasks $request): void
     {
         try {

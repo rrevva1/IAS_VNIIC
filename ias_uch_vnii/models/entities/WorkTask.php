@@ -19,6 +19,8 @@ use yii\web\UploadedFile;
  * @property int|null $request_task_id
  * @property int $creator_id
  * @property int|null $executor_id
+ * @property Users[] $executors
+ * @property WorkTaskExecutor[] $executorAssignments
  * @property string $priority
  * @property string|null $submitted_at
  * @property string|null $confirmed_at
@@ -80,6 +82,7 @@ class WorkTask extends ActiveRecord
             'request_task_id' => 'Заявка',
             'creator_id' => 'Создал',
             'executor_id' => 'Исполнитель',
+            'executor_ids' => 'Исполнители',
             'priority' => 'Приоритет',
             'created_at' => 'Создана',
             'updated_at' => 'Обновлена',
@@ -195,34 +198,125 @@ class WorkTask extends ActiveRecord
         return '—';
     }
 
-    public function getExecutorName(): string
+    public function getExecutorAssignments()
     {
-        if ($this->isRelationPopulated('executor') && $this->executor !== null) {
-            $name = trim((string) $this->executor->full_name);
-
-            return $name !== '' ? $name : '—';
-        }
-
-        if ($this->executor_id) {
-            $executor = Users::findOne((int) $this->executor_id);
-            if ($executor !== null) {
-                $name = trim((string) $executor->full_name);
-
-                return $name !== '' ? $name : '—';
-            }
-        }
-
-        return '—';
+        return $this->hasMany(WorkTaskExecutor::class, ['work_task_id' => 'id'])
+            ->orderBy(['id' => SORT_ASC]);
     }
 
-    public function hasExecutor(): bool
+    public function getExecutors()
     {
-        return $this->executor_id !== null && (int) $this->executor_id > 0;
+        return $this->hasMany(Users::class, ['id' => 'user_id'])
+            ->via('executorAssignments');
     }
 
     public function getExecutor()
     {
         return $this->hasOne(Users::class, ['id' => 'executor_id']);
+    }
+
+    /**
+     * @return int[]
+     */
+    public function getExecutorIds(): array
+    {
+        if ($this->isRelationPopulated('executors')) {
+            $ids = [];
+            foreach ($this->executors as $user) {
+                $ids[] = (int) $user->id;
+            }
+
+            return $ids;
+        }
+
+        if ($this->isRelationPopulated('executorAssignments')) {
+            $ids = [];
+            foreach ($this->executorAssignments as $row) {
+                $ids[] = (int) $row->user_id;
+            }
+
+            return $ids;
+        }
+
+        if (!$this->id) {
+            return $this->executor_id ? [(int) $this->executor_id] : [];
+        }
+
+        $ids = array_map('intval', WorkTaskExecutor::find()
+            ->select('user_id')
+            ->where(['work_task_id' => (int) $this->id])
+            ->orderBy(['id' => SORT_ASC])
+            ->column());
+
+        if ($ids === [] && $this->executor_id) {
+            return [(int) $this->executor_id];
+        }
+
+        return $ids;
+    }
+
+    public function hasExecutor(): bool
+    {
+        return $this->getExecutorIds() !== [];
+    }
+
+    public function isExecutorUser(int $userId): bool
+    {
+        return in_array($userId, $this->getExecutorIds(), true);
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getExecutorNames(): array
+    {
+        if ($this->isRelationPopulated('executors')) {
+            $names = [];
+            foreach ($this->executors as $user) {
+                $name = trim((string) $user->full_name);
+                if ($name !== '') {
+                    $names[] = $name;
+                }
+            }
+
+            return $names;
+        }
+
+        $ids = $this->getExecutorIds();
+        if ($ids === []) {
+            return [];
+        }
+
+        $rows = Users::find()
+            ->select(['id', 'full_name'])
+            ->where(['id' => $ids])
+            ->indexBy('id')
+            ->all();
+
+        $names = [];
+        foreach ($ids as $id) {
+            if (!isset($rows[$id])) {
+                continue;
+            }
+            $name = trim((string) $rows[$id]->full_name);
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
+    public function getExecutorName(): string
+    {
+        $names = $this->getExecutorNames();
+
+        return $names !== [] ? implode(', ', $names) : '—';
+    }
+
+    public function getExecutorNamesString(): string
+    {
+        return $this->getExecutorName();
     }
 
     public function getConfirmedByUser()

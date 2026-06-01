@@ -104,6 +104,9 @@
 
     modalEl.addEventListener('shown.bs.modal', function() {
         initFileDrop();
+        if (window.IasUserSelect && typeof window.IasUserSelect.init === 'function') {
+            window.IasUserSelect.init(modalEl, { force: true });
+        }
         var titleInput = form.querySelector('[name="WorkTask[title]"]');
         if (titleInput) {
             titleInput.focus();

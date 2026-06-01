@@ -85,6 +85,19 @@ class ArmController extends Controller
      */
     public function actionIndex()
     {
+        return $this->renderEquipmentListPage('exclude_warehouse', 'Учет ТС', ['arm/get-grid-data'], ['arm/export-xlsx']);
+    }
+
+    /**
+     * @param string[] $gridDataRoute
+     * @param string[] $exportRoute
+     */
+    protected function renderEquipmentListPage(
+        string $locationScope,
+        string $pageTitle,
+        array $gridDataRoute,
+        array $exportRoute
+    ): string {
         $equipmentTypes = $this->getEquipmentTypesForTabs();
         $users = ArrayHelper::map(
             Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
@@ -92,16 +105,28 @@ class ArmController extends Controller
             function (Users $u) { return $u->getDisplayName(); }
         );
         $locations = ArrayHelper::map(Location::find()->orderBy(['name' => SORT_ASC])->all(), 'id', 'name');
+        $warehouseLocations = ArrayHelper::map(
+            Location::find()->where(['location_type' => 'склад'])->orderBy(['name' => SORT_ASC])->all(),
+            'id',
+            'name'
+        );
         $statuses = DicEquipmentStatus::getList();
+        $inStockStatusId = DicEquipmentStatus::getInStockId();
         $isAdmin = !Yii::$app->user->isGuest
             && Yii::$app->user->identity
             && Yii::$app->user->identity->isAdministrator();
 
-        return $this->render('index', [
+        return $this->render('@app/views/arm/index', [
+            'pageTitle' => $pageTitle,
+            'locationScope' => $locationScope,
+            'gridDataRoute' => $gridDataRoute,
+            'exportRoute' => $exportRoute,
             'equipmentTypes' => $equipmentTypes,
             'users' => $users,
             'locations' => $locations,
+            'warehouseLocations' => $warehouseLocations,
             'statuses' => $statuses,
+            'inStockStatusId' => $inStockStatusId,
             'isAdmin' => $isAdmin,
         ]);
     }
@@ -122,9 +147,22 @@ class ArmController extends Controller
      */
     public function actionGetGridData()
     {
+        return $this->buildGridDataJsonResponse('exclude_warehouse');
+    }
+
+    /**
+     * @param string $defaultLocationScope exclude_warehouse|warehouse_only
+     */
+    protected function buildGridDataJsonResponse(string $defaultLocationScope): array
+    {
         Yii::$app->response->format = Response::FORMAT_JSON;
         try {
             $params = Yii::$app->request->queryParams;
+            $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+            $scopeFromRequest = trim((string) ($params['location_scope'] ?? $params['ArmSearch']['location_scope'] ?? ''));
+            $params['ArmSearch']['location_scope'] = $scopeFromRequest !== ''
+                ? $scopeFromRequest
+                : $defaultLocationScope;
             // Вкладки передают equipment_type в корне; ArmSearch ожидает ArmSearch[equipment_type]. Для «Вся техника» не передаём пустое значение.
             $eqType = isset($params['equipment_type']) ? trim((string) $params['equipment_type']) : '';
             if ($eqType !== '') {
@@ -408,6 +446,165 @@ class ArmController extends Controller
         }
 
         return 'gray';
+    }
+
+    private function isWarehouseLocationId(int $locationId): bool
+    {
+        $location = Location::findOne($locationId);
+        if ($location === null) {
+            return false;
+        }
+
+        return (string) $location->location_type === 'склад';
+    }
+
+    /**
+     * @param int[] $ids
+     * @return array{success: bool, message: string, updated?: int, details?: array}
+     */
+    private function applyMoveToWarehouse(array $ids, int $warehouseLocationId, int $inStockStatusId): array
+    {
+        $updated = 0;
+        $responsibleUserChanged = 0;
+        $locationChanged = 0;
+        $statusChanged = 0;
+        $errors = [];
+
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $linksDetached = $this->detachEquipmentLinksForWarehouseMoveBatch($ids);
+
+            foreach ($ids as $id) {
+                $model = Equipment::findOne((int) $id);
+                if (!$model || $model->is_deleted || $model->is_archived) {
+                    $errors[] = ['equipment_id' => $id, 'message' => 'Оборудование не найдено'];
+                    continue;
+                }
+
+                $changed = false;
+                $oldResponsible = $model->responsible_user_id;
+                $oldLocation = $model->location_id;
+                $oldStatus = $model->status_id;
+
+                if (!EquipHistory::idsEqual($model->location_id, $warehouseLocationId)) {
+                    $model->location_id = $warehouseLocationId;
+                    EquipHistory::log(
+                        $model->id,
+                        'move',
+                        ['location_id' => $oldLocation],
+                        ['location_id' => $model->location_id],
+                        'move_to_warehouse'
+                    );
+                    $locationChanged++;
+                    $changed = true;
+                }
+
+                if ($model->responsible_user_id !== null) {
+                    $model->responsible_user_id = null;
+                    EquipHistory::log(
+                        $model->id,
+                        'unassign',
+                        ['responsible_user_id' => $oldResponsible],
+                        ['responsible_user_id' => null],
+                        'move_to_warehouse'
+                    );
+                    $responsibleUserChanged++;
+                    $changed = true;
+                }
+
+                if (!EquipHistory::idsEqual($model->status_id, $inStockStatusId)) {
+                    $model->status_id = $inStockStatusId;
+                    EquipHistory::log(
+                        $model->id,
+                        'status_change',
+                        ['status_id' => $oldStatus],
+                        ['status_id' => $model->status_id],
+                        'move_to_warehouse'
+                    );
+                    $statusChanged++;
+                    $changed = true;
+                }
+
+                if ($changed && $model->save(false)) {
+                    $updated++;
+                    AuditLog::log('equipment.move_to_warehouse', 'equipment', $model->id, 'success');
+                    UserEquipmentCardService::invalidateByUserId((int) $oldResponsible);
+                    UserEquipmentCardService::ensureCardForUser((int) $oldResponsible);
+                } elseif ($changed) {
+                    $errors[] = ['equipment_id' => $id, 'message' => 'Ошибка при сохранении'];
+                }
+            }
+
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+
+            return ['success' => false, 'message' => 'Ошибка перемещения на склад: ' . $e->getMessage()];
+        }
+
+        return [
+            'success' => true,
+            'message' => "На склад перемещено единиц техники: {$updated} из " . count($ids),
+            'updated' => $updated,
+            'details' => [
+                'responsible_user_changed' => $responsibleUserChanged,
+                'location_changed' => $locationChanged,
+                'status_changed' => $statusChanged,
+                'links_detached' => $linksDetached,
+                'errors' => $errors,
+            ],
+        ];
+    }
+
+    /**
+     * Снимает связи комплекта (СБ ↔ монитор/ИБП/диск) для всех перемещаемых на склад единиц.
+     *
+     * @param int[] $ids
+     */
+    private function detachEquipmentLinksForWarehouseMoveBatch(array $ids): int
+    {
+        if (Yii::$app->db->getTableSchema('equipment_links', true) === null) {
+            return 0;
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static function (int $id): bool {
+            return $id > 0;
+        })));
+        if ($ids === []) {
+            return 0;
+        }
+
+        $links = EquipmentLink::find()
+            ->where([
+                'or',
+                ['parent_equipment_id' => $ids],
+                ['child_equipment_id' => $ids],
+            ])
+            ->all();
+
+        $detached = 0;
+        foreach ($links as $link) {
+            $childId = (int) $link->child_equipment_id;
+            $parentId = (int) $link->parent_equipment_id;
+            $linkType = (string) $link->link_type;
+            if ($link->delete()) {
+                $detached++;
+                EquipHistory::log(
+                    $childId,
+                    'update',
+                    ['parent_equipment_id' => $parentId, 'link_type' => $linkType],
+                    ['parent_equipment_id' => null, 'link_type' => null],
+                    'move_to_warehouse_detach_kit'
+                );
+                AuditLog::log('equipment.move_to_warehouse', 'equipment', $childId, 'success', [
+                    'action' => 'detach_kit_link',
+                    'parent_id' => $parentId,
+                    'link_type' => $linkType,
+                ]);
+            }
+        }
+
+        return $detached;
     }
 
     /**
@@ -765,6 +962,7 @@ class ArmController extends Controller
     private function getEquipmentViewParams(Equipment $model): array
     {
         $chars = $this->loadPartCharValuesByEquipment([$model->id]);
+        $charsForModel = $chars[$model->id] ?? [];
         $history = EquipHistory::find()
             ->where(['equipment_id' => $model->id])
             ->with('changedByUser')
@@ -772,10 +970,22 @@ class ArmController extends Controller
             ->limit(50)
             ->all();
 
+        $isHost = $this->isHostEquipment($model);
+        $linkedComponents = ['monitor' => [], 'disk' => [], 'ups' => []];
+        if ($isHost) {
+            $linksByParent = $this->loadLinkedComponents([(int) $model->id]);
+            $linkedComponents = $linksByParent[(int) $model->id] ?? $linkedComponents;
+        }
+
         return [
             'model' => $model,
-            'chars' => $chars[$model->id] ?? [],
+            'chars' => $charsForModel,
             'history' => $history,
+            'isHost' => $isHost,
+            'linkedComponents' => $linkedComponents,
+            'linkedComponentRows' => $isHost
+                ? EquipmentCharCatalog::buildHostLinkedComponentsViewRows($linkedComponents, $charsForModel)
+                : [],
         ];
     }
 
@@ -1068,6 +1278,23 @@ class ArmController extends Controller
                     'message' => 'Перенос компонента доступен только для мониторов и ИБП.',
                 ];
             }
+        } elseif ($operationMode === 'move_to_warehouse') {
+            if (empty($ids)) {
+                return ['success' => false, 'message' => 'Не выбрано оборудование для перемещения на склад.'];
+            }
+            $warehouseLocationId = (int) Yii::$app->request->post('location_id', 0);
+            if ($warehouseLocationId <= 0) {
+                return ['success' => false, 'message' => 'Укажите складское помещение.'];
+            }
+            if (!$this->isWarehouseLocationId($warehouseLocationId)) {
+                return ['success' => false, 'message' => 'Выбранное помещение не является складом.'];
+            }
+            $inStockStatusId = DicEquipmentStatus::getInStockId();
+            if ($inStockStatusId === null) {
+                return ['success' => false, 'message' => 'В справочнике не найден статус «На складе».'];
+            }
+
+            return $this->applyMoveToWarehouse($ids, $warehouseLocationId, $inStockStatusId);
         } else {
             $ids = $this->expandReassignIdsWithLinkedComponents($ids, $operationMode);
         }
@@ -1215,7 +1442,7 @@ class ArmController extends Controller
 
             $query = Equipment::find()
                 ->alias('e')
-                ->select(['e.id', 'e.name', 'e.inventory_number', 'e.location_id'])
+                ->select(['e.id', 'e.name', 'e.inventory_number', 'e.serial_number', 'e.location_id'])
                 ->where(['e.is_deleted' => false, 'e.is_archived' => false]);
 
             $hostCondition = $this->buildHostEquipmentSqlCondition('e', EquipmentTypes::usesDictionary() ? 'et' : null);
@@ -1231,6 +1458,7 @@ class ArmController extends Controller
                 $query->andWhere(['or',
                     ['ilike', 'e.name', $q],
                     ['ilike', 'e.inventory_number', $q],
+                    ['ilike', 'e.serial_number', $q],
                 ]);
             }
 
@@ -1640,8 +1868,12 @@ class ArmController extends Controller
                 ->all();
         } else {
             $searchModel = new ArmSearch();
+            $params['ArmSearch'] = $params['ArmSearch'] ?? [];
+            $scopeFromRequest = trim((string) ($params['location_scope'] ?? $params['ArmSearch']['location_scope'] ?? ''));
+            $params['ArmSearch']['location_scope'] = $scopeFromRequest !== ''
+                ? $scopeFromRequest
+                : ($this->id === 'warehouse' ? 'warehouse_only' : 'exclude_warehouse');
             if (!empty($params['equipment_type'])) {
-                $params['ArmSearch'] = $params['ArmSearch'] ?? [];
                 $params['ArmSearch']['equipment_type'] = (string) $params['equipment_type'];
             }
             $filterModelRaw = isset($params['filterModel']) ? trim((string) $params['filterModel']) : '';
@@ -1882,7 +2114,8 @@ class ArmController extends Controller
         if (!$user) {
             throw new \yii\web\ForbiddenHttpException('Доступ запрещён.');
         }
-        if ($user->isAdministrator()) {
+        // Руководитель и сотрудник техподдержки — просмотр любой карточки в разделе «Учёт ТС».
+        if ($user->canAccessArm()) {
             return;
         }
         if ((int) $model->responsible_user_id === (int) $user->id) {

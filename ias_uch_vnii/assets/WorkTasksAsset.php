@@ -18,6 +18,7 @@ class WorkTasksAsset extends AssetBundle
         'js/work-tasks/work-tasks.js',
         'js/work-tasks/work-tasks-board.js',
         'js/work-tasks/work-tasks-create.js',
+        'js/work-tasks/work-tasks-executors.js',
         'js/work-tasks/work-tasks-view.js',
     ];
     public $depends = [

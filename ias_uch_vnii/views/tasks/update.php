@@ -35,6 +35,8 @@ $this->params['breadcrumbs'][] = 'Редактировать';
         <?= $this->render('_form', [
             'model' => $model,
             'equipmentList' => $equipmentList ?? [],
+            'isUpdate' => true,
+            'canEditExecutorComment' => $canEditExecutorComment ?? false,
         ]) ?>
     </div>
 

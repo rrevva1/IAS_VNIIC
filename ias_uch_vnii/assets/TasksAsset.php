@@ -23,6 +23,8 @@ class TasksAsset extends AssetBundle
     
     public $js = [
         'js/tasks/view.js',
+        'js/tasks/tasks-view-modal.js',
+        'js/tasks/tasks-edit-modal.js',
         'js/tasks/form.js',
     ];
     

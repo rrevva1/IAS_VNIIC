@@ -37,7 +37,9 @@ class TasksSearch extends Tasks
 
     public function search($params)
     {
-        $query = Tasks::find()->joinWith(['requester', 'executor', 'status']);
+        $query = Tasks::find()
+            ->joinWith(['requester', 'executor', 'status'])
+            ->with(['linkedWorkTask.executors', 'taskAttachments']);
         // Администратор и оператор видят все заявки; пользователь — только свои и где он исполнитель
         if (!Yii::$app->user->identity->isAdministrator() && !Yii::$app->user->identity->isOperator()) {
             $query->andWhere([
