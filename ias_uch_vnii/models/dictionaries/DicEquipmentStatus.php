@@ -62,12 +62,4 @@ class DicEquipmentStatus extends ActiveRecord
         $row = self::find()->where(['status_code' => 'in_use'])->one();
         return $row ? (int) $row->id : null;
     }
-
-    /** ID статуса «На складе». */
-    public static function getInStockId(): ?int
-    {
-        $row = self::find()->where(['status_code' => 'in_stock'])->one();
-
-        return $row ? (int) $row->id : null;
-    }
 }

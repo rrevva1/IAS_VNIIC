@@ -73,7 +73,7 @@ use yii\helpers\Html;
     <?php endforeach; ?>
 </datalist>
 <datalist id="arm-ip-datalist">
-    <?php foreach ($ipAddresses as $ipAddress): ?>
+    <?php foreach ($ipAddresses ?? [] as $ipAddress): ?>
         <option value="<?= Html::encode($ipAddress) ?>"></option>
     <?php endforeach; ?>
 </datalist>

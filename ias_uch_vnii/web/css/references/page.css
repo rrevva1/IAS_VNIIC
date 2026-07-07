@@ -1,0 +1,96 @@
+/**
+ * Справочники — единый каркас с «Учёт ТС».
+ */
+
+.references-page.arm-page .references-grid-host {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 240px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.references-page .references-grid-host.ag-theme-quartz .ag-root-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 240px;
+}
+
+.references-page .references-grid-host.ag-theme-quartz .ag-root-wrapper-body {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+}
+
+.references-page .references-grid-host.ag-theme-quartz .ag-root {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.references-page .references-grid-host.ag-theme-quartz .ag-body {
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.references-page .references-grid-host.ag-theme-quartz .ag-body-viewport.ag-layout-normal {
+    overflow-y: auto !important;
+}
+
+.references-page .references-grid-host:not(.arm-grid-loading) .arm-grid-loading__inner {
+    display: none;
+}
+
+.references-page .references-grid-host.arm-grid-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 320px;
+}
+
+.references-page .references-grid-host.ag-theme-quartz {
+    --ag-font-size: 12px;
+    --ag-font-family: inherit;
+    --ag-row-height: 36px;
+    --ag-header-height: 48px;
+    --ag-grid-line-color: #cbd5e1;
+    --ag-border-color: var(--ag-grid-line-color);
+}
+
+.references-hub-command-bar.arm-command-bar {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.references-hub-tabs .nav-link {
+    white-space: nowrap;
+}
+
+.references-page .arm-command-bar__tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.references-page .ref-link-edit {
+    color: var(--arm-text, #0f172a);
+    text-decoration: none;
+    font-weight: inherit;
+    cursor: pointer;
+}
+
+.references-page .ref-link-edit:hover {
+    text-decoration: underline;
+}
+
+.references-page .ag-cell .ref-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.references-create-form-wrap .tasks-create-form__section .form-group {
+    margin-bottom: 0.75rem;
+}

@@ -35,6 +35,37 @@ class EquipmentCharCatalog
         ], 'EquipmentCharCatalog::getDistinctUpsBatteryModels');
     }
 
+    public static function formatPartCharDateDisplay(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            $dt = \DateTime::createFromFormat('Y-m-d', $value);
+
+            return $dt ? $dt->format('d.m.Y') : $value;
+        }
+
+        return $value;
+    }
+
+    public static function formatUpsBatteryServiceLifeDisplay(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+        $normalized = str_replace(',', '.', $value);
+        if (is_numeric($normalized) && !str_contains(mb_strtolower($value, 'UTF-8'), 'лет')) {
+            $formatted = rtrim(rtrim(number_format((float) $normalized, 1, '.', ''), '0'), '.');
+
+            return $formatted . ' лет';
+        }
+
+        return $value;
+    }
+
     /**
      * Все известные модели процессоров (ЦП + «Модель» и синонимы частей/характеристик).
      *
@@ -735,8 +766,11 @@ class EquipmentCharCatalog
      * @param array<string, string> $chars
      * @return list<array{type_label: string, icon_class: string, id: ?int, label: string, inventory_number: string}>
      */
-    public static function buildHostLinkedComponentsViewRows(array $linked, array $chars = []): array
-    {
+    public static function buildHostLinkedComponentsViewRows(
+        array $linked,
+        array $chars = [],
+        bool $includeLegacyCharBindings = true
+    ): array {
         $rows = [];
         $order = [
             'monitor' => 'Монитор',
@@ -763,17 +797,19 @@ class EquipmentCharCatalog
             }
         }
 
-        $hasMonitorLink = !empty($linked['monitor']);
-        $legacyMonitor = trim((string) ($chars['monitor'] ?? ''));
-        if (!$hasMonitorLink && $legacyMonitor !== '') {
-            $legacyInv = trim((string) ($chars['monitor_inv'] ?? ''));
-            $rows[] = [
-                'type_label' => 'Монитор',
-                'icon_class' => self::getLinkedComponentTypeIconClass('Монитор'),
-                'id' => null,
-                'label' => $legacyMonitor,
-                'inventory_number' => $legacyInv,
-            ];
+        if ($includeLegacyCharBindings) {
+            $hasMonitorLink = !empty($linked['monitor']);
+            $legacyMonitor = trim((string) ($chars['monitor'] ?? ''));
+            if (!$hasMonitorLink && $legacyMonitor !== '') {
+                $legacyInv = trim((string) ($chars['monitor_inv'] ?? ''));
+                $rows[] = [
+                    'type_label' => 'Монитор',
+                    'icon_class' => self::getLinkedComponentTypeIconClass('Монитор'),
+                    'id' => null,
+                    'label' => $legacyMonitor,
+                    'inventory_number' => $legacyInv,
+                ];
+            }
         }
 
         return $rows;

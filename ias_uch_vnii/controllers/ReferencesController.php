@@ -13,6 +13,7 @@ use app\models\entities\PartCharValues;
 use Yii;
 use yii\filters\AccessControl;
 use yii\filters\VerbFilter;
+use yii\db\ActiveRecord;
 use yii\web\Controller;
 use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
@@ -85,38 +86,53 @@ class ReferencesController extends Controller
         return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
+    /** @deprecated Открывайте список и используйте модальное окно */
     public function actionTaskStatusCreate()
+    {
+        return $this->redirect(['task-status']);
+    }
+
+    /** @deprecated Открывайте список и используйте модальное окно */
+    public function actionTaskStatusUpdate($id)
+    {
+        return $this->redirect(['task-status']);
+    }
+
+    public function actionTaskStatusCreateModal()
     {
         $model = new DicTaskStatus();
         $model->sort_order = 100;
         $model->is_archived = false;
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Статус заявки добавлен.');
-            return $this->redirect(['task-status']);
-        }
-        return $this->render('task-status-form', ['model' => $model]);
+
+        return $this->handleReferenceModal(
+            $model,
+            '_forms/task_status',
+            'Статус заявки добавлен.',
+            'Добавить статус заявки'
+        );
     }
 
-    public function actionTaskStatusUpdate($id)
+    public function actionTaskStatusUpdateModal($id)
     {
         $model = $this->findTaskStatus($id);
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Статус заявки обновлён.');
-            return $this->redirect(['task-status']);
-        }
-        return $this->render('task-status-form', ['model' => $model]);
+
+        return $this->handleReferenceModal(
+            $model,
+            '_forms/task_status',
+            'Статус заявки обновлён.',
+            'Редактировать статус заявки'
+        );
     }
 
     public function actionTaskStatusArchive($id)
     {
         $model = $this->findTaskStatus($id);
-        $count = Tasks::find()->where(['status_id' => $id])->count();
-        $model->is_archived = true;
-        $model->save(false);
-        Yii::$app->session->setFlash('success', $count > 0
+        $count = (int) Tasks::find()->where(['status_id' => $id])->count();
+        $message = $count > 0
             ? 'Статус архивирован (на него ссылаются заявки).'
-            : 'Статус архивирован.');
-        return $this->redirect(['task-status']);
+            : 'Статус архивирован.';
+
+        return $this->archiveReference($model, ['task-status'], $message);
     }
 
     /** Локации */
@@ -144,37 +160,42 @@ class ReferencesController extends Controller
         return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
+    /** @deprecated */
     public function actionLocationCreate()
+    {
+        return $this->redirect(['locations']);
+    }
+
+    /** @deprecated */
+    public function actionLocationUpdate($id)
+    {
+        return $this->redirect(['locations']);
+    }
+
+    public function actionLocationCreateModal()
     {
         $model = new Location();
         $model->is_archived = false;
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Локация добавлена.');
-            return $this->redirect(['locations']);
-        }
-        return $this->render('location-form', ['model' => $model]);
+
+        return $this->handleReferenceModal($model, '_forms/location', 'Локация добавлена.', 'Добавить локацию');
     }
 
-    public function actionLocationUpdate($id)
+    public function actionLocationUpdateModal($id)
     {
         $model = $this->findLocation($id);
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Локация обновлена.');
-            return $this->redirect(['locations']);
-        }
-        return $this->render('location-form', ['model' => $model]);
+
+        return $this->handleReferenceModal($model, '_forms/location', 'Локация обновлена.', 'Редактировать локацию');
     }
 
     public function actionLocationArchive($id)
     {
         $model = $this->findLocation($id);
-        $count = Equipment::find()->where(['location_id' => $id])->count();
-        $model->is_archived = true;
-        $model->save(false);
-        Yii::$app->session->setFlash('success', $count > 0
+        $count = (int) Equipment::find()->where(['location_id' => $id])->count();
+        $message = $count > 0
             ? 'Локация архивирована (на неё ссылаются активы).'
-            : 'Локация архивирована.');
-        return $this->redirect(['locations']);
+            : 'Локация архивирована.';
+
+        return $this->archiveReference($model, ['locations'], $message);
     }
 
     /** Статусы оборудования */
@@ -202,38 +223,53 @@ class ReferencesController extends Controller
         return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
+    /** @deprecated */
     public function actionEquipmentStatusCreate()
+    {
+        return $this->redirect(['equipment-status']);
+    }
+
+    /** @deprecated */
+    public function actionEquipmentStatusUpdate($id)
+    {
+        return $this->redirect(['equipment-status']);
+    }
+
+    public function actionEquipmentStatusCreateModal()
     {
         $model = new DicEquipmentStatus();
         $model->sort_order = 100;
         $model->is_archived = false;
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Статус оборудования добавлен.');
-            return $this->redirect(['equipment-status']);
-        }
-        return $this->render('equipment-status-form', ['model' => $model]);
+
+        return $this->handleReferenceModal(
+            $model,
+            '_forms/equipment_status',
+            'Статус оборудования добавлен.',
+            'Добавить статус оборудования'
+        );
     }
 
-    public function actionEquipmentStatusUpdate($id)
+    public function actionEquipmentStatusUpdateModal($id)
     {
         $model = $this->findEquipmentStatus($id);
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Статус оборудования обновлён.');
-            return $this->redirect(['equipment-status']);
-        }
-        return $this->render('equipment-status-form', ['model' => $model]);
+
+        return $this->handleReferenceModal(
+            $model,
+            '_forms/equipment_status',
+            'Статус оборудования обновлён.',
+            'Редактировать статус оборудования'
+        );
     }
 
     public function actionEquipmentStatusArchive($id)
     {
         $model = $this->findEquipmentStatus($id);
-        $count = Equipment::find()->where(['status_id' => $id])->count();
-        $model->is_archived = true;
-        $model->save(false);
-        Yii::$app->session->setFlash('success', $count > 0
+        $count = (int) Equipment::find()->where(['status_id' => $id])->count();
+        $message = $count > 0
             ? 'Статус архивирован (на него ссылаются активы).'
-            : 'Статус архивирован.');
-        return $this->redirect(['equipment-status']);
+            : 'Статус архивирован.';
+
+        return $this->archiveReference($model, ['equipment-status'], $message);
     }
 
     /** Типы частей (комплектующие) — spr_parts */
@@ -260,37 +296,42 @@ class ReferencesController extends Controller
         return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
+    /** @deprecated */
     public function actionPartsCreate()
+    {
+        return $this->redirect(['parts']);
+    }
+
+    /** @deprecated */
+    public function actionPartsUpdate($id)
+    {
+        return $this->redirect(['parts']);
+    }
+
+    public function actionPartsCreateModal()
     {
         $model = new SprParts();
         $model->is_archived = false;
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Тип части добавлен.');
-            return $this->redirect(['parts']);
-        }
-        return $this->render('parts-form', ['model' => $model]);
+
+        return $this->handleReferenceModal($model, '_forms/parts', 'Тип части добавлен.', 'Добавить тип части');
     }
 
-    public function actionPartsUpdate($id)
+    public function actionPartsUpdateModal($id)
     {
         $model = $this->findPart($id);
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Тип части обновлён.');
-            return $this->redirect(['parts']);
-        }
-        return $this->render('parts-form', ['model' => $model]);
+
+        return $this->handleReferenceModal($model, '_forms/parts', 'Тип части обновлён.', 'Редактировать тип части');
     }
 
     public function actionPartsArchive($id)
     {
         $model = $this->findPart($id);
-        $count = PartCharValues::find()->where(['part_id' => $id])->count();
-        $model->is_archived = true;
-        $model->save(false);
-        Yii::$app->session->setFlash('success', $count > 0
+        $count = (int) PartCharValues::find()->where(['part_id' => $id])->count();
+        $message = $count > 0
             ? 'Тип части архивирован (используется в характеристиках оборудования).'
-            : 'Тип части архивирован.');
-        return $this->redirect(['parts']);
+            : 'Тип части архивирован.';
+
+        return $this->archiveReference($model, ['parts'], $message);
     }
 
     /** Характеристики — spr_chars */
@@ -318,37 +359,97 @@ class ReferencesController extends Controller
         return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
+    /** @deprecated */
     public function actionCharsCreate()
+    {
+        return $this->redirect(['chars']);
+    }
+
+    /** @deprecated */
+    public function actionCharsUpdate($id)
+    {
+        return $this->redirect(['chars']);
+    }
+
+    public function actionCharsCreateModal()
     {
         $model = new SprChars();
         $model->is_archived = false;
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Характеристика добавлена.');
-            return $this->redirect(['chars']);
-        }
-        return $this->render('chars-form', ['model' => $model]);
+
+        return $this->handleReferenceModal($model, '_forms/chars', 'Характеристика добавлена.', 'Добавить характеристику');
     }
 
-    public function actionCharsUpdate($id)
+    public function actionCharsUpdateModal($id)
     {
         $model = $this->findChar($id);
-        if ($model->load(Yii::$app->request->post()) && $model->save()) {
-            Yii::$app->session->setFlash('success', 'Характеристика обновлена.');
-            return $this->redirect(['chars']);
-        }
-        return $this->render('chars-form', ['model' => $model]);
+
+        return $this->handleReferenceModal($model, '_forms/chars', 'Характеристика обновлена.', 'Редактировать характеристику');
     }
 
     public function actionCharsArchive($id)
     {
         $model = $this->findChar($id);
-        $count = PartCharValues::find()->where(['char_id' => $id])->count();
+        $count = (int) PartCharValues::find()->where(['char_id' => $id])->count();
+        $message = $count > 0
+            ? 'Характеристика архивирована (используется в характеристиках оборудования).'
+            : 'Характеристика архивирована.';
+
+        return $this->archiveReference($model, ['chars'], $message);
+    }
+
+    /**
+     * GET — форма в модальном окне, POST — JSON.
+     *
+     * @return array|string|Response
+     */
+    protected function handleReferenceModal(
+        ActiveRecord $model,
+        string $formView,
+        string $successMessage,
+        string $modalTitle
+    ) {
+        if (Yii::$app->request->isPost) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+            if ($model->load(Yii::$app->request->post()) && $model->save()) {
+                return [
+                    'success' => true,
+                    'message' => $successMessage,
+                    'id' => (int) $model->primaryKey,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'errors' => $model->errors,
+                'message' => 'Не удалось сохранить'
+                    . ($model->getFirstErrors() ? ': ' . implode(' ', $model->getFirstErrors()) : ''),
+            ];
+        }
+
+        return $this->renderAjax($formView, [
+            'model' => $model,
+            'isUpdate' => !$model->isNewRecord,
+            'modalTitle' => $modalTitle,
+        ]);
+    }
+
+    /**
+     * @param array<int|string, string> $redirectRoute
+     */
+    protected function archiveReference(ActiveRecord $model, array $redirectRoute, string $message): Response
+    {
         $model->is_archived = true;
         $model->save(false);
-        Yii::$app->session->setFlash('success', $count > 0
-            ? 'Характеристика архивирована (используется в характеристиках оборудования).'
-            : 'Характеристика архивирована.');
-        return $this->redirect(['chars']);
+
+        if (Yii::$app->request->isAjax) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+
+            return ['success' => true, 'message' => $message];
+        }
+
+        Yii::$app->session->setFlash('success', $message);
+
+        return $this->redirect($redirectRoute);
     }
 
     protected function findTaskStatus($id): DicTaskStatus

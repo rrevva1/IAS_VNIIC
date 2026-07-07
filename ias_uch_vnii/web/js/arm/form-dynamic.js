@@ -97,12 +97,15 @@
             });
     }
 
-    function getOrgTechValues() {
+    function getOrgTechValues(orgTechOverride) {
+        if (orgTechOverride !== undefined) {
+            return orgTechOverride;
+        }
         return window.armFormOrgTech || {};
     }
 
-    function renderChoiceSelectField(f) {
-        var chars = window.armFormChars || {};
+    function renderChoiceSelectField(f, chars) {
+        chars = chars || window.armFormChars || {};
         var current = String(chars[f.name] || '').trim();
         var div = createDynamicFieldWrapper();
         var label = document.createElement('label');
@@ -128,8 +131,8 @@
         return div;
     }
 
-    function renderCartridgeSelectField(f) {
-        var orgTech = getOrgTechValues();
+    function renderCartridgeSelectField(f, orgTechOverride) {
+        var orgTech = getOrgTechValues(orgTechOverride);
         var current = String(orgTech.cartridge_procurement || '').trim();
         var div = createDynamicFieldWrapper();
         div.innerHTML = '<label class="form-label">' + escapeHtml(f.label || f.name) + '</label>';
@@ -172,36 +175,148 @@
         return String(opt.value).trim();
     }
 
-    function loadArmFormConfig() {
+    function isPrinterOrMfuType(type) {
+        var t = String(type || '').trim().toLowerCase();
+        return t === 'принтер' || t === 'мфу';
+    }
+
+    function isCartridgeField(field) {
+        return !!field && (field.widget === 'cartridge-select' || field.name === 'cartridge_procurement');
+    }
+
+    function filterConfigFields(fields) {
+        if (!fields || !fields.length) {
+            return [];
+        }
+        return fields.filter(function(field) {
+            return !isCartridgeField(field);
+        });
+    }
+
+    function syncPrinterCartridgeSection(type, root) {
+        var section = findInArmFormRoot('arm-form-cartridge-section', root);
+        if (!section) {
+            return;
+        }
+        if (isPrinterOrMfuType(type)) {
+            section.classList.remove('d-none');
+        } else {
+            section.classList.add('d-none');
+        }
+    }
+
+    function syncDescriptionSection(type, root) {
+        var form = findInArmFormRoot('arm-create-form', root);
+        var section = findInArmFormRoot('arm-form-description-section', root);
+        if (!form || !section) {
+            return;
+        }
+        var titleEl = section.querySelector('#arm-create-section-note');
+        var textarea = section.querySelector('[name="Equipment[description]"]');
+        var printerTitle = form.getAttribute('data-arm-description-title-printer') || 'Комментарий';
+        var defaultTitle = form.getAttribute('data-arm-description-title-default') || 'Примечание';
+        var printerPlaceholder = form.getAttribute('data-arm-description-placeholder-printer') || '';
+        var defaultPlaceholder = form.getAttribute('data-arm-description-placeholder-default') || '';
+        var isPrinter = isPrinterOrMfuType(type);
+        if (titleEl) {
+            titleEl.textContent = isPrinter ? printerTitle : defaultTitle;
+        }
+        if (textarea) {
+            textarea.placeholder = isPrinter ? printerPlaceholder : defaultPlaceholder;
+        }
+    }
+
+    function getArmFormRoot(container) {
+        if (container && container.querySelector) {
+            return container;
+        }
+        var modalBody = document.getElementById('createArmModalBody');
+        if (modalBody && modalBody.querySelector('#arm-create-form')) {
+            return modalBody;
+        }
+        return document;
+    }
+
+    function findInArmFormRoot(id, root) {
+        if (!id) {
+            return null;
+        }
+        root = root || getArmFormRoot();
+        if (root && root !== document && root.querySelector) {
+            var scoped = root.querySelector('#' + id);
+            if (scoped) {
+                return scoped;
+            }
+        }
+        return document.getElementById(id);
+    }
+
+    function readConfigJsonFromForm(root) {
+        var form = findInArmFormRoot('arm-create-form', root);
+        if (!form) {
+            return '';
+        }
+        var raw = form.getAttribute('data-arm-form-config') || '';
+        return String(raw).trim();
+    }
+
+    function findArmFormConfigNode(root) {
+        root = getArmFormRoot(root);
+        var fromForm = readConfigJsonFromForm(root);
+        if (fromForm) {
+            return { source: 'form', value: fromForm };
+        }
+        if (root && root !== document && root.querySelector) {
+            var inRoot = root.querySelector('#arm-form-config-json');
+            if (inRoot && inRoot.value) {
+                return { source: 'textarea', node: inRoot, value: inRoot.value };
+            }
+        }
+        var fallback = document.getElementById('arm-form-config-json');
+        if (fallback && fallback.value) {
+            return { source: 'textarea', node: fallback, value: fallback.value };
+        }
+        return null;
+    }
+
+    function applyArmFormConfigData(data) {
+        if (!data || typeof data !== 'object') {
+            return { templates: {}, chars: {}, orgTech: {} };
+        }
+        if (data.templates) {
+            window.armFormFieldTemplates = data.templates;
+        }
+        if (data.chars) {
+            window.armFormChars = data.chars;
+        }
+        if (data.orgTech) {
+            window.armFormOrgTech = data.orgTech;
+        }
+        return {
+            templates: data.templates || {},
+            chars: data.chars || {},
+            orgTech: data.orgTech || {},
+        };
+    }
+
+    function loadArmFormConfig(root) {
+        var configNode = findArmFormConfigNode(root);
+        if (configNode && configNode.value) {
+            try {
+                return applyArmFormConfigData(JSON.parse(configNode.value));
+            } catch (err) {
+                if (window.console && typeof window.console.error === 'function') {
+                    window.console.error('ARM form config JSON parse failed', err);
+                }
+            }
+        }
         var templates = window.armFormFieldTemplates;
         var chars = window.armFormChars || {};
         var orgTech = window.armFormOrgTech || {};
         if (templates && typeof templates === 'object' && Object.keys(templates).length > 0) {
             return { templates: templates, chars: chars, orgTech: orgTech };
         }
-        var node = document.getElementById('arm-form-config-json');
-        if (!node || !node.value) {
-            return { templates: {}, chars: {}, orgTech: {} };
-        }
-        try {
-            var data = JSON.parse(node.value);
-            if (data.templates) {
-                window.armFormFieldTemplates = data.templates;
-            }
-            if (data.chars) {
-                window.armFormChars = data.chars;
-            }
-            if (data.orgTech) {
-                window.armFormOrgTech = data.orgTech;
-            }
-            return {
-                templates: data.templates || {},
-                chars: data.chars || {},
-                orgTech: data.orgTech || {},
-            };
-        } catch (err) {
-            return { templates: {}, chars: {}, orgTech: {} };
-        }
+        return { templates: {}, chars: {}, orgTech: {} };
     }
 
     function resolveTemplateFields(templates, type) {
@@ -310,17 +425,101 @@
         return div;
     }
 
-    function renderFields(type) {
-        var cfg = loadArmFormConfig();
+    function renderDatePartCharField(f, chars) {
+        var div = createDynamicFieldWrapper();
+        var val = normalizeDateForInput(chars[f.name] || '');
+        var placeholder = resolveFieldPlaceholder(f, null);
+        var inputAttrs =
+            'type="date" class="form-control" name="PartChar[' + escapeHtml(f.name) + ']" value="' +
+            escapeHtml(val) + '" data-part="' + escapeHtml(f.part || '') + '" data-char="' +
+            escapeHtml(f.char || '') + '"';
+        if (placeholder) {
+            inputAttrs += ' title="' + escapeHtml(placeholder) + '"';
+        }
+        div.innerHTML =
+            '<label class="form-label">' + escapeHtml(f.label || f.name) + '</label>' +
+            '<input ' + inputAttrs + '>';
+        return div;
+    }
+
+    function renderNumberPartCharField(f, chars) {
+        var div = createDynamicFieldWrapper();
+        var val = chars[f.name] || '';
+        var placeholder = resolveFieldPlaceholder(f, null);
+        var inputAttrs =
+            'type="number" class="form-control" name="PartChar[' + escapeHtml(f.name) + ']" value="' +
+            escapeHtml(val) + '" data-part="' + escapeHtml(f.part || '') + '" data-char="' +
+            escapeHtml(f.char || '') + '" min="0" max="30" step="0.5" inputmode="decimal"';
+        if (placeholder) {
+            inputAttrs += ' placeholder="' + escapeHtml(placeholder) + '"';
+        }
+        div.innerHTML =
+            '<label class="form-label">' + escapeHtml(f.label || f.name) + '</label>' +
+            '<input ' + inputAttrs + '>';
+        return div;
+    }
+
+    function normalizeDateForInput(value) {
+        var val = String(value || '').trim();
+        if (!val) {
+            return '';
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+            return val;
+        }
+        var match = val.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+        if (match) {
+            return match[3] + '-' + String(match[2]).padStart(2, '0') + '-' + String(match[1]).padStart(2, '0');
+        }
+        return val;
+    }
+
+    function resolveDynamicDom(domOpts) {
+        domOpts = domOpts || {};
+        return {
+            blockId: domOpts.blockId || 'dynamic-fields-block',
+            contentId: domOpts.contentId || 'dynamic-fields-content',
+            chars: domOpts.chars !== undefined ? domOpts.chars : null,
+            orgTech: domOpts.orgTech !== undefined ? domOpts.orgTech : null,
+            root: domOpts.root || null,
+        };
+    }
+
+    function renderFields(type, domOpts) {
+        var dom = resolveDynamicDom(domOpts);
+        var root = getArmFormRoot(dom.root);
+        var cfg = loadArmFormConfig(root);
         var templates = cfg.templates;
-        var chars = cfg.chars;
+        var chars = dom.chars !== null ? dom.chars : cfg.chars;
+        var orgTechOverride = dom.orgTech;
         var fields = resolveTemplateFields(templates, type);
-        var block = document.getElementById('dynamic-fields-block');
-        var content = document.getElementById('dynamic-fields-content');
+        var block = findInArmFormRoot(dom.blockId, root);
+        var content = findInArmFormRoot(dom.contentId, root);
         if (!block || !content) {
             return;
         }
+        syncPrinterCartridgeSection(type, root);
+        syncDescriptionSection(type, root);
         if (!type || !fields || fields.length === 0) {
+            if (content.querySelector('.arm-dynamic-field')) {
+                if (type) {
+                    block.classList.remove('d-none');
+                    block.classList.add('arm-form-create__config-visible');
+                }
+                return;
+            }
+            block.classList.add('d-none');
+            block.classList.remove('arm-form-create__config-visible');
+            content.innerHTML = '';
+            return;
+        }
+        fields = filterConfigFields(fields);
+        if (fields.length === 0) {
+            if (content.querySelector('.arm-dynamic-field')) {
+                block.classList.remove('d-none');
+                block.classList.add('arm-form-create__config-visible');
+                return;
+            }
             block.classList.add('d-none');
             block.classList.remove('arm-form-create__config-visible');
             content.innerHTML = '';
@@ -328,16 +527,27 @@
         }
         content.innerHTML = '';
         fields.forEach(function(f) {
+            if (isCartridgeField(f)) {
+                return;
+            }
             if (f.widget === 'disk-datalist-multi' || f.name === 'disk') {
                 content.appendChild(renderDiskMultiField(f, chars));
                 return;
             }
             if (f.widget === 'cartridge-select' || f.name === 'cartridge_procurement') {
-                content.appendChild(renderCartridgeSelectField(f));
+                content.appendChild(renderCartridgeSelectField(f, orgTechOverride));
                 return;
             }
             if (f.widget === 'choice-select' && f.options && f.options.length) {
-                content.appendChild(renderChoiceSelectField(f));
+                content.appendChild(renderChoiceSelectField(f, chars));
+                return;
+            }
+            if (f.widget === 'date') {
+                content.appendChild(renderDatePartCharField(f, chars));
+                return;
+            }
+            if (f.widget === 'number') {
+                content.appendChild(renderNumberPartCharField(f, chars));
                 return;
             }
             var val = chars[f.name] || '';
@@ -366,11 +576,48 @@
         block.classList.add('arm-form-create__config-visible');
     }
 
-    function syncFormForSelect(sel) {
+    var DELIVERY_LINE_DOM = {
+        blockId: 'delivery-line-dynamic-block',
+        contentId: 'delivery-line-dynamic-content',
+    };
+
+    function syncFormForSelect(sel, domOpts) {
         if (!sel) {
             return;
         }
-        renderFields(getSelectedType(sel));
+        domOpts = domOpts || {};
+        if (!domOpts.root) {
+            domOpts.root = sel.closest('#createArmModalBody') || getArmFormRoot();
+        }
+        renderFields(getSelectedType(sel), domOpts);
+    }
+
+    function syncEquipmentConfigFields(container) {
+        var root = getArmFormRoot(container);
+        if (typeof window.armApplyArmFormConfigFromDom === 'function') {
+            window.armApplyArmFormConfigFromDom(root);
+        }
+        var sel = findInArmFormRoot('equipment-type-select', root);
+        if (!sel) {
+            return;
+        }
+        renderFields(getSelectedType(sel), { root: root });
+    }
+
+    function syncDeliveryLineFields(clearChars) {
+        var sel = document.getElementById('deliveryLineType');
+        if (!sel) {
+            return;
+        }
+        var domOpts = Object.assign({}, DELIVERY_LINE_DOM);
+        if (clearChars) {
+            domOpts.chars = {};
+            domOpts.orgTech = {};
+        } else {
+            domOpts.chars = window.armFormChars || {};
+            domOpts.orgTech = window.armFormOrgTech || {};
+        }
+        renderFields(getSelectedType(sel), domOpts);
     }
 
     function bindDatalistInputs(root, selector, listId) {
@@ -389,14 +636,39 @@
         });
     }
 
-    function init() {
-        syncFormForSelect(document.getElementById('equipment-type-select'));
-        bindDatalistInputs(document, '.js-location-datalist', 'arm-location-datalist');
-        bindDatalistInputs(document, '.js-inventory-datalist', 'arm-inventory-datalist');
-        bindDatalistInputs(document, '.js-equipment-name-datalist', 'arm-name-datalist');
+    function init(container) {
+        var root = getArmFormRoot(container);
+        syncEquipmentConfigFields(root);
+        bindDatalistInputs(root, '.js-location-datalist', 'arm-location-datalist');
+        bindDatalistInputs(root, '.js-inventory-datalist', 'arm-inventory-datalist');
+        bindDatalistInputs(root, '.js-equipment-name-datalist', 'arm-name-datalist');
     }
 
     window.armInitEquipmentCreateForm = init;
+    window.armRenderDynamicFields = renderFields;
+    window.armSyncEquipmentConfigFields = syncEquipmentConfigFields;
+    window.armApplyArmFormConfigFromDom = function(container) {
+        var root = getArmFormRoot(container);
+        var configNode = findArmFormConfigNode(root);
+        if (!configNode || !configNode.value) {
+            return false;
+        }
+        try {
+            applyArmFormConfigData(JSON.parse(configNode.value));
+            return true;
+        } catch (err) {
+            if (window.console && typeof window.console.error === 'function') {
+                window.console.error('ARM form config apply failed', err);
+            }
+            return false;
+        }
+    };
+    window.armClearFormConfigGlobals = function() {
+        window.armFormFieldTemplates = undefined;
+        window.armFormChars = undefined;
+        window.armFormOrgTech = undefined;
+    };
+    window.armSyncDeliveryLineFields = syncDeliveryLineFields;
     window.armEnsureDatalistOption = ensureDatalistOption;
     window.armBindDatalistInputs = bindDatalistInputs;
     window.armBindLocationDatalist = function(root) {
@@ -406,10 +678,19 @@
     if (!document.documentElement.dataset.armFormDynamicBound) {
         document.documentElement.dataset.armFormDynamicBound = '1';
         document.addEventListener('change', function(e) {
-            if (!e.target || e.target.id !== 'equipment-type-select') {
+            if (!e.target) {
                 return;
             }
-            renderFields(getSelectedType(e.target));
+            if (e.target.id === 'equipment-type-select') {
+                var root = e.target.closest('#createArmModalBody') || getArmFormRoot();
+                renderFields(getSelectedType(e.target), { root: root });
+                return;
+            }
+            if (e.target.id === 'deliveryLineType') {
+                window.armFormChars = {};
+                window.armFormOrgTech = {};
+                syncDeliveryLineFields(false);
+            }
         });
     }
 

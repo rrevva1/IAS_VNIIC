@@ -32,6 +32,8 @@ class EquipHistory extends ActiveRecord
         'move_component_attach' => 'Привязка компонента к системному блоку',
         'move_to_warehouse' => 'Перемещение на склад',
         'move_to_warehouse_detach_kit' => 'Перемещение на склад: разрыв связи комплекта',
+        'delivery_post' => 'Проведение поставки',
+        'delivery_sync' => 'Синхронизация с поставкой',
     ];
 
     public static function tableName()

@@ -80,6 +80,7 @@ $passwordRequired = !$isUpdate;
                     'placeholder' => '+7 (999) 123-45-67',
                     'autocomplete' => 'tel',
                 ])->label(false) ?>
+                <p class="users-create-form__hint users-create-form__hint--placeholder" aria-hidden="true">&nbsp;</p>
             </div>
         </div>
     </div>
@@ -114,7 +115,7 @@ $passwordRequired = !$isUpdate;
         </div>
     </div>
 
-    <div class="users-create-form__section">
+    <div class="users-create-form__section users-create-form__section--password mb-0">
         <label class="users-create-form__label" for="users-password_plain">
             <i class="fas fa-key" aria-hidden="true"></i>
             <?= $isUpdate ? 'Новый пароль' : 'Пароль' ?>

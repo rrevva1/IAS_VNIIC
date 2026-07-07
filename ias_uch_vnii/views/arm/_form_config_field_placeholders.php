@@ -14,6 +14,8 @@ return [
     'os' => 'Версия ОС, например Windows 11 Pro',
     'screen_diagonal' => 'Выберите из списка или введите диагональ в дюймах',
     'ups_battery' => 'Модель АКБ, например CSB HR1234W F2',
+    'ups_battery_replaced_at' => 'Дата последней замены АКБ',
+    'ups_battery_service_life' => 'Например: 3',
     'paper_size_max' => 'Выберите максимальный формат бумаги',
     'print_technology' => 'Лазерная или струйная печать',
     'print_color' => 'Чёрно-белая или цветная печать',

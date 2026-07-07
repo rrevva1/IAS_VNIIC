@@ -277,28 +277,46 @@
     }
 
     function initLoadedForm() {
-        if (window.IasUserSelect) {
-            window.IasUserSelect.init(document.getElementById('createArmModalBody'));
-        }
-        if (typeof window.armInitEquipmentCreateForm === 'function') {
-            window.armInitEquipmentCreateForm();
-        }
         var modalBody = document.getElementById('createArmModalBody');
-        if (typeof window.armBindDatalistInputs === 'function' && modalBody) {
-            window.armBindDatalistInputs(modalBody, '.js-location-datalist', 'arm-location-datalist');
-            window.armBindDatalistInputs(modalBody, '.js-inventory-datalist', 'arm-inventory-datalist');
-            window.armBindDatalistInputs(modalBody, '.js-equipment-name-datalist', 'arm-name-datalist');
-        } else if (typeof window.armBindLocationDatalist === 'function') {
-            window.armBindLocationDatalist(modalBody);
-        }
-        if (typeof window.armInitWarrantyPreview === 'function') {
-            window.armInitWarrantyPreview();
-        }
-        syncFormModalHeader();
-        var modalRoot = document.getElementById('createArmModal');
-        if (modalRoot) {
-            modalRoot.removeEventListener('input', syncFormModalHeaderOnInput);
-            modalRoot.addEventListener('input', syncFormModalHeaderOnInput);
+        try {
+            if (typeof window.armInitEquipmentCreateForm === 'function') {
+                window.armInitEquipmentCreateForm(modalBody);
+            }
+            if (window.IasUserSelect) {
+                window.IasUserSelect.init(modalBody);
+            }
+            if (typeof window.armBindDatalistInputs === 'function' && modalBody) {
+                window.armBindDatalistInputs(modalBody, '.js-location-datalist', 'arm-location-datalist');
+                window.armBindDatalistInputs(modalBody, '.js-inventory-datalist', 'arm-inventory-datalist');
+                window.armBindDatalistInputs(modalBody, '.js-equipment-name-datalist', 'arm-name-datalist');
+            } else if (typeof window.armBindLocationDatalist === 'function') {
+                window.armBindLocationDatalist(modalBody);
+            }
+            if (typeof window.armInitWarrantyPreview === 'function') {
+                window.armInitWarrantyPreview();
+            }
+            if (typeof window.bindArmAttachments === 'function' && modalBody) {
+                window.bindArmAttachments(modalBody);
+            }
+            if (typeof window.syncArmPhotosCardMinHeight === 'function' && modalBody) {
+                window.requestAnimationFrame(function() {
+                    window.syncArmPhotosCardMinHeight(modalBody);
+                });
+            }
+        } catch (err) {
+            if (window.console && typeof window.console.error === 'function') {
+                window.console.error('ARM form init failed', err);
+            }
+        } finally {
+            if (typeof window.armSyncEquipmentConfigFields === 'function') {
+                window.armSyncEquipmentConfigFields(modalBody);
+            }
+            syncFormModalHeader();
+            var modalRoot = document.getElementById('createArmModal');
+            if (modalRoot) {
+                modalRoot.removeEventListener('input', syncFormModalHeaderOnInput);
+                modalRoot.addEventListener('input', syncFormModalHeaderOnInput);
+            }
         }
     }
 
@@ -310,6 +328,17 @@
         if (name === 'Equipment[name]' || name === 'Equipment[inventory_number]') {
             syncFormModalHeader();
         }
+    }
+
+    function triggerArmFormSave($form) {
+        if (!$form || !$form.length) {
+            return;
+        }
+        if ($form.data('yiiActiveForm')) {
+            $form.yiiActiveForm('submit');
+            return;
+        }
+        sendEquipmentFormRequest($form);
     }
 
     function sendEquipmentFormRequest($form) {
@@ -329,9 +358,16 @@
             type: 'POST',
             data: $form.serialize(),
             dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                Accept: 'application/json',
+            },
         })
             .done(function(response) {
                 if (response && response.success) {
+                    if (response.message) {
+                        showToast('success', response.message);
+                    }
                     var savedId = response.equipment_id || editEquipmentId;
                     var modalEl = document.getElementById('createArmModal');
                     var modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
@@ -374,8 +410,6 @@
         bindCreateFormErrorClear($form);
         bindYiiValidationHighlight($form);
 
-        // Yii ActiveForm: первый submit — валидация, второй — отправка. Обработчик submit
-        // срабатывал на обоих проходах и создавал две записи в БД.
         $form
             .off('beforeSubmit.armCreate')
             .on('beforeSubmit.armCreate', function() {
@@ -384,11 +418,9 @@
             })
             .off('submit.armCreate')
             .on('submit.armCreate', function(e) {
-                if ($form.data('yiiActiveForm')) {
-                    return;
-                }
                 e.preventDefault();
-                sendEquipmentFormRequest($form);
+                triggerArmFormSave($form);
+                return false;
             });
     }
 
@@ -403,16 +435,31 @@
         if (!root) {
             return;
         }
+        if (typeof window.armApplyArmFormConfigFromDom === 'function') {
+            window.armApplyArmFormConfigFromDom(root);
+        }
         root.querySelectorAll('script:not([src])').forEach(function(script) {
             var code = script.textContent || script.innerText || '';
             if (!code.trim()) {
                 return;
             }
-            var exec = document.createElement('script');
-            exec.text = code;
-            document.body.appendChild(exec);
-            exec.parentNode.removeChild(exec);
+            try {
+                var exec = document.createElement('script');
+                exec.text = code;
+                document.body.appendChild(exec);
+                exec.parentNode.removeChild(exec);
+            } catch (err) {
+                if (window.console && typeof window.console.error === 'function') {
+                    window.console.error('ARM modal inline script failed', err);
+                }
+            }
         });
+    }
+
+    function finalizeLoadedFormModal() {
+        initLoadedForm();
+        initFormSubmit();
+        syncFormModalHeader();
     }
 
     function openEquipmentFormModal(mode, equipmentId) {
@@ -449,9 +496,14 @@
             .done(function(html) {
                 var bodyEl = document.getElementById('createArmModalBody');
                 $('#createArmModalBody').html(html);
-                runInsertedScripts(bodyEl);
-                initLoadedForm();
-                initFormSubmit();
+                try {
+                    runInsertedScripts(bodyEl);
+                } catch (err) {
+                    if (window.console && typeof window.console.error === 'function') {
+                        window.console.error('ARM modal scripts failed', err);
+                    }
+                }
+                finalizeLoadedFormModal();
             })
             .fail(function(xhr) {
                 var msg = 'Не удалось загрузить форму. Попробуйте позже.';
@@ -487,9 +539,21 @@
 
     var modalEl = document.getElementById('createArmModal');
     if (modalEl) {
+        modalEl.addEventListener('click', function(e) {
+            if (!e.target.closest('#submit-arm-create-btn')) {
+                return;
+            }
+            e.preventDefault();
+            var $form = $('#createArmModalBody').find('#arm-create-form');
+            triggerArmFormSave($form);
+        });
+
         modalEl.addEventListener('hidden.bs.modal', function() {
             if (window.IasUserSelect && typeof window.IasUserSelect.destroy === 'function') {
                 window.IasUserSelect.destroy(document.getElementById('createArmModalBody'));
+            }
+            if (typeof window.armClearFormConfigGlobals === 'function') {
+                window.armClearFormConfigGlobals();
             }
             $('#createArmModalBody').html(loadingHtml());
             formMode = 'create';

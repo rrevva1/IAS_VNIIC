@@ -45,7 +45,9 @@ $currentSupplier = trim((string) ($model->supplier ?? ''));
 $currentInventoryNumber = trim((string) ($model->inventory_number ?? ''));
 $currentEquipmentName = trim((string) ($model->name ?? ''));
 $descriptionPlaceholder = $formPlaceholders['description'];
-if (EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName())) {
+$isPrinterOrMfu = EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName());
+$descriptionSectionTitle = $isPrinterOrMfu ? 'Комментарий' : 'Примечание';
+if ($isPrinterOrMfu) {
     $descriptionPlaceholder = $formPlaceholders['description_printer'];
 }
 $locationNames = array_values($locations ?? []);
@@ -71,6 +73,18 @@ $orgTechFields = array_merge(EquipmentCharCatalog::getPrinterMfuFormFieldDefinit
     ],
 ]);
 
+$buildArmFormFieldTemplates = require __DIR__ . '/_form_field_templates_builder.php';
+$armFormTemplateData = $buildArmFormFieldTemplates($orgTechFields);
+$armFormFieldTemplates = $armFormTemplateData['templates'];
+$armFormConfigPayload = json_encode([
+    'templates' => $armFormFieldTemplates,
+    'chars' => $chars,
+    'orgTech' => $orgTech,
+], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
+if ($armFormConfigPayload === false) {
+    $armFormConfigPayload = '{"templates":{},"chars":{},"orgTech":{}}';
+}
+
 if ($isModal) {
     echo $this->render('_form_modal', [
         'model' => $model,
@@ -94,12 +108,22 @@ if ($isModal) {
         'currentEquipmentName' => $currentEquipmentName,
         'screenDiagonalValues' => $screenDiagonalValues,
         'currentScreenDiagonal' => $currentScreenDiagonal,
+        'photos' => $photos ?? [],
+        'canEditPhotos' => $canEditPhotos ?? false,
+        'armFormFieldTemplates' => $armFormFieldTemplates,
+        'armFormConfigJson' => $armFormConfigPayload,
+        'chars' => $chars,
+        'orgTech' => $orgTech,
+        'isPrinterOrMfu' => $isPrinterOrMfu,
+        'descriptionPlaceholder' => $descriptionPlaceholder,
+        'descriptionSectionTitle' => $descriptionSectionTitle,
     ]);
     echo $this->render('_form_scripts', [
         'model' => $model,
         'chars' => $chars,
         'orgTech' => $orgTech,
-        'orgTechFields' => $orgTechFields,
+        'armFormFieldTemplates' => $armFormFieldTemplates,
+        'armFormConfigPayload' => $armFormConfigPayload,
         'cpuModels' => $cpuModels,
         'ramModels' => $ramModels,
         'osModels' => $osModels,
@@ -254,7 +278,8 @@ echo $this->render('_form_scripts', [
     'model' => $model,
     'chars' => $chars,
     'orgTech' => $orgTech,
-    'orgTechFields' => $orgTechFields,
+    'armFormFieldTemplates' => $armFormFieldTemplates,
+    'armFormConfigPayload' => $armFormConfigPayload,
     'cpuModels' => $cpuModels,
     'ramModels' => $ramModels,
     'osModels' => $osModels,

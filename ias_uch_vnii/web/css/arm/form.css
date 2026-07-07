@@ -257,6 +257,27 @@
     margin-bottom: 1rem;
 }
 
+#createArmModal .arm-form-create__primary-row {
+    align-items: flex-start;
+}
+
+#createArmModal .arm-form-create__cards-row {
+    align-items: flex-start;
+}
+
+#createArmModal .arm-form-create__cards-row-col {
+    min-width: 0;
+}
+
+#createArmModal .arm-form-create__cards-row-col > .arm-view-card {
+    width: 100%;
+    height: auto;
+}
+
+#createArmModal .arm-form-create__note-row {
+    margin-bottom: 1rem;
+}
+
 #createArmModal .arm-form-create__config-section .arm-view-card__body {
     padding: 1rem 1.1rem;
 }
@@ -278,14 +299,18 @@
 #createArmModal .arm-form-create__card {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: auto;
     min-height: 0;
+}
+
+#createArmModal .arm-form-create .arm-view-card {
+    height: auto;
 }
 
 #createArmModal .arm-form-create__card .arm-view-card__body.arm-form-create__card-fields {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     gap: 0.85rem;
 }
 
@@ -358,8 +383,16 @@
     margin-bottom: 0;
 }
 
-#createArmModal .arm-form-create__cards-row {
-    margin-bottom: 0;
+#createArmModal .arm-equipment-photos-form .arm-view-card__body {
+    padding: 1rem 1.1rem;
+}
+
+#createArmModal .arm-equipment-photos-form .arm-photos-gallery__empty {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
 }
 
 

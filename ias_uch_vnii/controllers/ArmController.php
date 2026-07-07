@@ -7,6 +7,7 @@ use app\models\entities\EquipmentTypes;
 use app\models\entities\EquipmentLink;
 use app\models\entities\EquipmentImportLog;
 use app\models\entities\EquipHistory;
+use app\models\entities\DeskAttachments;
 use app\models\entities\PartCharValues;
 use app\models\entities\SprParts;
 use app\models\entities\SprChars;
@@ -15,6 +16,7 @@ use app\models\entities\Location;
 use app\models\dictionaries\DicEquipmentStatus;
 use app\models\search\ArmSearch;
 use app\components\AuditLog;
+use app\components\EquipmentAttachmentService;
 use app\components\EquipmentCharCatalog;
 use app\components\UserEquipmentCardService;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -37,6 +39,14 @@ use yii\web\UploadedFile;
  */
 class ArmController extends Controller
 {
+    private EquipmentAttachmentService $equipmentAttachmentService;
+
+    public function init()
+    {
+        parent::init();
+        $this->equipmentAttachmentService = new EquipmentAttachmentService();
+    }
+
     public function behaviors()
     {
         return [
@@ -75,6 +85,8 @@ class ArmController extends Controller
                     'link-components' => ['POST'],
                     'import-preview' => ['POST'],
                     'import-apply' => ['POST'],
+                    'upload-photo' => ['POST'],
+                    'delete-photo' => ['POST'],
                 ],
             ],
         ];
@@ -111,22 +123,28 @@ class ArmController extends Controller
             'name'
         );
         $statuses = DicEquipmentStatus::getList();
-        $inStockStatusId = DicEquipmentStatus::getInStockId();
         $isAdmin = !Yii::$app->user->isGuest
             && Yii::$app->user->identity
             && Yii::$app->user->identity->isAdministrator();
+
+        $hideAllEquipmentTab = $locationScope === 'warehouse_only';
+        $defaultEquipmentTypeId = '';
+        if ($hideAllEquipmentTab && $equipmentTypes !== []) {
+            $defaultEquipmentTypeId = (string) ($equipmentTypes[0]['id'] ?? '');
+        }
 
         return $this->render('@app/views/arm/index', [
             'pageTitle' => $pageTitle,
             'locationScope' => $locationScope,
             'gridDataRoute' => $gridDataRoute,
             'exportRoute' => $exportRoute,
+            'hideAllEquipmentTab' => $hideAllEquipmentTab,
+            'defaultEquipmentTypeId' => $defaultEquipmentTypeId,
             'equipmentTypes' => $equipmentTypes,
             'users' => $users,
             'locations' => $locations,
             'warehouseLocations' => $warehouseLocations,
             'statuses' => $statuses,
-            'inStockStatusId' => $inStockStatusId,
             'isAdmin' => $isAdmin,
         ]);
     }
@@ -210,6 +228,9 @@ class ArmController extends Controller
             foreach ($models as $model) {
                 $chars = $charsByEquipment[$model->id] ?? [];
                 $linked = $linksByParent[(int) $model->id] ?? ['monitor' => [], 'disk' => [], 'ups' => []];
+                $hasLinkedMonitors = !empty($linked['monitor']);
+                $monitorCharForGrid = $hasLinkedMonitors ? (string) ($chars['monitor'] ?? '') : '';
+                // Встроенные накопители ПК — в part_char_values; связи equipment_links — отдельные единицы учёта.
                 $diskLines = EquipmentCharCatalog::formatDiskGridLines(
                     (string) ($chars['disk'] ?? ''),
                     $linked['disk']
@@ -234,10 +255,10 @@ class ArmController extends Controller
                     'inventory_number' => $model->inventory_number ?? '',
                     'purchase_date' => $this->formatPurchaseDateForGrid($model),
                     'monitor' => EquipmentCharCatalog::formatMonitorColumnValue(
-                        (string) ($chars['monitor'] ?? ''),
+                        $monitorCharForGrid,
                         $linked['monitor']
                     ),
-                    'monitor_char' => (string) ($chars['monitor'] ?? ''),
+                    'monitor_char' => $monitorCharForGrid,
                     'monitor_list' => $linked['monitor'],
                     'disk_list' => $linked['disk'],
                     'ups' => EquipmentCharCatalog::formatMonitorColumnValue('', $linked['ups']),
@@ -388,6 +409,14 @@ class ArmController extends Controller
                 $out[$id]['ups_battery'] = $val;
                 continue;
             }
+            if ($part === 'ИБП' && $char === 'Дата замены аккумулятора') {
+                $out[$id]['ups_battery_replaced_at'] = $val;
+                continue;
+            }
+            if ($part === 'ИБП' && $char === 'Срок службы аккумулятора') {
+                $out[$id]['ups_battery_service_life'] = $val;
+                continue;
+            }
             // ЦП (как в гриде) — в БД может быть: ЦП, Процессор, CPU и т.д.
             if (($p === 'цп' || $p === 'цпу' || strpos($p, 'процессор') !== false || $p === 'cpu') && (strpos($c, 'модель') !== false || strpos($c, 'частота') !== false)) {
                 $out[$id]['cpu'] = isset($out[$id]['cpu']) ? $out[$id]['cpu'] . ' ' . $val : $val;
@@ -407,8 +436,12 @@ class ArmController extends Controller
                 $out[$id]['ip'] = $val;
             } elseif ($c === 'ос' || strpos($c, 'операционн') !== false) {
                 $out[$id]['os'] = $val;
-            } elseif (($p === 'ибп' || $p === 'ups' || strpos($p, 'ибп') !== false) && strpos($c, 'аккумулятор') !== false) {
+            } elseif (($p === 'ибп' || $p === 'ups' || strpos($p, 'ибп') !== false) && strpos($c, 'модель') !== false && strpos($c, 'аккумулятор') !== false) {
                 $out[$id]['ups_battery'] = $val;
+            } elseif (($p === 'ибп' || $p === 'ups' || strpos($p, 'ибп') !== false) && strpos($c, 'дата') !== false && strpos($c, 'замен') !== false && strpos($c, 'аккумулятор') !== false) {
+                $out[$id]['ups_battery_replaced_at'] = $val;
+            } elseif (($p === 'ибп' || $p === 'ups' || strpos($p, 'ибп') !== false) && strpos($c, 'срок') !== false && strpos($c, 'служб') !== false && strpos($c, 'аккумулятор') !== false) {
+                $out[$id]['ups_battery_service_life'] = $val;
             }
         }
         return $out;
@@ -458,21 +491,31 @@ class ArmController extends Controller
         return (string) $location->location_type === 'склад';
     }
 
+    private function isEquipmentOnWarehouse(Equipment $model): bool
+    {
+        $locationId = $model->location_id;
+        if ($locationId === null || (int) $locationId <= 0) {
+            return false;
+        }
+
+        return $this->isWarehouseLocationId((int) $locationId);
+    }
+
     /**
      * @param int[] $ids
      * @return array{success: bool, message: string, updated?: int, details?: array}
      */
-    private function applyMoveToWarehouse(array $ids, int $warehouseLocationId, int $inStockStatusId): array
+    private function applyMoveToWarehouse(array $ids, int $warehouseLocationId): array
     {
         $updated = 0;
         $responsibleUserChanged = 0;
         $locationChanged = 0;
-        $statusChanged = 0;
         $errors = [];
 
         $transaction = Yii::$app->db->beginTransaction();
         try {
             $linksDetached = $this->detachEquipmentLinksForWarehouseMoveBatch($ids);
+            $this->clearHostKitBindingsAfterWarehouseMove($ids);
 
             foreach ($ids as $id) {
                 $model = Equipment::findOne((int) $id);
@@ -484,8 +527,6 @@ class ArmController extends Controller
                 $changed = false;
                 $oldResponsible = $model->responsible_user_id;
                 $oldLocation = $model->location_id;
-                $oldStatus = $model->status_id;
-
                 if (!EquipHistory::idsEqual($model->location_id, $warehouseLocationId)) {
                     $model->location_id = $warehouseLocationId;
                     EquipHistory::log(
@@ -509,19 +550,6 @@ class ArmController extends Controller
                         'move_to_warehouse'
                     );
                     $responsibleUserChanged++;
-                    $changed = true;
-                }
-
-                if (!EquipHistory::idsEqual($model->status_id, $inStockStatusId)) {
-                    $model->status_id = $inStockStatusId;
-                    EquipHistory::log(
-                        $model->id,
-                        'status_change',
-                        ['status_id' => $oldStatus],
-                        ['status_id' => $model->status_id],
-                        'move_to_warehouse'
-                    );
-                    $statusChanged++;
                     $changed = true;
                 }
 
@@ -549,7 +577,7 @@ class ArmController extends Controller
             'details' => [
                 'responsible_user_changed' => $responsibleUserChanged,
                 'location_changed' => $locationChanged,
-                'status_changed' => $statusChanged,
+                'status_changed' => 0,
                 'links_detached' => $linksDetached,
                 'errors' => $errors,
             ],
@@ -601,10 +629,66 @@ class ArmController extends Controller
                     'parent_id' => $parentId,
                     'link_type' => $linkType,
                 ]);
+                $this->clearHostKitPartCharsOnLinkDetach($parentId, $linkType);
             }
         }
 
         return $detached;
+    }
+
+    /**
+     * @param int[] $ids
+     */
+    private function clearHostKitBindingsAfterWarehouseMove(array $ids): void
+    {
+        foreach ($ids as $id) {
+            $model = Equipment::findOne((int) $id);
+            if ($model === null || !$this->isHostEquipment($model)) {
+                continue;
+            }
+            $this->clearHostPartCharsByPartName((int) $model->id, 'Монитор');
+            $this->clearHostPartCharsByPartName((int) $model->id, 'ИБП');
+        }
+    }
+
+    /**
+     * Убирает с ПК дублирующие характеристики монитора/ИБП после снятия связи (иначе в гриде остаётся
+     * неактивный текст без ссылки на карточку). Накопители в part_char не трогаем — это конфигурация ПК.
+     */
+    private function clearHostKitPartCharsOnLinkDetach(int $parentId, string $linkType): void
+    {
+        if ($parentId <= 0) {
+            return;
+        }
+
+        $partName = match ($linkType) {
+            EquipmentLink::TYPE_MONITOR => 'Монитор',
+            EquipmentLink::TYPE_UPS => 'ИБП',
+            default => null,
+        };
+        if ($partName === null) {
+            return;
+        }
+
+        $this->clearHostPartCharsByPartName($parentId, $partName);
+    }
+
+    private function clearHostPartCharsByPartName(int $parentId, string $partName): void
+    {
+        if ($parentId <= 0 || Yii::$app->db->getTableSchema('part_char_values', true) === null) {
+            return;
+        }
+
+        $part = SprParts::find()->where(['name' => $partName])->one();
+        if ($part === null) {
+            return;
+        }
+
+        $eqCol = $this->resolvePartCharEquipmentIdColumn();
+        PartCharValues::deleteAll([
+            $eqCol => $parentId,
+            'part_id' => (int) $part->id,
+        ]);
     }
 
     /**
@@ -859,6 +943,8 @@ class ArmController extends Controller
             'equipmentNames' => EquipmentCharCatalog::getDistinctEquipmentNames(),
             'screenDiagonalValues' => EquipmentCharCatalog::getDistinctScreenDiagonalValues(),
             'isModal' => $isModal,
+            'photos' => $model->isNewRecord ? [] : $this->equipmentAttachmentService->getPhotoRows($model),
+            'canEditPhotos' => $model->canEditPhotos(),
         ];
     }
 
@@ -971,10 +1057,16 @@ class ArmController extends Controller
             ->all();
 
         $isHost = $this->isHostEquipment($model);
+        $isOnWarehouse = $this->isEquipmentOnWarehouse($model);
         $linkedComponents = ['monitor' => [], 'disk' => [], 'ups' => []];
-        if ($isHost) {
+        $linkedComponentRows = [];
+        if ($isHost && !$isOnWarehouse) {
             $linksByParent = $this->loadLinkedComponents([(int) $model->id]);
             $linkedComponents = $linksByParent[(int) $model->id] ?? $linkedComponents;
+            $linkedComponentRows = EquipmentCharCatalog::buildHostLinkedComponentsViewRows(
+                $linkedComponents,
+                $charsForModel
+            );
         }
 
         return [
@@ -982,11 +1074,90 @@ class ArmController extends Controller
             'chars' => $charsForModel,
             'history' => $history,
             'isHost' => $isHost,
+            'isOnWarehouse' => $isOnWarehouse,
             'linkedComponents' => $linkedComponents,
-            'linkedComponentRows' => $isHost
-                ? EquipmentCharCatalog::buildHostLinkedComponentsViewRows($linkedComponents, $charsForModel)
-                : [],
+            'linkedComponentRows' => $linkedComponentRows,
+            'photos' => $this->equipmentAttachmentService->getPhotoRows($model),
+            'canEditPhotos' => $model->canEditPhotos(),
         ];
+    }
+
+    public function actionUploadPhoto($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $model = $this->findModel((int) $id);
+        $this->ensureCanEditEquipment($model);
+        $files = UploadedFile::getInstancesByName('uploadPhotos');
+        if ($files === []) {
+            $single = UploadedFile::getInstanceByName('uploadPhotos');
+            if ($single) {
+                $files = [$single];
+            }
+        }
+
+        return $this->equipmentAttachmentService->uploadPhotos($model, $files);
+    }
+
+    public function actionDeletePhoto($id)
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $model = $this->findModel((int) $id);
+        $this->ensureCanEditEquipment($model);
+        $attachmentId = (int) Yii::$app->request->post('attachment_id', 0);
+
+        return $this->equipmentAttachmentService->deletePhoto($model, $attachmentId);
+    }
+
+    public function actionDownloadPhoto($id, $attachmentId)
+    {
+        $model = $this->findModel((int) $id);
+        $this->ensureCanAccessEquipment($model);
+        $attachment = $this->findEquipmentPhoto($model, (int) $attachmentId);
+        if (!$attachment->fileExists()) {
+            throw new NotFoundHttpException('Файл не найден.');
+        }
+        $response = Yii::$app->response;
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+
+        return $response->sendFile($attachment->getFullPath(), $attachment->original_name);
+    }
+
+    public function actionPreviewPhoto($id, $attachmentId)
+    {
+        $model = $this->findModel((int) $id);
+        $this->ensureCanAccessEquipment($model);
+        $attachment = $this->findEquipmentPhoto($model, (int) $attachmentId);
+        if (!$attachment->fileExists()) {
+            throw new NotFoundHttpException('Файл не найден.');
+        }
+
+        $extension = strtolower((string) $attachment->file_extension);
+        $mimeTypes = [
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+        ];
+        $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+        $response = Yii::$app->response;
+        $response->headers->set('Content-Type', $mimeType);
+        $response->headers->set('X-Content-Type-Options', 'nosniff');
+
+        return $response->sendFile($attachment->getFullPath(), $attachment->original_name, ['inline' => true]);
+    }
+
+    private function findEquipmentPhoto(Equipment $model, int $attachmentId): DeskAttachments
+    {
+        if (!$this->equipmentAttachmentService->equipmentOwnsPhoto((int) $model->id, $attachmentId)) {
+            throw new NotFoundHttpException('Фотография не найдена.');
+        }
+        $attachment = DeskAttachments::findOne($attachmentId);
+        if ($attachment === null) {
+            throw new NotFoundHttpException('Фотография не найдена.');
+        }
+
+        return $attachment;
     }
 
     /**
@@ -1071,6 +1242,8 @@ class ArmController extends Controller
             'screen_diagonal' => ['Монитор', 'Диагональ экрана'],
             'monitor_inv' => ['Монитор', '№ монитора'],
             'ups_battery' => ['ИБП', 'Модель аккумулятора'],
+            'ups_battery_replaced_at' => ['ИБП', 'Дата замены аккумулятора'],
+            'ups_battery_service_life' => ['ИБП', 'Срок службы аккумулятора'],
         ];
         if ($isOrgTech) {
             $map = array_merge($map, EquipmentCharCatalog::getPrinterMfuPartCharSaveMap());
@@ -1289,12 +1462,7 @@ class ArmController extends Controller
             if (!$this->isWarehouseLocationId($warehouseLocationId)) {
                 return ['success' => false, 'message' => 'Выбранное помещение не является складом.'];
             }
-            $inStockStatusId = DicEquipmentStatus::getInStockId();
-            if ($inStockStatusId === null) {
-                return ['success' => false, 'message' => 'В справочнике не найден статус «На складе».'];
-            }
-
-            return $this->applyMoveToWarehouse($ids, $warehouseLocationId, $inStockStatusId);
+            return $this->applyMoveToWarehouse($ids, $warehouseLocationId);
         } else {
             $ids = $this->expandReassignIdsWithLinkedComponents($ids, $operationMode);
         }
@@ -1911,7 +2079,10 @@ class ArmController extends Controller
             'ram' => ['ОЗУ', static fn($m, $chars, $links) => $chars['ram'] ?? ''],
             'disk' => ['Диск', static fn($m, $chars, $links) => implode(
                 "\n",
-                EquipmentCharCatalog::formatDiskGridLines((string) ($chars['disk'] ?? ''), $links['disk'] ?? [])
+                EquipmentCharCatalog::formatDiskGridLines(
+                    (string) ($chars['disk'] ?? ''),
+                    $links['disk'] ?? []
+                )
             )],
             'system_block' => [
                 'Тип/Название техники',
@@ -1922,7 +2093,7 @@ class ArmController extends Controller
             'inventory_number' => ['Инв. №', static fn($m, $chars, $links) => $m->inventory_number ?? ''],
             'purchase_date' => ['Дата закупки', fn($m, $chars, $links) => $this->formatPurchaseDateForGrid($m)],
             'monitor' => ['Монитор', static fn($m, $chars, $links) => EquipmentCharCatalog::formatMonitorColumnValue(
-                (string) ($chars['monitor'] ?? ''),
+                !empty($links['monitor']) ? (string) ($chars['monitor'] ?? '') : '',
                 $links['monitor'] ?? []
             )],
             'ups' => ['ИБП', static fn($m, $chars, $links) => EquipmentCharCatalog::formatMonitorColumnValue(
@@ -1938,12 +2109,21 @@ class ArmController extends Controller
         ];
 
         $defaultCols = ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'];
+        if ($this->id === 'warehouse') {
+            $defaultCols = array_values(array_filter(
+                $defaultCols,
+                static fn(string $colId): bool => $colId !== 'user_name'
+            ));
+        }
         $scope = trim((string)($params['export_scope'] ?? 'all'));
         $colsParam = trim((string)($params['cols'] ?? ''));
         $selectedCols = $defaultCols;
         if ($scope === 'visible' && $colsParam !== '') {
             $requested = array_values(array_unique(array_filter(array_map('trim', explode(',', $colsParam)))));
             $filtered = array_values(array_filter($requested, static fn($c) => isset($columnMap[$c])));
+            if ($this->id === 'warehouse') {
+                $filtered = array_values(array_filter($filtered, static fn($c) => $c !== 'user_name'));
+            }
             if (!empty($filtered)) {
                 $selectedCols = $filtered;
             }

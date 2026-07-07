@@ -18,6 +18,8 @@ $pageTitle = $pageTitle ?? 'Учет ТС';
 $locationScope = $locationScope ?? 'exclude_warehouse';
 $gridDataRoute = $gridDataRoute ?? ['arm/get-grid-data'];
 $exportRoute = $exportRoute ?? ['arm/export-xlsx'];
+$hideAllEquipmentTab = $hideAllEquipmentTab ?? false;
+$defaultEquipmentTypeId = $defaultEquipmentTypeId ?? '';
 $this->title = $pageTitle;
 ?>
 <div class="arm-page">
@@ -39,13 +41,19 @@ $this->title = $pageTitle;
 
         <div class="arm-command-bar__tabs" role="tablist" aria-label="Тип техники">
             <ul class="nav nav-tabs arm-type-tabs">
+                <?php if (!$hideAllEquipmentTab): ?>
                 <li class="nav-item">
                     <a class="nav-link active arm-type-tab" href="#" data-type-id="" role="tab" aria-selected="true">Вся техника</a>
                 </li>
-                <?php foreach ($equipmentTypes as $type): ?>
+                <?php endif; ?>
+                <?php foreach ($equipmentTypes as $index => $type):
+                    $typeId = (string) ($type['id'] ?? '');
+                    $tabActive = $hideAllEquipmentTab && $index === 0;
+                    ?>
                 <li class="nav-item">
-                    <a class="nav-link arm-type-tab" href="#" role="tab" aria-selected="false"
-                       data-type-id="<?= Html::encode($type['id'] ?? '') ?>"><?= Html::encode($type['name'] ?? '') ?></a>
+                    <a class="nav-link arm-type-tab<?= $tabActive ? ' active' : '' ?>" href="#" role="tab"
+                       aria-selected="<?= $tabActive ? 'true' : 'false' ?>"
+                       data-type-id="<?= Html::encode($typeId) ?>"><?= Html::encode($type['name'] ?? '') ?></a>
                 </li>
                 <?php endforeach; ?>
             </ul>
@@ -137,6 +145,7 @@ $this->title = $pageTitle;
 
 <?= $this->render('_view_modal') ?>
 <?= $this->render('_create_modal') ?>
+<?= $this->render('_photo_preview_modal') ?>
 
 <input type="file" id="armImportFileInput" accept=".xlsx,.xls" style="display:none;">
 
@@ -336,7 +345,8 @@ $this->registerJs(
     \yii\web\View::POS_HEAD
 );
 $this->registerJs(
-    "window.agGridArmCurrentTypeId = '';" .
+    "window.agGridArmCurrentTypeId = " . json_encode($defaultEquipmentTypeId) . ";" .
+    "window.agGridArmHideAllEquipmentTab = " . ($hideAllEquipmentTab ? 'true' : 'false') . ";" .
     "window.agGridArmDefaultLimit = 20;" .
     "window.agGridArmReassignUrl = " . json_encode(Url::to(['arm/reassign'])) . ";" .
     "window.agGridArmSystemBlocksUrl = " . json_encode(Url::to(['arm/system-blocks'])) . ";" .
@@ -348,15 +358,14 @@ $this->registerJs(
     "window.armUsers = " . json_encode($users ?? []) . ";" .
     "window.armLocations = " . json_encode($locations ?? []) . ";" .
     "window.armStatuses = " . json_encode($statuses ?? []) . ";" .
-    "window.armWarehouseLocations = " . json_encode($warehouseLocations ?? []) . ";" .
-    "window.armInStockStatusId = " . json_encode($inStockStatusId ?? null) . ";",
+    "window.armWarehouseLocations = " . json_encode($warehouseLocations ?? []) . ";",
     \yii\web\View::POS_HEAD
 );
 $this->registerJs("
 (function(){
     var reassignModal, pendingIds = [], originalSelectionIds = [], equipmentData = [], equipmentSummary = {}, armSystemBlocksCache = {};
     var REASSIGN_MODE_HINTS = {
-        move_to_warehouse: 'Выберите складское помещение. Ответственный будет снят, статус — «На складе». Для комплекта ПК отметьте, что уходит на склад; связи между единицами будут сняты, каждая позиция станет независимой.',
+        move_to_warehouse: 'Выберите складское помещение. Ответственный будет снят, статус не меняется. Для комплекта ПК отметьте, что уходит на склад; связи между единицами будут сняты, каждая позиция станет независимой.',
         reassign: 'Измените ответственного, помещение или статус. При переназначении системного блока связанные монитор и ИБП переназначаются вместе с ним.',
         move_component: 'Укажите владельца и целевой системный блок для привязки монитора или ИБП.',
     };
@@ -1242,12 +1251,8 @@ $this->registerJs("
                 var whName = window.armWarehouseLocations && window.armWarehouseLocations[warehouseLocId]
                     ? window.armWarehouseLocations[warehouseLocId]
                     : 'склад';
-                var stName = window.armStatuses && window.armInStockStatusId
-                    ? (window.armStatuses[window.armInStockStatusId] || 'На складе')
-                    : 'На складе';
                 changes.push('Помещение → «' + whName + '» (' + pendingIds.length + ' ед.)');
                 changes.push('Ответственный → снят');
-                changes.push('Статус → «' + stName + '»');
             }
         }
         

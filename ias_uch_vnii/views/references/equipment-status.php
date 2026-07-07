@@ -1,20 +1,22 @@
 <?php
 
-use app\assets\ReferencesGridAsset;
 use yii\helpers\Url;
-
-ReferencesGridAsset::register($this);
 
 $this->title = 'Статусы оборудования';
 
 echo $this->render('_grid_layout', [
     'pageTitle' => $this->title,
+    'activeRoute' => 'equipment-status',
     'gridId' => 'agGridRefEquipmentStatus',
     'createLabel' => 'Добавить',
-    'createRoute' => ['equipment-status-create'],
+    'createTitle' => 'Добавить статус оборудования',
+    'updateTitle' => 'Редактировать статус оборудования',
+    'formPrefix' => 'dic-equipment-status',
     'gridDataAttrs' => [
         'data-url' => Url::to(['equipment-status-get-grid-data']),
-        'data-update-url' => Url::to(['equipment-status-update']),
+        'data-create-modal-url' => Url::to(['equipment-status-create-modal']),
+        'data-update-modal-url-template' => Url::to(['equipment-status-update-modal', 'id' => '__ID__']),
         'data-archive-url' => Url::to(['equipment-status-archive']),
+        'data-edit-label-field' => 'status_name',
     ],
 ]);

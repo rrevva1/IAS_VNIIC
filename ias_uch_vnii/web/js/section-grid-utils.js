@@ -62,7 +62,9 @@
         registerApi: function(gridId, api) {
             apis[gridId] = api;
             var container = document.getElementById(gridId);
-            var pageRoot = container ? container.closest('.section-grid-page') : null;
+            var pageRoot = container
+                ? container.closest('.section-grid-page, .references-page')
+                : null;
             if (pageRoot) {
                 bindQuickFilter(pageRoot, gridId);
             }

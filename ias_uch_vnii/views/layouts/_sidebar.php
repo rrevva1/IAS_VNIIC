@@ -2,6 +2,12 @@
 /**
  * Боковое меню навигации.
  *
+ * Группы по смыслу:
+ * — Техника: учёт, склад, поставки;
+ * — Заявки: обращения, внутренние задачи, отчёты;
+ * — Администрирование: пользователи, справочники, импорт, аудит;
+ * — Справка.
+ *
  * @var yii\web\View $this
  * @var bool $sidebarExpanded
  * @var string|null $displayName
@@ -13,7 +19,12 @@ use yii\helpers\Url;
 
 $currentRoute = Yii::$app->controller->route ?? '';
 
-$isActive = static function (array $routes) use ($currentRoute): bool {
+$isActive = static function (array $routes, array $excludePrefixes = []) use ($currentRoute): bool {
+    foreach ($excludePrefixes as $exclude) {
+        if ($currentRoute === $exclude || strncmp($currentRoute, $exclude . '/', strlen($exclude) + 1) === 0) {
+            return false;
+        }
+    }
     foreach ($routes as $route) {
         if ($currentRoute === $route || strncmp($currentRoute, $route . '/', strlen($route) + 1) === 0) {
             return true;
@@ -23,8 +34,8 @@ $isActive = static function (array $routes) use ($currentRoute): bool {
     return false;
 };
 
-$linkClass = static function (array $routes) use ($isActive): string {
-    return 'sidebar-nav__link' . ($isActive($routes) ? ' is-active' : '');
+$linkClass = static function (array $routes, array $excludePrefixes = []) use ($isActive): string {
+    return 'sidebar-nav__link' . ($isActive($routes, $excludePrefixes) ? ' is-active' : '');
 };
 
 $renderLink = static function (
@@ -32,10 +43,11 @@ $renderLink = static function (
     string $label,
     array $url,
     array $routes,
-    array $extraOptions = []
+    array $extraOptions = [],
+    array $excludePrefixes = []
 ) use ($linkClass): string {
     $options = array_merge([
-        'class' => $linkClass($routes),
+        'class' => $linkClass($routes, $excludePrefixes),
         'title' => $label,
     ], $extraOptions);
 
@@ -57,9 +69,6 @@ $userId = !$isGuest ? (int) Yii::$app->user->id : null;
 $isAdmin = !$isGuest
     && Yii::$app->user->identity
     && Yii::$app->user->identity->isAdministrator();
-$isOperator = !$isGuest
-    && Yii::$app->user->identity
-    && Yii::$app->user->identity->isOperator();
 $isSupportStaff = !$isGuest
     && Yii::$app->user->identity
     && Yii::$app->user->identity->isSupportStaff();
@@ -69,6 +78,10 @@ $canAccessArm = !$isGuest
 $homeUrl = !$isGuest && Yii::$app->user->identity
     ? Yii::$app->user->identity->getHomeUrl()
     : ['/site/login'];
+
+$showEquipmentSection = $canAccessArm;
+$showServiceSection = !$isGuest;
+$showAdminSection = $isAdmin;
 ?>
 
 <nav class="<?= $sidebarExpanded ? 'sidebar expanded' : 'sidebar' ?> bg-dark text-white d-flex flex-column" id="sidebar" aria-label="Основное меню">
@@ -102,18 +115,30 @@ $homeUrl = !$isGuest && Yii::$app->user->identity
 
     <div class="sidebar-content flex-grow-1" id="sidebar-nav">
         <ul class="sidebar-nav list-unstyled mb-0">
-            <?php if (!$isGuest): ?>
-                <?= $renderSection('Учёт') ?>
-                <?php if ($canAccessArm): ?>
+            <?php if ($showEquipmentSection): ?>
+                <?= $renderSection('Техника') ?>
                 <li class="sidebar-nav__item">
-                    <?= $renderLink('fas fa-desktop', 'Учет ТС', ['/arm/index'], ['arm/index', 'arm/view', 'arm/update']) ?>
+                    <?= $renderLink('fas fa-desktop', 'Учет ТС', ['/arm/index'], ['arm']) ?>
                 </li>
                 <li class="sidebar-nav__item">
-                    <?= $renderLink('fas fa-warehouse', 'Склад', ['/warehouse/index'], ['warehouse/index']) ?>
+                    <?= $renderLink('fas fa-warehouse', 'Склад', ['/warehouse/index'], ['warehouse']) ?>
                 </li>
-                <?php endif; ?>
                 <li class="sidebar-nav__item">
-                    <?= $renderLink('fas fa-clipboard-list', 'Заявки', ['/tasks/index'], ['tasks/index', 'tasks/view', 'tasks/create', 'tasks/update']) ?>
+                    <?= $renderLink('fas fa-truck', 'Поставки', ['/delivery/index'], ['delivery']) ?>
+                </li>
+            <?php endif; ?>
+
+            <?php if ($showServiceSection): ?>
+                <?= $renderSection('Заявки') ?>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink(
+                        'fas fa-clipboard-list',
+                        'Заявки',
+                        ['/tasks/index'],
+                        ['tasks'],
+                        [],
+                        ['tasks/statistics']
+                    ) ?>
                 </li>
                 <?php if ($isSupportStaff): ?>
                 <li class="sidebar-nav__item">
@@ -121,7 +146,7 @@ $homeUrl = !$isGuest && Yii::$app->user->identity
                         'fas fa-list-check',
                         'Задачи',
                         ['/work-tasks/index'],
-                        ['work-tasks/index', 'work-tasks/view', 'work-tasks/create', 'work-tasks/assign', 'work-tasks/transition', 'work-tasks/add-comment', 'work-tasks/delete']
+                        ['work-tasks']
                     ) ?>
                 </li>
                 <?php endif; ?>
@@ -130,28 +155,28 @@ $homeUrl = !$isGuest && Yii::$app->user->identity
                     <?= $renderLink('fas fa-chart-column', 'Статистика', ['/tasks/statistics'], ['tasks/statistics']) ?>
                 </li>
                 <?php endif; ?>
+            <?php endif; ?>
 
-                <?php if ($isAdmin): ?>
-                    <?= $renderSection('Администрирование') ?>
-                    <li class="sidebar-nav__item">
-                        <?= $renderLink('fas fa-users', 'Пользователи', ['/users/index'], ['users/index', 'users/view', 'users/create', 'users/update']) ?>
-                    </li>
-                    <li class="sidebar-nav__item">
-                        <?= $renderLink('fas fa-id-card', 'Карточки ТС', ['/user-equipment-cards/index'], ['user-equipment-cards/index', 'user-equipment-cards/view']) ?>
-                    </li>
-                    <li class="sidebar-nav__item">
-                        <?= $renderLink('fas fa-clock-rotate-left', 'Журнал аудита', ['/audit/index'], ['audit/index']) ?>
-                    </li>
-                    <li class="sidebar-nav__item">
-                        <?= $renderLink('fas fa-file-import', 'Импорт ОУ', ['/import/index'], ['import/index']) ?>
-                    </li>
-                    <li class="sidebar-nav__item">
-                        <?= $renderLink('fas fa-key', 'ПО и лицензии', ['/software/index'], ['software/index', 'software/view']) ?>
-                    </li>
-                    <li class="sidebar-nav__item">
-                        <?= $renderLink('fas fa-book', 'Справочники', ['/references/index'], ['references/index']) ?>
-                    </li>
-                <?php endif; ?>
+            <?php if ($showAdminSection): ?>
+                <?= $renderSection('Администрирование') ?>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-users', 'Пользователи', ['/users/index'], ['users']) ?>
+                </li>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-id-card', 'Карточки ТС', ['/user-equipment-cards/index'], ['user-equipment-cards']) ?>
+                </li>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-book', 'Справочники', ['/references/index'], ['references']) ?>
+                </li>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-key', 'ПО и лицензии', ['/software/index'], ['software']) ?>
+                </li>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-file-import', 'Импорт ОУ', ['/import/index'], ['import']) ?>
+                </li>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-clock-rotate-left', 'Журнал аудита', ['/audit/index'], ['audit']) ?>
+                </li>
             <?php endif; ?>
 
             <?= $renderSection('Справка') ?>

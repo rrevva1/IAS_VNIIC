@@ -1,20 +1,22 @@
 <?php
 
-use app\assets\ReferencesGridAsset;
 use yii\helpers\Url;
-
-ReferencesGridAsset::register($this);
 
 $this->title = 'Характеристики';
 
 echo $this->render('_grid_layout', [
     'pageTitle' => $this->title,
+    'activeRoute' => 'chars',
     'gridId' => 'agGridRefChars',
     'createLabel' => 'Добавить',
-    'createRoute' => ['chars-create'],
+    'createTitle' => 'Добавить характеристику',
+    'updateTitle' => 'Редактировать характеристику',
+    'formPrefix' => 'spr-chars',
     'gridDataAttrs' => [
         'data-url' => Url::to(['chars-get-grid-data']),
-        'data-update-url' => Url::to(['chars-update']),
+        'data-create-modal-url' => Url::to(['chars-create-modal']),
+        'data-update-modal-url-template' => Url::to(['chars-update-modal', 'id' => '__ID__']),
         'data-archive-url' => Url::to(['chars-archive']),
+        'data-edit-label-field' => 'name',
     ],
 ]);

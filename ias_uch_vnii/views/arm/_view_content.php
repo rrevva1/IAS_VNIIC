@@ -10,6 +10,7 @@
  * @var bool $isHost
  * @var array{monitor?: array, disk?: array, ups?: array} $linkedComponents
  * @var list<array{type_label: string, icon_class: string, id: ?int, label: string, inventory_number: string}> $linkedComponentRows
+ * @var array<int, array<string, mixed>> $photos
  */
 
 use app\components\EquipmentCharCatalog;
@@ -110,6 +111,8 @@ $charLabels = array_merge([
     'ip' => 'IP-адрес',
     'os' => 'Операционная система',
     'ups_battery' => 'Модель аккумулятора',
+    'ups_battery_replaced_at' => 'Дата замены аккумулятора',
+    'ups_battery_service_life' => 'Срок службы аккумулятора',
 ], EquipmentCharCatalog::getPrinterMfuCharDisplayLabels());
 $isMonitorEquipment = str_contains(mb_strtolower(trim($equipmentTypeName)), 'монитор');
 $isHost = !empty($isHost);
@@ -123,7 +126,13 @@ foreach ($charLabels as $key => $label) {
         continue;
     }
     if (!empty($chars[$key])) {
-        $visibleChars[$key] = ['label' => $label, 'value' => $chars[$key]];
+        $displayValue = $chars[$key];
+        if ($key === 'ups_battery_replaced_at') {
+            $displayValue = EquipmentCharCatalog::formatPartCharDateDisplay($displayValue);
+        } elseif ($key === 'ups_battery_service_life') {
+            $displayValue = EquipmentCharCatalog::formatUpsBatteryServiceLifeDisplay($displayValue);
+        }
+        $visibleChars[$key] = ['label' => $label, 'value' => $displayValue];
     }
 }
 
@@ -143,7 +152,9 @@ $eventTypeLabels = [
 $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SORT_DESC])->limit(20)->all();
 ?>
 
-<div class="arm-view" data-equipment-id="<?= (int) $model->id ?>">
+<div class="arm-view"
+     data-equipment-id="<?= (int) $model->id ?>"
+     data-can-edit-photos="0">
     <div id="armViewHeaderSlot">
     <header class="arm-view__header">
         <div class="arm-view__header-layout">
@@ -324,6 +335,10 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
         </div>
     </section>
     <?php endif; ?>
+
+    <?= $this->render('_view_photos', [
+        'photos' => $photos ?? [],
+    ]) ?>
 
     <?php
     $noteText = $isOrgTech ? $printerComment : trim((string) ($model->description ?? ''));

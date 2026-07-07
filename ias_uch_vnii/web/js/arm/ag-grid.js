@@ -586,14 +586,44 @@
         { colId: 'user_name', sort: 'asc' },
     ];
 
+    var WAREHOUSE_DEFAULT_GRID_SORT = [
+        { colId: 'location_name', sort: 'asc' },
+    ];
+
+    function isWarehouseGrid() {
+        return String(window.agGridArmLocationScope || '') === 'warehouse_only';
+    }
+
+    function isSystemBlockTypeId(typeId) {
+        var raw = (typeId || '').toString().trim().toLowerCase();
+        return raw === 'арм' || raw === 'пк' || (raw.indexOf('систем') >= 0 && raw.indexOf('блок') >= 0);
+    }
+
+    function filterPresetColumnsForScope(columns, typeId) {
+        if (!isWarehouseGrid()) {
+            return columns;
+        }
+        var filtered = columns.filter(function(colId) { return colId !== 'user_name'; });
+        if (isSystemBlockTypeId(typeId)) {
+            filtered = filtered.filter(function(colId) {
+                return colId !== 'monitor' && colId !== 'ups';
+            });
+        }
+        return filtered;
+    }
+
     /** Сортировка по умолчанию только на сервере — без стрелок и цифр в заголовках до ручного клика. */
+    function getDefaultGridSort() {
+        return isWarehouseGrid() ? WAREHOUSE_DEFAULT_GRID_SORT.slice() : DEFAULT_GRID_SORT.slice();
+    }
+
     function buildSortModelFromColumnState(api) {
         if (!api || typeof api.getColumnState !== 'function') {
-            return DEFAULT_GRID_SORT.slice();
+            return getDefaultGridSort();
         }
         var state = (api.getColumnState() || []).filter(function(c) { return c && c.sort; });
         if (!state.length) {
-            return DEFAULT_GRID_SORT.slice();
+            return getDefaultGridSort();
         }
         state.sort(function(a, b) {
             var ai = a.sortIndex != null ? a.sortIndex : 0;
@@ -768,34 +798,29 @@
 
     function getPresetColumns(typeId) {
         var raw = (typeId || '').toString().trim().toLowerCase();
+        var preset;
         if (!raw) {
-            return COLUMN_PRESETS.all;
+            preset = COLUMN_PRESETS.all;
+        } else if (raw.indexOf('монитор') >= 0) {
+            preset = COLUMN_PRESETS.monitor;
+        } else if (raw === 'арм' || raw === 'пк' || (raw.indexOf('систем') >= 0 && raw.indexOf('блок') >= 0)) {
+            preset = COLUMN_PRESETS.systemBlock;
+        } else if (raw.indexOf('ноут') >= 0) {
+            preset = COLUMN_PRESETS.laptop;
+        } else if (raw.indexOf('моноблок') >= 0) {
+            preset = COLUMN_PRESETS.monoblock;
+        } else if (raw.indexOf('сервер') >= 0) {
+            preset = COLUMN_PRESETS.host;
+        } else if (raw.indexOf('ибп') >= 0 || raw === 'ups') {
+            preset = COLUMN_PRESETS.upsType;
+        } else if (raw.indexOf('скан') >= 0) {
+            preset = COLUMN_PRESETS.scanner;
+        } else if (raw.indexOf('мфу') >= 0 || raw.indexOf('принтер') >= 0) {
+            preset = COLUMN_PRESETS.print;
+        } else {
+            preset = COLUMN_PRESETS.generic;
         }
-        if (raw.indexOf('монитор') >= 0) {
-            return COLUMN_PRESETS.monitor;
-        }
-        if (raw === 'арм' || raw === 'пк' || (raw.indexOf('систем') >= 0 && raw.indexOf('блок') >= 0)) {
-            return COLUMN_PRESETS.systemBlock;
-        }
-        if (raw.indexOf('ноут') >= 0) {
-            return COLUMN_PRESETS.laptop;
-        }
-        if (raw.indexOf('моноблок') >= 0) {
-            return COLUMN_PRESETS.monoblock;
-        }
-        if (raw.indexOf('сервер') >= 0) {
-            return COLUMN_PRESETS.host;
-        }
-        if (raw.indexOf('ибп') >= 0 || raw === 'ups') {
-            return COLUMN_PRESETS.upsType;
-        }
-        if (raw.indexOf('скан') >= 0) {
-            return COLUMN_PRESETS.scanner;
-        }
-        if (raw.indexOf('мфу') >= 0 || raw.indexOf('принтер') >= 0) {
-            return COLUMN_PRESETS.print;
-        }
-        return COLUMN_PRESETS.generic;
+        return filterPresetColumnsForScope(preset, typeId);
     }
 
     function loadSavedColumnsByColId(typeId) {
@@ -843,6 +868,10 @@
             if (colId === 'ups' && !upsAllowed) {
                 hide = true;
             } else if (colId === 'cartridge_procurement' && !cartridgeAllowed) {
+                hide = true;
+            } else if (colId === 'user_name' && isWarehouseGrid()) {
+                hide = true;
+            } else if (isWarehouseGrid() && isSystemBlockTypeId(typeId) && (colId === 'monitor' || colId === 'ups')) {
                 hide = true;
             } else if (savedByColId && Object.prototype.hasOwnProperty.call(savedByColId, colId)) {
                 hide = savedByColId[colId];

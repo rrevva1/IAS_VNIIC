@@ -5,7 +5,7 @@ namespace app\assets;
 use yii\web\AssetBundle;
 
 /**
- * Asset для справочников с AG Grid (статусы заявок, локации, статусы оборудования, типы частей, характеристики).
+ * Справочники: AG Grid + модальные формы.
  */
 class ReferencesGridAsset extends AssetBundle
 {
@@ -16,8 +16,7 @@ class ReferencesGridAsset extends AssetBundle
         'ag-grid-community/styles/ag-theme-quartz.css',
         'css/ag-grid-filter.css',
         'css/tasks/ag-grid.css',
-        'css/arm/index.css',
-        'css/section-grid-page.css',
+        'css/tasks/form-modal.css',
     ];
 
     public $js = [
@@ -27,12 +26,11 @@ class ReferencesGridAsset extends AssetBundle
         'js/ag-grid-theme-config.js',
         'js/section-grid-utils.js',
         'js/references/ag-grid.js',
+        'js/references/references-form-modal.js',
     ];
 
     public $depends = [
-        'yii\web\YiiAsset',
-        'yii\bootstrap5\BootstrapAsset',
-        'yii\bootstrap5\BootstrapPluginAsset',
+        'app\assets\ReferencesPageAsset',
         'yii\web\JqueryAsset',
     ];
 

@@ -33,6 +33,7 @@ class ArmGridAsset extends AssetBundle
         'js/arm/form-dynamic.js',
         'js/arm/warranty-preview.js',
         'js/arm/arm-create.js',
+        'js/arm/arm-attachments.js',
         'js/arm/arm-view.js',
     ];
 

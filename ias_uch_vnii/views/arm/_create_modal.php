@@ -27,7 +27,7 @@
                     <i class="fas fa-xmark" aria-hidden="true"></i>
                     Отмена
                 </button>
-                <button type="submit" form="arm-create-form" class="btn btn-primary arm-tool-btn" id="submit-arm-create-btn">
+                <button type="button" class="btn btn-primary arm-tool-btn" id="submit-arm-create-btn">
                     <i class="fas fa-check" aria-hidden="true"></i>
                     Сохранить
                 </button>

@@ -24,9 +24,44 @@ use yii\widgets\ActiveForm;
 /** @var string[] $equipmentNames */
 /** @var string $currentEquipmentName */
 /** @var string[] $screenDiagonalValues */
-/** @var string $currentScreenDiagonal */
+/** @var array<int, array<string, mixed>> $photos */
+/** @var bool $canEditPhotos */
+/** @var array<string, array<int, array<string, mixed>>> $armFormFieldTemplates */
+/** @var string $armFormConfigJson */
+/** @var array<string, string> $chars */
+/** @var array<string, string> $orgTech */
+/** @var bool $isPrinterOrMfu */
+/** @var string $descriptionPlaceholder */
+/** @var string $descriptionSectionTitle */
 
 $formPlaceholders = require __DIR__ . '/_form_create_placeholders.php';
+$armFormFieldTemplates = $armFormFieldTemplates ?? [];
+$armFormConfigJson = $armFormConfigJson ?? '';
+$chars = $chars ?? [];
+$orgTech = $orgTech ?? [];
+$isPrinterOrMfu = !empty($isPrinterOrMfu);
+$descriptionPlaceholder = $descriptionPlaceholder ?? $formPlaceholders['description'];
+$descriptionSectionTitle = $descriptionSectionTitle ?? 'Примечание';
+$currentEquipmentType = trim($model->resolveEquipmentTypeName());
+$initialConfigFields = $armFormFieldTemplates[$currentEquipmentType] ?? [];
+if ($initialConfigFields === [] && $currentEquipmentType !== '') {
+    foreach ($armFormFieldTemplates as $typeName => $typeFields) {
+        if (mb_strtolower(trim((string) $typeName), 'UTF-8') === mb_strtolower($currentEquipmentType, 'UTF-8')) {
+            $initialConfigFields = $typeFields;
+            break;
+        }
+    }
+}
+$initialConfigFields = array_values(array_filter(
+    $initialConfigFields,
+    static fn(array $field): bool => (string) ($field['name'] ?? '') !== 'cartridge_procurement'
+));
+$showConfigSection = $initialConfigFields !== [];
+$cartridgeField = [
+    'name' => 'cartridge_procurement',
+    'label' => 'Закупка картриджей',
+    'widget' => 'cartridge-select',
+];
 
 $fieldOptions = [
     'options' => ['class' => 'arm-form-create__field'],
@@ -37,10 +72,20 @@ $selectFieldOptions = $fieldOptions;
 $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
 ?>
 
-<div class="arm-form arm-form--modal">
+<div class="arm-form arm-form--modal"
+     <?php if (!$model->isNewRecord): ?>data-equipment-id="<?= (int) $model->id ?>"<?php endif; ?>
+     data-can-edit-photos="<?= $canEditPhotos ? '1' : '0' ?>">
     <?php $form = ActiveForm::begin([
         'id' => 'arm-create-form',
-        'options' => ['class' => 'arm-view arm-form-create'],
+        'action' => '#',
+        'options' => [
+            'class' => 'arm-view arm-form-create',
+            'data-arm-form-config' => $armFormConfigJson,
+            'data-arm-description-title-default' => 'Примечание',
+            'data-arm-description-title-printer' => 'Комментарий',
+            'data-arm-description-placeholder-default' => $formPlaceholders['description'],
+            'data-arm-description-placeholder-printer' => $formPlaceholders['description_printer'],
+        ],
         'fieldConfig' => $fieldOptions,
         'scrollToError' => false,
     ]); ?>
@@ -145,15 +190,23 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
         </div>
     </div>
 
-    <section id="dynamic-fields-block" class="arm-view-card arm-form-create__card arm-form-create__config-section arm-form-section--chars d-none" aria-labelledby="arm-create-section-config">
+    <section id="dynamic-fields-block" class="arm-view-card arm-form-create__card arm-form-create__config-section arm-form-section--chars<?= $showConfigSection ? ' arm-form-create__config-visible' : ' d-none' ?>" aria-labelledby="arm-create-section-config">
         <h2 id="arm-create-section-config" class="arm-view-card__title">Конфигурация</h2>
         <div class="arm-view-card__body arm-form-create__card-fields">
-            <div id="dynamic-fields-content" class="arm-form-create__config-fields"></div>
+            <div id="dynamic-fields-content" class="arm-form-create__config-fields">
+                <?php if ($showConfigSection): ?>
+                    <?= $this->render('_form_config_fields', [
+                        'fields' => $initialConfigFields,
+                        'chars' => $chars,
+                        'orgTech' => $orgTech,
+                    ]) ?>
+                <?php endif; ?>
+            </div>
         </div>
     </section>
 
     <div class="row g-3 arm-form-create__cards-row">
-        <div class="col-md-6">
+        <div class="col-md-6 arm-form-create__cards-row-col">
         <section class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-purchase">
             <h2 id="arm-create-section-purchase" class="arm-view-card__title">Закупка и гарантия</h2>
             <div class="arm-view-card__body arm-form-create__card-fields">
@@ -186,19 +239,37 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                             ]) ?>
                     </div>
                 </div>
+                <div id="arm-form-cartridge-section" class="arm-form-create__field mb-0<?= $isPrinterOrMfu ? '' : ' d-none' ?>">
+                    <?= $this->render('_form_config_fields', [
+                        'fields' => [$cartridgeField],
+                        'chars' => $chars,
+                        'orgTech' => $orgTech,
+                    ]) ?>
+                </div>
             </div>
         </section>
         </div>
 
+        <div class="col-md-6 arm-form-create__cards-row-col">
+        <?= $this->render('_form_attachments', [
+            'model' => $model,
+            'photos' => $photos ?? [],
+            'canEditPhotos' => $canEditPhotos ?? false,
+        ]) ?>
+        </div>
+    </div>
+
+    <div class="row g-3 arm-form-create__note-row">
+        <div class="col-md-6 d-none d-md-block" aria-hidden="true"></div>
         <div class="col-md-6">
         <section id="arm-form-description-section" class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-note">
-            <h2 id="arm-create-section-note" class="arm-view-card__title">Примечание</h2>
+            <h2 id="arm-create-section-note" class="arm-view-card__title"><?= Html::encode($descriptionSectionTitle) ?></h2>
             <div class="arm-view-card__body arm-form-create__card-fields">
                 <?= $form->field($model, 'description', ['options' => ['class' => 'arm-form-create__field mb-0']])
                     ->label('Комментарий к технике')
                     ->textarea([
                         'rows' => 4,
-                        'placeholder' => $formPlaceholders['description'],
+                        'placeholder' => $descriptionPlaceholder,
                         'class' => 'form-control',
                     ]) ?>
             </div>

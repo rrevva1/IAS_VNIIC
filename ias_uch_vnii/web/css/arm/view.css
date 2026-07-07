@@ -20,6 +20,10 @@
     padding-bottom: 0;
 }
 
+#armViewModal .arm-reassign-modal__body.arm-view-modal__body {
+    overflow-y: auto;
+}
+
 .arm-view-modal__header {
     align-items: flex-start;
     gap: 0.75rem;
@@ -278,6 +282,9 @@
     border: 1px solid #dee2e6;
     border-radius: 10px;
     overflow: hidden;
+}
+
+.arm-view__grid .arm-view-card {
     height: 100%;
 }
 
@@ -295,6 +302,17 @@
 
 .arm-view-card__body {
     padding: 0.25rem 0;
+}
+
+.arm-view-card__body--content {
+    padding: 1rem;
+}
+
+.arm-photos-gallery__empty {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.875rem;
+    line-height: 1.5;
 }
 
 .arm-view-dl {
@@ -620,4 +638,81 @@
     .arm-view__title {
         font-size: 1.2rem;
     }
+}
+
+/* Галерея фотографий */
+.arm-photos-upload__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.arm-photos-upload__row .form-control {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+.arm-photos-gallery__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: 0.75rem;
+}
+
+.arm-photos-gallery__item {
+    position: relative;
+    margin: 0;
+}
+
+.arm-photos-gallery__thumb-btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    overflow: hidden;
+    cursor: zoom-in;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.arm-photos-gallery__thumb-btn:hover {
+    border-color: #94a3b8;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.arm-photos-gallery__thumb {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.arm-photos-gallery__delete {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    padding: 0.15rem 0.4rem;
+    line-height: 1;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.arm-photo-preview-modal__body {
+    padding: 0.75rem;
+    text-align: center;
+    background: #0f172a;
+}
+
+.arm-photo-preview-modal__image {
+    display: block;
+    max-width: 100%;
+    max-height: 80vh;
+    margin: 0 auto;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.arm-photo-preview-modal .modal-footer {
+    justify-content: flex-end;
+    gap: 0.5rem;
 }

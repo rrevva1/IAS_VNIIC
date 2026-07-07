@@ -27,6 +27,8 @@ use yii\db\ActiveRecord;
  * @property float|string|null $warranty_years Срок гарантии в годах (виртуальное поле формы)
  * @property string|null $archived_at
  * @property string|null $archive_reason
+ * @property int|null $delivery_id
+ * @property int|null $delivery_unit_id
  * @property bool $is_archived
  * @property bool $is_deleted
  * @property string $created_at
@@ -38,9 +40,15 @@ use yii\db\ActiveRecord;
  * @property DicEquipmentStatus $equipmentStatus
  * @property EquipmentLink[] $parentLinks
  * @property EquipmentLink[] $childLinks
+ * @property EquipmentDelivery|null $delivery
+ * @property EquipmentDeliveryUnit|null $deliveryUnit
+ * @property DeskAttachments[] $photos
  */
 class Equipment extends ActiveRecord
 {
+    private const PHOTO_MAX_FILES = 20;
+
+    private const PHOTO_EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
     public ?string $equipment_type = null;
 
     /** @var float|string|null */
@@ -56,13 +64,19 @@ class Equipment extends ActiveRecord
 
     public function rules()
     {
-        $integerAttrs = ['status_id', 'responsible_user_id', 'location_id'];
+        $integerAttrs = ['status_id', 'responsible_user_id', 'location_id', 'delivery_id', 'delivery_unit_id'];
         if (EquipmentTypes::usesDictionary()) {
             $integerAttrs[] = 'equipment_type_id';
         }
 
         return [
-            [['inventory_number', 'name', 'status_id', 'location_name'], 'required'],
+            [['name', 'status_id'], 'required'],
+            [['inventory_number'], 'required', 'when' => static function (self $model): bool {
+                return empty($model->delivery_unit_id);
+            }],
+            [['location_name'], 'required', 'when' => static function (self $model): bool {
+                return empty($model->location_id) && empty($model->delivery_unit_id);
+            }],
             [$integerAttrs, 'integer'],
             [['location_name'], 'string', 'max' => 150],
             [['name'], 'string', 'max' => 200],
@@ -78,6 +92,8 @@ class Equipment extends ActiveRecord
             [['status_id'], 'exist', 'targetClass' => DicEquipmentStatus::class, 'targetAttribute' => ['status_id' => 'id']],
             [['responsible_user_id'], 'exist', 'targetClass' => Users::class, 'targetAttribute' => ['responsible_user_id' => 'id']],
             [['location_id'], 'exist', 'targetClass' => Location::class, 'targetAttribute' => ['location_id' => 'id']],
+            [['delivery_id'], 'exist', 'targetClass' => EquipmentDelivery::class, 'targetAttribute' => ['delivery_id' => 'id'], 'skipOnEmpty' => true],
+            [['delivery_unit_id'], 'exist', 'targetClass' => EquipmentDeliveryUnit::class, 'targetAttribute' => ['delivery_unit_id' => 'id'], 'skipOnEmpty' => true],
         ];
     }
 
@@ -376,11 +392,84 @@ class Equipment extends ActiveRecord
         return $this->getParentLinks()->andWhere(['link_type' => EquipmentLink::TYPE_UPS]);
     }
 
+    public function getDelivery()
+    {
+        return $this->hasOne(EquipmentDelivery::class, ['id' => 'delivery_id']);
+    }
+
+    public function getDeliveryUnit()
+    {
+        return $this->hasOne(EquipmentDeliveryUnit::class, ['id' => 'delivery_unit_id']);
+    }
+
     /** Заявки, в которых указан этот актив */
     public function getTasks()
     {
         return $this->hasMany(Tasks::class, ['id' => 'task_id'])
             ->viaTable('task_equipment', ['equipment_id' => 'id']);
+    }
+
+    public function getEquipmentAttachmentLinks()
+    {
+        return $this->hasMany(EquipmentAttachment::class, ['equipment_id' => 'id']);
+    }
+
+    public function getPhotos()
+    {
+        return $this->hasMany(DeskAttachments::class, ['id' => 'attachment_id'])
+            ->via('equipmentAttachmentLinks');
+    }
+
+    public function addPhoto(int $attachmentId): void
+    {
+        if ($attachmentId <= 0 || !$this->id) {
+            return;
+        }
+        $exists = EquipmentAttachment::find()
+            ->where(['equipment_id' => $this->id, 'attachment_id' => $attachmentId])
+            ->exists();
+        if ($exists) {
+            return;
+        }
+        $link = new EquipmentAttachment();
+        $link->equipment_id = (int) $this->id;
+        $link->attachment_id = $attachmentId;
+        $link->linked_by = Yii::$app->user->isGuest ? null : (int) Yii::$app->user->id;
+        $link->save(false);
+    }
+
+    public function removePhoto(int $attachmentId): void
+    {
+        EquipmentAttachment::deleteAll([
+            'equipment_id' => $this->id,
+            'attachment_id' => $attachmentId,
+        ]);
+    }
+
+    public static function getPhotoMaxFiles(): int
+    {
+        return self::PHOTO_MAX_FILES;
+    }
+
+    /**
+     * @return string[]
+     */
+    public static function getPhotoExtensions(): array
+    {
+        return self::PHOTO_EXTENSIONS;
+    }
+
+    public function canEditPhotos(): bool
+    {
+        if ($this->isNewRecord || Yii::$app->user->isGuest) {
+            return false;
+        }
+        $user = Yii::$app->user->identity;
+        if ($user && $user->isAdministrator()) {
+            return true;
+        }
+
+        return $user && (int) $this->responsible_user_id === (int) $user->id;
     }
 
     /**

@@ -1,6 +1,5 @@
 /**
- * AG Grid для справочников: статусы заявок, локации, статусы оборудования, типы частей, характеристики.
- * Контейнер задаётся на странице; data-url, data-update-url, data-archive-url передаются через data-атрибуты.
+ * AG Grid — справочники (каркас как «Учёт ТС», редактирование в модальном окне).
  */
 (function() {
     'use strict';
@@ -13,31 +12,39 @@
     };
 
     function escapeHtml(str) {
-        if (str == null) return '';
+        if (str == null) {
+            return '';
+        }
         var div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
     }
 
-    function buildUrl(base, id) {
-        if (!base) return '#';
-        var sep = base.indexOf('?') >= 0 ? '&' : '?';
-        return base + sep + 'id=' + encodeURIComponent(id);
+    function editLink(id, text) {
+        return '<a href="#" class="ref-link-edit" data-ref-id="' + encodeURIComponent(id) + '">'
+            + escapeHtml(String(text || '—')) + '</a>';
     }
 
-    function makeActionsCol(updateUrl, archiveUrl, archiveConfirm, canArchive) {
+    function makeActionsCol(archiveConfirm) {
         return {
             headerName: 'Действия',
-            width: 180,
+            width: 200,
             sortable: false,
             filter: false,
             cellRenderer: function(params) {
-                if (!params.data || params.data.id == null) return '';
-                var id = params.data.id;
-                var html = '<a href="' + buildUrl(updateUrl, id) + '" class="btn btn-sm btn-default">Изменить</a>';
-                if (canArchive && archiveUrl && !params.data.is_archived) {
-                    html += ' <a href="' + buildUrl(archiveUrl, id) + '" class="btn btn-sm btn-warning ref-archive-link" data-method="post" data-confirm="' + escapeHtml(archiveConfirm || 'Архивировать?') + '">В архив</a>';
+                if (!params.data || params.data.id == null) {
+                    return '';
                 }
+                var id = params.data.id;
+                var html = '<div class="ref-actions">';
+                html += '<a href="#" class="ref-link-edit btn btn-sm btn-outline-secondary" data-ref-id="'
+                    + encodeURIComponent(id) + '">Изменить</a>';
+                if (!params.data.is_archived) {
+                    html += '<button type="button" class="btn btn-sm btn-outline-warning ref-archive-btn" data-ref-id="'
+                        + encodeURIComponent(id) + '" data-confirm="' + escapeHtml(archiveConfirm || 'Архивировать?')
+                        + '">В архив</button>';
+                }
+                html += '</div>';
                 return html;
             },
         };
@@ -47,100 +54,88 @@
         return {
             headerName: 'Состояние',
             field: 'is_archived',
-            width: 100,
+            width: 110,
             filter: 'agTextColumnFilter',
             cellRenderer: function(params) {
-                if (params.value) return '<span class="badge bg-secondary">Архив</span>';
+                if (params.value) {
+                    return '<span class="badge bg-secondary">Архив</span>';
+                }
                 return '<span class="badge bg-success">Активен</span>';
             },
         };
     }
 
+    function nameCol(field, headerName) {
+        return {
+            headerName: headerName || 'Наименование',
+            field: field,
+            flex: 1,
+            minWidth: 160,
+            filter: 'agTextColumnFilter',
+            cellRenderer: function(params) {
+                if (!params.data || params.data.id == null) {
+                    return escapeHtml(params.value || '');
+                }
+                return editLink(params.data.id, params.value);
+            },
+        };
+    }
+
     function initTaskStatus(container) {
-        var dataUrl = container.dataset.url || '/index.php?r=references/task-status-get-grid-data';
-        var updateUrl = container.dataset.updateUrl || '';
-        var archiveUrl = container.dataset.archiveUrl || '';
+        var dataUrl = container.dataset.url || '';
         var columnDefs = [
-            { headerName: 'ID', field: 'id', width: 80, filter: 'agNumberColumnFilter', cellRenderer: function(p) {
-                if (!p.data || p.data.id == null) return p.value;
-                return '<a href="' + buildUrl(updateUrl, p.data.id) + '">' + p.value + '</a>';
-            }},
             { headerName: 'Код', field: 'status_code', width: 120, filter: 'agTextColumnFilter' },
-            { headerName: 'Название', field: 'status_name', flex: 1, minWidth: 150, filter: 'agTextColumnFilter' },
+            nameCol('status_name', 'Название'),
             { headerName: 'Порядок', field: 'sort_order', width: 90, filter: 'agNumberColumnFilter' },
             makeArchivedBadgeCol(),
-            makeActionsCol(updateUrl, archiveUrl, 'Архивировать этот статус?', true),
+            makeActionsCol('Архивировать этот статус?'),
         ];
         createGrid(container, dataUrl, columnDefs);
     }
 
     function initLocations(container) {
-        var dataUrl = container.dataset.url || '/index.php?r=references/locations-get-grid-data';
-        var updateUrl = container.dataset.updateUrl || '';
-        var archiveUrl = container.dataset.archiveUrl || '';
+        var dataUrl = container.dataset.url || '';
         var columnDefs = [
-            { headerName: 'ID', field: 'id', width: 80, filter: 'agNumberColumnFilter', cellRenderer: function(p) {
-                if (!p.data || p.data.id == null) return p.value;
-                return '<a href="' + buildUrl(updateUrl, p.data.id) + '">' + p.value + '</a>';
-            }},
-            { headerName: 'Наименование', field: 'name', flex: 1, minWidth: 150, filter: 'agTextColumnFilter' },
+            nameCol('name', 'Наименование'),
             { headerName: 'Код', field: 'location_code', width: 110, filter: 'agTextColumnFilter' },
             { headerName: 'Тип', field: 'location_type', width: 120, filter: 'agTextColumnFilter' },
             makeArchivedBadgeCol(),
-            makeActionsCol(updateUrl, archiveUrl, 'Архивировать эту локацию?', true),
+            makeActionsCol('Архивировать эту локацию?'),
         ];
         createGrid(container, dataUrl, columnDefs);
     }
 
     function initEquipmentStatus(container) {
-        var dataUrl = container.dataset.url || '/index.php?r=references/equipment-status-get-grid-data';
-        var updateUrl = container.dataset.updateUrl || '';
-        var archiveUrl = container.dataset.archiveUrl || '';
+        var dataUrl = container.dataset.url || '';
         var columnDefs = [
-            { headerName: 'ID', field: 'id', width: 80, filter: 'agNumberColumnFilter', cellRenderer: function(p) {
-                if (!p.data || p.data.id == null) return p.value;
-                return '<a href="' + buildUrl(updateUrl, p.data.id) + '">' + p.value + '</a>';
-            }},
             { headerName: 'Код', field: 'status_code', width: 120, filter: 'agTextColumnFilter' },
-            { headerName: 'Название', field: 'status_name', flex: 1, minWidth: 150, filter: 'agTextColumnFilter' },
+            nameCol('status_name', 'Название'),
             { headerName: 'Порядок', field: 'sort_order', width: 90, filter: 'agNumberColumnFilter' },
             makeArchivedBadgeCol(),
-            makeActionsCol(updateUrl, archiveUrl, 'Архивировать этот статус?', true),
+            makeActionsCol('Архивировать этот статус?'),
         ];
         createGrid(container, dataUrl, columnDefs);
     }
 
     function initParts(container) {
-        var dataUrl = container.dataset.url || '/index.php?r=references/parts-get-grid-data';
-        var updateUrl = container.dataset.updateUrl || '';
-        var archiveUrl = container.dataset.archiveUrl || '';
+        var dataUrl = container.dataset.url || '';
         var columnDefs = [
-            { headerName: 'ID', field: 'id', width: 80, filter: 'agNumberColumnFilter', cellRenderer: function(p) {
-                if (!p.data || p.data.id == null) return p.value;
-                return '<a href="' + buildUrl(updateUrl, p.data.id) + '">' + p.value + '</a>';
-            }},
-            { headerName: 'Наименование', field: 'name', flex: 1, minWidth: 150, filter: 'agTextColumnFilter' },
+            nameCol('name', 'Наименование'),
             { headerName: 'Описание', field: 'description', flex: 1, minWidth: 120, filter: 'agTextColumnFilter' },
             makeArchivedBadgeCol(),
-            makeActionsCol(updateUrl, archiveUrl, 'Архивировать?', true),
+            makeActionsCol('Архивировать?'),
         ];
         createGrid(container, dataUrl, columnDefs);
     }
 
     function initChars(container) {
-        var dataUrl = container.dataset.url || '/index.php?r=references/chars-get-grid-data';
-        var updateUrl = container.dataset.updateUrl || '';
-        var archiveUrl = container.dataset.archiveUrl || '';
+        var dataUrl = container.dataset.url || '';
         var columnDefs = [
-            { headerName: 'ID', field: 'id', width: 80, filter: 'agNumberColumnFilter', cellRenderer: function(p) {
-                if (!p.data || p.data.id == null) return p.value;
-                return '<a href="' + buildUrl(updateUrl, p.data.id) + '">' + p.value + '</a>';
-            }},
-            { headerName: 'Наименование', field: 'name', flex: 1, minWidth: 150, filter: 'agTextColumnFilter' },
+            nameCol('name', 'Наименование'),
             { headerName: 'Ед. изм.', field: 'measurement_unit', width: 100, filter: 'agTextColumnFilter' },
             { headerName: 'Описание', field: 'description', flex: 1, minWidth: 120, filter: 'agTextColumnFilter' },
             makeArchivedBadgeCol(),
-            makeActionsCol(updateUrl, archiveUrl, 'Архивировать?', true),
+            makeActionsCol('Архивировать?'),
         ];
         createGrid(container, dataUrl, columnDefs);
     }
@@ -176,12 +171,11 @@
                     .catch(function(err) { console.error('AG Grid (справочник): ошибка загрузки', err); });
             },
         };
-        var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
-        (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(container, gridOpts);
+        var createGridFn = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
+        (typeof createGridFn === 'function' ? createGridFn : agGrid.createGrid.bind(agGrid))(container, gridOpts);
     }
 
     function init() {
-        var ids = ['agGridRefTaskStatus', 'agGridRefLocations', 'agGridRefEquipmentStatus', 'agGridRefParts', 'agGridRefChars'];
         var inits = {
             agGridRefTaskStatus: initTaskStatus,
             agGridRefLocations: initLocations,
@@ -189,9 +183,11 @@
             agGridRefParts: initParts,
             agGridRefChars: initChars,
         };
-        ids.forEach(function(id) {
+        Object.keys(inits).forEach(function(id) {
             var el = document.getElementById(id);
-            if (el && inits[id]) inits[id](el);
+            if (el && inits[id]) {
+                inits[id](el);
+            }
         });
     }
 

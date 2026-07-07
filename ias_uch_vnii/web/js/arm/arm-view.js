@@ -92,6 +92,9 @@
                 }
                 bodyEl.innerHTML = html;
                 mountHeader(bodyEl.querySelector('.arm-view'));
+                if (typeof window.bindArmAttachments === 'function') {
+                    window.bindArmAttachments(bodyEl);
+                }
             })
             .catch(function(err) {
                 var msg = 'Не удалось загрузить карточку техники.';
