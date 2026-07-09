@@ -36,14 +36,18 @@ use yii\helpers\Url;
                 <li class="dashboard-widget__item">
                     <?php if (!empty($item['url'])): ?>
                         <a class="dashboard-widget__item-link" href="<?= Html::encode(Url::to($item['url'])) ?>">
-                            <span class="dashboard-widget__label"><?= Html::encode($item['label'] ?? '—') ?></span>
-                            <?php if (!empty($item['meta'])): ?>
-                                <span class="dashboard-widget__meta"><?= Html::encode($item['meta']) ?></span>
-                            <?php endif; ?>
+                            <span class="dashboard-widget__item-main">
+                                <span class="dashboard-widget__label"><?= Html::encode($item['label'] ?? '—') ?></span>
+                                <?php if (!empty($item['meta'])): ?>
+                                    <span class="dashboard-widget__meta"><?= Html::encode($item['meta']) ?></span>
+                                <?php endif; ?>
+                            </span>
                             <?php if (!empty($item['badge'])): ?>
                                 <span class="badge dashboard-widget__badge <?= Html::encode($item['badge_class'] ?? 'bg-secondary') ?>">
                                     <?= Html::encode($item['badge']) ?>
                                 </span>
+                            <?php else: ?>
+                                <span class="dashboard-widget__chevron" aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
                             <?php endif; ?>
                         </a>
                     <?php else: ?>
@@ -64,6 +68,7 @@ use yii\helpers\Url;
         <footer class="dashboard-widget__footer">
             <a class="dashboard-widget__more" href="<?= Html::encode(Url::to($url)) ?>">
                 <?= Html::encode($urlLabel) ?>
+                <i class="fas fa-arrow-right" aria-hidden="true"></i>
             </a>
         </footer>
     <?php endif; ?>

@@ -39,11 +39,69 @@ body.app-body:has(.tasks-page--stats) {
     overflow: visible;
 }
 
-.tasks-page--stats-movements {
+.tasks-page--stats-movements,
+.tasks-page--movement-history {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
     min-height: 0;
     padding-bottom: 0;
+    overflow: hidden;
+}
+
+.tasks-page--movement-history.tasks-kpi {
+    padding-bottom: 0;
+}
+
+.tasks-page--movement-history .tasks-page__header,
+.tasks-page--movement-history .tasks-kpi-filter {
+    flex-shrink: 0;
+}
+
+.tasks-page--movement-history .tasks-kpi-filter {
+    margin-bottom: 0.65rem;
+}
+
+.tasks-page--movement-history .tasks-kpi-table-section--movement {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tasks-page--movement-history .tasks-kpi-table-section--movement .tasks-kpi-panel__header {
+    flex: 0 0 auto;
+}
+
+.tasks-page--movement-history .tasks-stats-grid-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tasks-page--movement-history .tasks-stats-grid-card .arm-grid-card__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tasks-page--movement-history .tasks-kpi-grid--movement {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+}
+
+.tasks-page--movement-history #agGridMovementHistoryContainer.ag-theme-quartz {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
 }
 
 .tasks-stats-tabs {
@@ -727,24 +785,28 @@ body.app-body:has(.tasks-page--stats) {
     min-height: 420px;
 }
 
-.tasks-page--stats-movements .tasks-kpi-table-section--movement .arm-grid-card {
+.tasks-page--stats-movements .tasks-kpi-table-section--movement .arm-grid-card,
+.tasks-page--movement-history .tasks-kpi-table-section--movement .arm-grid-card {
     flex: 1 1 auto;
     min-height: 0;
 }
 
-.tasks-page--stats-movements .tasks-kpi-table-section--movement .arm-grid-card__body {
+.tasks-page--stats-movements .tasks-kpi-table-section--movement .arm-grid-card__body,
+.tasks-page--movement-history .tasks-kpi-table-section--movement .arm-grid-card__body {
     flex: 1 1 auto;
     min-height: 0;
     padding: 0;
 }
 
-.tasks-page--stats-movements .tasks-kpi-grid--movement {
+.tasks-page--stats-movements .tasks-kpi-grid--movement,
+.tasks-page--movement-history .tasks-kpi-grid--movement {
     flex: 1 1 auto;
     height: 100%;
     min-height: 0;
 }
 
-.tasks-page--stats-movements #agGridStatisticsMovementContainer.ag-theme-quartz {
+.tasks-page--stats-movements #agGridStatisticsMovementContainer.ag-theme-quartz,
+.tasks-page--movement-history #agGridMovementHistoryContainer.ag-theme-quartz {
     --ag-font-size: 12px;
     --ag-font-family: inherit;
     --ag-row-height: 74px;

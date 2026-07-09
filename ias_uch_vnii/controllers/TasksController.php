@@ -61,6 +61,8 @@ class TasksController extends Controller
                             'actions' => [
                                 'statistics',
                                 'statistics-get-grid-data',
+                                'movement-history',
+                                'movement-history-get-grid-data',
                                 'export-user-stats',
                                 'export-executor-stats',
                                 'export-user-stats-html',
@@ -1020,6 +1022,19 @@ class TasksController extends Controller
     {
         $dateFrom = $this->request->get('date_from');
         $dateTo = $this->request->get('date_to');
+
+        if ($this->request->get('tab') === 'movements') {
+            $params = ['movement-history'];
+            if ($dateFrom) {
+                $params['date_from'] = $dateFrom;
+            }
+            if ($dateTo) {
+                $params['date_to'] = $dateTo;
+            }
+
+            return $this->redirect($params);
+        }
+
         $report = (new TaskStatisticsService($dateFrom, $dateTo))->buildReport();
 
         return $this->render('statistics', [
@@ -1027,6 +1042,38 @@ class TasksController extends Controller
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
         ]);
+    }
+
+    /**
+     * История перемещений техники.
+     */
+    public function actionMovementHistory()
+    {
+        $dateFrom = $this->request->get('date_from');
+        $dateTo = $this->request->get('date_to');
+        $report = (new TaskStatisticsService($dateFrom, $dateTo))->buildMovementHistoryReport();
+
+        return $this->render('movement-history', [
+            'report' => $report,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+        ]);
+    }
+
+    /**
+     * JSON для AG Grid на странице истории перемещений техники.
+     */
+    public function actionMovementHistoryGetGridData()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $report = (new TaskStatisticsService(
+            $this->request->get('date_from'),
+            $this->request->get('date_to')
+        ))->buildMovementHistoryReport();
+        $data = $report['movements'] ?? [];
+
+        return ['success' => true, 'data' => $data, 'total' => count($data)];
     }
 
     /**

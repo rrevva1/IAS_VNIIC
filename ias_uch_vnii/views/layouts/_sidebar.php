@@ -132,6 +132,9 @@ $showAdminSection = $isAdmin;
                 <li class="sidebar-nav__item">
                     <?= $renderLink('fas fa-truck', 'Поставки', ['/delivery/index'], ['delivery']) ?>
                 </li>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-route', 'История перемещений', ['/tasks/movement-history'], ['tasks/movement-history']) ?>
+                </li>
             <?php endif; ?>
 
             <?php if ($showServiceSection): ?>
@@ -143,7 +146,7 @@ $showAdminSection = $isAdmin;
                         ['/tasks/index'],
                         ['tasks'],
                         [],
-                        ['tasks/statistics']
+                        ['tasks/statistics', 'tasks/movement-history']
                     ) ?>
                 </li>
                 <?php if ($isSupportStaff): ?>

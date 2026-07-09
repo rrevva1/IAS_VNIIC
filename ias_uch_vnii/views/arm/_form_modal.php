@@ -42,7 +42,7 @@ $orgTech = $orgTech ?? [];
 $isPrinterOrMfu = !empty($isPrinterOrMfu);
 $descriptionPlaceholder = $descriptionPlaceholder ?? $formPlaceholders['description'];
 $descriptionSectionTitle = $descriptionSectionTitle ?? 'Примечание';
-$currentEquipmentType = trim($model->resolveEquipmentTypeName());
+$currentEquipmentType = trim((string) ($model->resolveEquipmentTypeName() ?? ''));
 $initialConfigFields = $armFormFieldTemplates[$currentEquipmentType] ?? [];
 if ($initialConfigFields === [] && $currentEquipmentType !== '') {
     foreach ($armFormFieldTemplates as $typeName => $typeFields) {

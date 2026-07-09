@@ -16,11 +16,8 @@ $statusDistribution = $report['status_distribution'] ?? [];
 $workStatusDistribution = $report['work_status_distribution'] ?? [];
 $monthlyCompleted = $report['monthly_completed'] ?? [];
 $dailyCompleted = $report['daily_completed'] ?? [];
-$movements = $report['movements'] ?? [];
-$movementSummary = $report['movement_summary'] ?? ['routes' => 0, 'units' => 0, 'moves' => 0];
-$periodLabel = $report['period']['label'] ?? '';
 $statsTab = Yii::$app->request->get('tab', 'tasks');
-$allowedTabs = ['tasks', 'requests', 'movements'];
+$allowedTabs = ['tasks', 'requests'];
 if (!in_array($statsTab, $allowedTabs, true)) {
     $statsTab = 'tasks';
 }
@@ -47,7 +44,6 @@ if ($dateTo) {
 }
 $executorGridUrl = Url::to(array_merge(['tasks/statistics-get-grid-data', 'type' => 'executor'], $gridQuery));
 $requesterGridUrl = Url::to(array_merge(['tasks/statistics-get-grid-data', 'type' => 'requester'], $gridQuery));
-$movementGridUrl = Url::to(array_merge(['tasks/statistics-get-grid-data', 'type' => 'movement'], $gridQuery));
 
 $buildTabLink = static function (string $key, string $label) use ($statsTab, $dateFrom, $dateTo): string {
     $params = ['/tasks/statistics', 'tab' => $key];
@@ -72,19 +68,10 @@ $buildTrendLink = static function (string $mode, string $label) use ($trendMode)
     ]);
 };
 
-$statsRootClasses = 'tasks-page tasks-page--stats tasks-kpi arm-page section-grid-page';
-if ($statsTab === 'movements') {
-    $statsRootClasses .= ' tasks-page--stats-movements';
-}
-
-$statsFilterClass = 'tasks-kpi-filter';
-if ($statsTab === 'movements') {
-    $statsFilterClass .= ' tasks-kpi-filter--movements';
-}
 $statsFormAction = Yii::$app->request->scriptUrl ?: Url::to(['/']);
 ?>
 
-<div class="<?= Html::encode($statsRootClasses) ?>">
+<div class="tasks-page tasks-page--stats tasks-kpi arm-page section-grid-page">
     <header class="tasks-page__header arm-page__header">
         <div class="tasks-page__heading arm-page__heading">
             <h1 class="tasks-page__title arm-page__title"><?= Html::encode($this->title) ?></h1>
@@ -95,11 +82,10 @@ $statsFormAction = Yii::$app->request->scriptUrl ?: Url::to(['/']);
         <ul class="nav arm-type-tabs">
             <li class="nav-item"><?= $buildTabLink('tasks', 'Статистика по задачам') ?></li>
             <li class="nav-item"><?= $buildTabLink('requests', 'Статистика по заявкам') ?></li>
-            <li class="nav-item"><?= $buildTabLink('movements', 'История перемещения техники') ?></li>
         </ul>
     </div>
 
-    <form method="get" action="<?= Html::encode($statsFormAction) ?>" class="<?= Html::encode($statsFilterClass) ?>">
+    <form method="get" action="<?= Html::encode($statsFormAction) ?>" class="tasks-kpi-filter">
         <?= Html::hiddenInput('r', $this->context->route) ?>
         <input type="hidden" name="tab" value="<?= Html::encode($statsTab) ?>">
         <input type="hidden" name="trend" value="<?= Html::encode($trendMode) ?>">
@@ -113,20 +99,7 @@ $statsFormAction = Yii::$app->request->scriptUrl ?: Url::to(['/']);
                 <label for="statsDateTo">по</label>
                 <input type="date" id="statsDateTo" name="date_to" class="form-control"
                        value="<?= Html::encode($dateTo ?? '') ?>">
-                    </div>
-            <?php if ($statsTab === 'movements'): ?>
-            <div class="tasks-kpi-filter__field tasks-kpi-filter__field--search">
-                <label class="visually-hidden" for="statsMovementQuickFilter">Поиск по таблице</label>
-                <div class="arm-search tasks-kpi-filter__search">
-                    <i class="fas fa-search arm-search__icon" aria-hidden="true"></i>
-                    <input type="search" id="statsMovementQuickFilter" class="form-control arm-search__input"
-                           placeholder="Поиск" autocomplete="off"
-                           <?= $movements === [] ? ' disabled' : '' ?>>
-                    <button type="button" class="arm-search__clear" id="statsMovementQuickFilterClear"
-                            aria-label="Очистить поиск" title="Очистить поиск" hidden>×</button>
-                </div>
             </div>
-            <?php endif; ?>
             <button type="submit" class="btn btn-primary tasks-tool-btn">Применить</button>
             <?= Html::a('Сбросить', ['/tasks/statistics', 'tab' => $statsTab, 'trend' => $trendMode], ['class' => 'btn btn-outline-secondary tasks-tool-btn']) ?>
         </div>
@@ -288,35 +261,6 @@ $statsFormAction = Yii::$app->request->scriptUrl ?: Url::to(['/']);
             </div>
         </section>
         </div>
-    <?php endif; ?>
-
-    <?php if ($statsTab === 'movements'): ?>
-    <div class="tasks-stats-tab-pane tasks-stats-tab-pane--movements">
-    <section class="tasks-kpi-table-section tasks-kpi-table-section--movement" aria-labelledby="kpiMovementTableTitle">
-        <header class="tasks-kpi-panel__header">
-            <h2 id="kpiMovementTableTitle" class="tasks-kpi-panel__title">
-                <i class="fas fa-exchange-alt" aria-hidden="true"></i> Перемещения техники
-            </h2>
-            <p class="tasks-kpi-filter__hint mb-0">
-                Маршруты перемещений за период: <?= Html::encode($periodLabel ?: 'за всё время') ?>.
-                Маршрутов: <strong><?= (int) ($movementSummary['routes'] ?? 0) ?></strong>,
-                единиц техники: <strong><?= (int) ($movementSummary['units'] ?? 0) ?></strong>.
-            </p>
-        </header>
-        <?php if ($movements === []): ?>
-            <p class="tasks-kpi-panel__empty">За выбранный период перемещений техники не найдено.</p>
-        <?php else: ?>
-            <div class="arm-grid-card tasks-stats-grid-card">
-                <div class="arm-grid-card__body">
-                    <div id="agGridStatisticsMovementContainer"
-                         class="ag-theme-quartz tasks-kpi-grid tasks-kpi-grid--movement"
-                         data-url="<?= Html::encode($movementGridUrl) ?>"
-                         data-grid-type="movement"></div>
-    </div>
-            </div>
-        <?php endif; ?>
-    </section>
-    </div>
     <?php endif; ?>
 </div>
 <?php

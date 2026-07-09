@@ -136,7 +136,7 @@ class DashboardAttentionService
             'count' => $count,
             'items' => $items,
             'url' => $url,
-            'url_label' => $count > self::LIST_LIMIT ? 'Все ' . $count . ' →' : 'Перейти →',
+            'url_label' => $count > self::LIST_LIMIT ? 'Все ' . $count : 'Перейти',
             'empty_text' => $emptyText,
             'visible' => true,
         ];

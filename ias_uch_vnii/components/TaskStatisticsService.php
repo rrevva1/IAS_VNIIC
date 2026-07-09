@@ -43,6 +43,27 @@ class TaskStatisticsService
         }
     }
 
+    /**
+     * Отчёт по истории перемещений техники (без KPI заявок и задач).
+     *
+     * @return array<string, mixed>
+     */
+    public function buildMovementHistoryReport(): array
+    {
+        $movements = $this->buildEquipmentMovementStats();
+        $movementSummary = $this->buildEquipmentMovementSummary($movements);
+
+        return [
+            'period' => [
+                'from' => $this->dateFrom,
+                'to' => $this->dateTo,
+                'label' => $this->getPeriodLabel(),
+            ],
+            'movements' => $movements,
+            'movement_summary' => $movementSummary,
+        ];
+    }
+
     public function buildReport(): array
     {
         $tasks = $this->loadTasksInPeriod();

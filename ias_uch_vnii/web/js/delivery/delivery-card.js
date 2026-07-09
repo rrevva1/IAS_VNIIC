@@ -9,6 +9,8 @@
     var currentDeliveryId = null;
     var currentLineId = 0;
     var cardModalInstance = null;
+    var unitsFitColumnsTimer = null;
+    var unitsSuppressFitUntil = 0;
 
     function getContainer() {
         return document.getElementById('agGridDeliveryContainer');
@@ -113,6 +115,37 @@
             var id = parseInt(row.getAttribute('data-line-id'), 10);
             row.classList.toggle('is-active', id === lineId);
         });
+    }
+
+    function shouldSkipFitUnitsColumns() {
+        return Date.now() < unitsSuppressFitUntil;
+    }
+
+    function markUnitsColumnUserResize() {
+        unitsSuppressFitUntil = Date.now() + 2500;
+    }
+
+    /** Подгонка ширины столбцов под область таблицы — как в «Учёт ТС». */
+    function scheduleFitUnitsColumns(force) {
+        clearTimeout(unitsFitColumnsTimer);
+        unitsFitColumnsTimer = setTimeout(function() {
+            if (!force && shouldSkipFitUnitsColumns()) {
+                return;
+            }
+            if (!unitsApi || typeof unitsApi.sizeColumnsToFit !== 'function') {
+                return;
+            }
+            var container = document.getElementById('agGridDeliveryUnits');
+            if (!container || container.clientWidth < 80) {
+                return;
+            }
+            try {
+                unitsApi.sizeColumnsToFit();
+            } catch (e) {
+                console.warn('AG Grid (техника в закупке): sizeColumnsToFit', e);
+            }
+            scheduleUnitsRowHeights();
+        }, 50);
     }
 
     function scheduleUnitsRowHeights() {
@@ -223,6 +256,7 @@
             .then(function(r) { return r.json(); })
             .then(function(res) {
                 unitsApi.setGridOption('rowData', (res && res.success && res.data) ? res.data : []);
+                scheduleFitUnitsColumns();
                 scheduleUnitsRowHeights();
             });
     }
@@ -257,28 +291,37 @@
             : utils.mergeDefaultColDef();
 
         var columnDefs = [
-            { headerName: '№', field: 'seq_no', width: 55, wrapText: true },
-            { headerName: 'Тип', field: 'line_type', width: 100, wrapText: true },
-            { headerName: 'Наименование', field: 'line_name', flex: 1, minWidth: 100, wrapText: true },
-            { headerName: 'Серийный', field: 'serial_number', width: 120, wrapText: true },
-            { headerName: 'Инв. №', field: 'inventory_number', width: 100, wrapText: true },
-            { headerName: 'Где сейчас', field: 'holder', width: 130, wrapText: true },
-            { headerName: 'Помещение', field: 'location_name', width: 110, wrapText: true },
             {
-                headerName: 'ТС',
-                width: 72,
-                sortable: false,
+                headerName: '№',
+                field: 'seq_no',
+                minWidth: 52,
+                maxWidth: 64,
+                suppressSizeToFit: true,
                 wrapText: true,
-                cellClass: 'ag-cell-wrap-text',
+            },
+            { headerName: 'Тип', field: 'line_type', minWidth: 100, wrapText: true },
+            {
+                headerName: 'Наименование',
+                field: 'line_name',
+                minWidth: 140,
+                wrapText: true,
                 cellRenderer: function(params) {
+                    var text = params.value != null && String(params.value).trim() !== ''
+                        ? String(params.value)
+                        : '—';
                     if (!params.data || !params.data.equipment_id) {
-                        return '—';
+                        return escapeHtml(text);
                     }
                     var sep = armView.indexOf('?') >= 0 ? '&' : '?';
                     return '<a href="' + armView + sep + 'id=' + encodeURIComponent(params.data.equipment_id)
-                        + '" target="_blank" rel="noopener">карточка</a>';
+                        + '" target="_blank" rel="noopener" title="Открыть карточку актива">'
+                        + escapeHtml(text) + '</a>';
                 },
             },
+            { headerName: 'Серийный', field: 'serial_number', minWidth: 100, wrapText: true },
+            { headerName: 'Инв. №', field: 'inventory_number', minWidth: 90, wrapText: true },
+            { headerName: 'Где сейчас', field: 'holder', minWidth: 120, wrapText: true },
+            { headerName: 'Помещение', field: 'location_name', minWidth: 100, wrapText: true },
         ];
 
         var gridOpts = {
@@ -288,23 +331,42 @@
             defaultColDef: defaultColDef,
             domLayout: 'normal',
             suppressCellFocus: true,
+            suppressHorizontalScroll: false,
+            alwaysShowHorizontalScroll: true,
             getRowHeight: getDeliveryUnitsRowHeight,
             onGridReady: function(params) {
                 unitsApi = params.api;
                 loadUnits();
             },
-            onFirstDataRendered: scheduleUnitsRowHeights,
+            onFirstDataRendered: function() {
+                scheduleFitUnitsColumns();
+                scheduleUnitsRowHeights();
+            },
             onDisplayedColumnsChanged: scheduleUnitsRowHeights,
             onColumnResized: function(event) {
+                markUnitsColumnUserResize();
                 if (event && event.finished) {
                     scheduleUnitsRowHeights();
                 }
             },
-            onGridSizeChanged: scheduleUnitsRowHeights,
+            onGridSizeChanged: function() {
+                scheduleUnitsRowHeights();
+                if (shouldSkipFitUnitsColumns()) {
+                    return;
+                }
+                if (container && container.clientWidth >= 80) {
+                    scheduleFitUnitsColumns();
+                }
+            },
         };
 
         var createGrid = window.iasCreateGrid || (window.AgGridFilter && window.AgGridFilter.iasCreateGrid);
         (typeof createGrid === 'function' ? createGrid : agGrid.createGrid.bind(agGrid))(container, gridOpts);
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                scheduleFitUnitsColumns(true);
+            });
+        });
     }
 
     function mountDeliveryHeader() {

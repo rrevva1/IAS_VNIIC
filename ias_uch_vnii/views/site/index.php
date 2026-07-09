@@ -20,9 +20,9 @@ $this->title = 'Главная';
 $this->params['breadcrumbs'] = [];
 
 $severityLabels = [
-    'critical' => 'Критично',
-    'warning' => 'Скоро',
-    'info' => 'Информация',
+    'critical' => ['label' => 'Критично', 'icon' => 'fa-circle-exclamation'],
+    'warning' => ['label' => 'Скоро', 'icon' => 'fa-clock'],
+    'info' => ['label' => 'Информация', 'icon' => 'fa-circle-info'],
 ];
 ?>
 <div class="arm-page section-grid-page dashboard-page">
@@ -37,10 +37,15 @@ $severityLabels = [
 
     <div class="arm-grid-card arm-content-panel dashboard-panel">
         <div class="dashboard-summary" aria-label="Сводка по приоритетам">
-            <?php foreach ($severityLabels as $severity => $label): ?>
+            <?php foreach ($severityLabels as $severity => $meta): ?>
                 <div class="dashboard-summary__item dashboard-summary__item--<?= Html::encode($severity) ?>">
-                    <span class="dashboard-summary__count"><?= (int) ($summary[$severity] ?? 0) ?></span>
-                    <span class="dashboard-summary__label"><?= Html::encode($label) ?></span>
+                    <span class="dashboard-summary__icon" aria-hidden="true">
+                        <i class="fas <?= Html::encode($meta['icon']) ?>"></i>
+                    </span>
+                    <div class="dashboard-summary__content">
+                        <span class="dashboard-summary__count"><?= (int) ($summary[$severity] ?? 0) ?></span>
+                        <span class="dashboard-summary__label"><?= Html::encode($meta['label']) ?></span>
+                    </div>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -61,18 +66,19 @@ $severityLabels = [
             <?php if ($idleWidgetCount > 0): ?>
                 <div class="dashboard-widgets-toolbar">
                     <button type="button"
-                            class="btn btn-sm btn-outline-secondary arm-tool-btn dashboard-widgets-toggle"
+                            class="btn btn-sm btn-light dashboard-widgets-toggle"
                             id="dashboard-widgets-toggle"
                             data-idle-count="<?= (int) $idleWidgetCount ?>"
                             aria-expanded="false"
                             aria-controls="dashboard-widgets">
-                        <i class="fas fa-th-large" aria-hidden="true"></i>
-                        <span class="arm-btn-label dashboard-widgets-toggle__label">Показать все виджеты</span>
-                        <span class="dashboard-widgets-toggle__count">(<?= (int) $idleWidgetCount ?>)</span>
+                        <i class="fas fa-layer-group" aria-hidden="true"></i>
+                        <span class="dashboard-widgets-toggle__label">Показать все виджеты</span>
+                        <span class="dashboard-widgets-toggle__count"><?= (int) $idleWidgetCount ?></span>
                     </button>
                 </div>
             <?php endif; ?>
 
+            <div class="dashboard-widgets-section">
             <div class="dashboard-widgets" id="dashboard-widgets">
                 <?php foreach ($widgets as $widget): ?>
                     <?= $this->render('_attention_widget', [
@@ -83,10 +89,11 @@ $severityLabels = [
                         'count' => (int) ($widget['count'] ?? 0),
                         'items' => $widget['items'] ?? [],
                         'url' => $widget['url'] ?? null,
-                        'urlLabel' => (string) ($widget['url_label'] ?? 'Перейти →'),
+                        'urlLabel' => (string) ($widget['url_label'] ?? 'Перейти'),
                         'emptyText' => (string) ($widget['empty_text'] ?? 'Нет записей.'),
                     ]) ?>
                 <?php endforeach; ?>
+            </div>
             </div>
         <?php endif; ?>
     </div>

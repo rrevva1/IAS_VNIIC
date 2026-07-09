@@ -1,0 +1,43 @@
+<?php
+
+namespace app\assets;
+
+use yii\web\AssetBundle;
+
+/**
+ * Asset bundle для раздела «История перемещений».
+ */
+class MovementHistoryAsset extends AssetBundle
+{
+    public $basePath = '@webroot';
+    public $baseUrl = '@web';
+
+    public $css = [
+        'css/arm/index.css',
+        'css/section-grid-page.css',
+        'css/tasks/page.css',
+        'css/tasks/statistics.css',
+        'ag-grid-community/styles/ag-theme-quartz.css',
+        'css/ag-grid-filter.css',
+        'css/tasks/ag-grid.css',
+    ];
+
+    public $js = [
+        'ag-grid-community/dist/ag-grid-community.min.js',
+        'js/ag-grid-filter-config.js',
+        'js/ag-grid-theme-config.js',
+        'js/tasks/movement-history-ag-grid.js',
+    ];
+
+    public $depends = [
+        'app\assets\LayoutAsset',
+        'yii\web\YiiAsset',
+        'yii\bootstrap5\BootstrapAsset',
+    ];
+
+    public $jsOptions = [
+        'position' => \yii\web\View::POS_END,
+    ];
+
+    public $appendTimestamp = true;
+}
