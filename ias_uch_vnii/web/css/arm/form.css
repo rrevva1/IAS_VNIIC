@@ -120,8 +120,23 @@
 }
 
 #createArmModal .arm-create-modal__body.arm-view-modal__body {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     background: #f1f5f9;
+}
+
+#createArmModal .arm-create-modal__footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    border-top: 1px solid #dee2e6;
+    background: #fff;
+    padding: 0.75rem 1.25rem;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3;
 }
 
 /* Заголовки секций — как в модалке переназначения, не как в карточке просмотра */
@@ -252,30 +267,44 @@
 }
 
 #createArmModal .arm-form-create__primary-row,
-#createArmModal .arm-form-create__cards-row,
-#createArmModal .arm-form-create__config-section {
+#createArmModal .arm-form-create__details-row {
     margin-bottom: 1rem;
 }
 
-#createArmModal .arm-form-create__primary-row {
+#createArmModal .arm-form-create__primary-row,
+#createArmModal .arm-form-create__details-row {
     align-items: flex-start;
 }
 
-#createArmModal .arm-form-create__cards-row {
-    align-items: flex-start;
-}
-
-#createArmModal .arm-form-create__cards-row-col {
+#createArmModal .arm-form-create__details-col {
     min-width: 0;
 }
 
-#createArmModal .arm-form-create__cards-row-col > .arm-view-card {
-    width: 100%;
-    height: auto;
+#createArmModal .arm-form-create__details-row:has(#dynamic-fields-block.d-none) .arm-form-create__details-col--config {
+    display: none;
 }
 
-#createArmModal .arm-form-create__note-row {
-    margin-bottom: 1rem;
+#createArmModal .arm-form-create__details-row:has(#dynamic-fields-block.d-none) .arm-form-create__details-col--side {
+    flex: 0 0 100%;
+    max-width: 100%;
+}
+
+#createArmModal .arm-form-create__side-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+}
+
+#createArmModal .arm-form-create__side-stack > .arm-view-card,
+#createArmModal .arm-form-create__side-stack > .arm-equipment-photos-form {
+    width: 100%;
+    height: auto;
+    margin-bottom: 0;
+}
+
+#createArmModal .arm-form-create__config-section {
+    margin-bottom: 0;
 }
 
 #createArmModal .arm-form-create__config-section .arm-view-card__body {
@@ -473,16 +502,6 @@
 
 #createArmModal #dynamic-fields-block.arm-form-create__config-visible {
     display: block !important;
-}
-
-#createArmModal .arm-create-modal__footer {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    border-top: 1px solid #dee2e6;
-    background: #fff;
-    padding: 0.75rem 1.25rem;
 }
 
 #createArmModal .arm-create-modal__header .modal-title i {

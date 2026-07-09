@@ -284,14 +284,9 @@
         if (!container) {
             return;
         }
-        var purchaseCard = container.querySelector('[aria-labelledby="arm-create-section-purchase"]');
         var photosCard = container.querySelector('.arm-equipment-photos-form');
-        if (!purchaseCard || !photosCard) {
-            return;
-        }
-        var purchaseHeight = purchaseCard.offsetHeight;
-        if (purchaseHeight > 0) {
-            photosCard.style.minHeight = purchaseHeight + 'px';
+        if (photosCard) {
+            photosCard.style.minHeight = '';
         }
     };
 

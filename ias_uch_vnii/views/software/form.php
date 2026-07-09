@@ -3,7 +3,7 @@ use yii\helpers\Html;
 use yii\widgets\ActiveForm;
 /** @var app\models\entities\Software $model */
 $this->title = $model->isNewRecord ? 'Добавить ПО' : 'Редактировать ПО';
-$this->params['breadcrumbs'][] = ['label' => 'ПО и лицензии', 'url' => ['index']];
+$this->params['breadcrumbs'][] = ['label' => 'Лицензии ПО', 'url' => ['index']];
 $this->params['breadcrumbs'][] = $model->isNewRecord ? 'Добавить' : 'Редактировать';
 ?>
 <div class="software-form">

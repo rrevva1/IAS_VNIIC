@@ -115,6 +115,12 @@ $showAdminSection = $isAdmin;
 
     <div class="sidebar-content flex-grow-1" id="sidebar-nav">
         <ul class="sidebar-nav list-unstyled mb-0">
+            <?php if (!$isGuest): ?>
+                <li class="sidebar-nav__item">
+                    <?= $renderLink('fas fa-house', 'Главная', ['/site/index'], ['site/index']) ?>
+                </li>
+                <div class="sidebar-nav__divider" role="separator" aria-hidden="true"></div>
+            <?php endif; ?>
             <?php if ($showEquipmentSection): ?>
                 <?= $renderSection('Техника') ?>
                 <li class="sidebar-nav__item">
@@ -169,7 +175,7 @@ $showAdminSection = $isAdmin;
                     <?= $renderLink('fas fa-book', 'Справочники', ['/references/index'], ['references']) ?>
                 </li>
                 <li class="sidebar-nav__item">
-                    <?= $renderLink('fas fa-key', 'ПО и лицензии', ['/software/index'], ['software']) ?>
+                    <?= $renderLink('fas fa-key', 'Лицензии ПО', ['/software/index'], ['software']) ?>
                 </li>
                 <li class="sidebar-nav__item">
                     <?= $renderLink('fas fa-file-import', 'Импорт ОУ', ['/import/index'], ['import']) ?>

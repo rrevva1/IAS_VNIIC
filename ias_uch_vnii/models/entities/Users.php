@@ -148,7 +148,7 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
      */
     public function getHomeUrl(): array
     {
-        return $this->canAccessArm() ? ['/arm/index'] : ['/tasks/index'];
+        return ['/site/index'];
     }
 
     private function hasRoleCode(string $code): bool

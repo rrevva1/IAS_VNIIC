@@ -330,14 +330,52 @@
         }
     }
 
+    function scrollToFirstError($form) {
+        var $first = $form.find('.is-invalid, .has-error, .arm-field--error').first();
+        if (!$first.length) {
+            return;
+        }
+        var scrollParent = document.getElementById('createArmModalBody');
+        if (!scrollParent || !$first[0]) {
+            return;
+        }
+        var top = $first[0].getBoundingClientRect().top
+            - scrollParent.getBoundingClientRect().top
+            + scrollParent.scrollTop
+            - 24;
+        scrollParent.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+
     function triggerArmFormSave($form) {
         if (!$form || !$form.length) {
             return;
         }
-        if ($form.data('yiiActiveForm')) {
-            $form.yiiActiveForm('submit');
+
+        var formEl = $form[0];
+        if (formEl && typeof formEl.checkValidity === 'function' && !formEl.checkValidity()) {
+            if (typeof formEl.reportValidity === 'function') {
+                formEl.reportValidity();
+            }
             return;
         }
+
+        if ($form.data('yiiActiveForm')) {
+            $form
+                .off('afterValidate.armCreateSave')
+                .on('afterValidate.armCreateSave', function(event, messages, errorAttributes) {
+                    $form.off('afterValidate.armCreateSave');
+                    if (errorAttributes && errorAttributes.length) {
+                        applyValidationHighlight($form);
+                        scrollToFirstError($form);
+                        showToast('error', 'Проверьте выделенные поля формы.');
+                        return;
+                    }
+                    sendEquipmentFormRequest($form);
+                });
+            $form.yiiActiveForm('validate', true);
+            return;
+        }
+
         sendEquipmentFormRequest($form);
     }
 
@@ -384,6 +422,7 @@
                 } else {
                     showToast('error', (response && response.message) || 'Не удалось сохранить технику.');
                     displayFormErrors($form, response && response.errors);
+                    scrollToFirstError($form);
                 }
             })
             .fail(function(xhr) {
@@ -411,11 +450,6 @@
         bindYiiValidationHighlight($form);
 
         $form
-            .off('beforeSubmit.armCreate')
-            .on('beforeSubmit.armCreate', function() {
-                sendEquipmentFormRequest($form);
-                return false;
-            })
             .off('submit.armCreate')
             .on('submit.armCreate', function(e) {
                 e.preventDefault();

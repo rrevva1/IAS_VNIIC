@@ -1,58 +1,93 @@
 <?php
 
-use app\assets\SiteAsset;
+use app\assets\DashboardAsset;
+use yii\helpers\Html;
 
 /** @var yii\web\View $this */
+/** @var array $dashboard */
 
-// Подключаем assets для страниц сайта
-SiteAsset::register($this);
+DashboardAsset::register($this);
 
-$this->title = 'My Yii Application';
+$summary = $dashboard['summary'] ?? ['critical' => 0, 'warning' => 0, 'info' => 0];
+$widgets = $dashboard['widgets'] ?? [];
+$hasIssues = ((int) ($summary['critical'] ?? 0) + (int) ($summary['warning'] ?? 0) + (int) ($summary['info'] ?? 0)) > 0;
+$idleWidgetCount = count(array_filter(
+    $widgets,
+    static fn(array $widget): bool => (int) ($widget['count'] ?? 0) === 0
+));
+
+$this->title = 'Главная';
+$this->params['breadcrumbs'] = [];
+
+$severityLabels = [
+    'critical' => 'Критично',
+    'warning' => 'Скоро',
+    'info' => 'Информация',
+];
 ?>
-<div class="site-index">
+<div class="arm-page section-grid-page dashboard-page">
+    <header class="arm-page__header">
+        <div class="arm-page__heading">
+            <h1 class="arm-page__title">Требует внимания</h1>
+            <p class="arm-page__subtitle text-muted mb-0">
+                Сводка проблем, сроков и нерешённых задач. Перейдите в раздел по ссылке для подробностей.
+            </p>
+        </div>
+    </header>
 
-    <div class="jumbotron text-center bg-transparent mt-5 mb-5">
-        <h1 class="display-4">Congratulations!</h1>
-
-        <p class="lead">You have successfully created your Yii-powered application.</p>
-
-        <p><a class="btn btn-lg btn-success" href="https://www.yiiframework.com">Get started with Yii</a></p>
-    </div>
-
-    <div class="body-content">
-
-        <div class="row">
-            <div class="col-lg-4 mb-3">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/doc/">Yii Documentation &raquo;</a></p>
-            </div>
-            <div class="col-lg-4 mb-3">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/forum/">Yii Forum &raquo;</a></p>
-            </div>
-            <div class="col-lg-4">
-                <h2>Heading</h2>
-
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et
-                    dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip
-                    ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                    fugiat nulla pariatur.</p>
-
-                <p><a class="btn btn-outline-secondary" href="https://www.yiiframework.com/extensions/">Yii Extensions &raquo;</a></p>
-            </div>
+    <div class="arm-grid-card arm-content-panel dashboard-panel">
+        <div class="dashboard-summary" aria-label="Сводка по приоритетам">
+            <?php foreach ($severityLabels as $severity => $label): ?>
+                <div class="dashboard-summary__item dashboard-summary__item--<?= Html::encode($severity) ?>">
+                    <span class="dashboard-summary__count"><?= (int) ($summary[$severity] ?? 0) ?></span>
+                    <span class="dashboard-summary__label"><?= Html::encode($label) ?></span>
+                </div>
+            <?php endforeach; ?>
         </div>
 
+        <?php if ($widgets === []): ?>
+            <div class="dashboard-all-clear">
+                <i class="fas fa-circle-check" aria-hidden="true"></i>
+                <p class="mb-0">Для вашей роли нет доступных виджетов на главной странице.</p>
+            </div>
+        <?php else: ?>
+            <?php if (!$hasIssues): ?>
+                <div class="dashboard-all-clear">
+                    <i class="fas fa-circle-check" aria-hidden="true"></i>
+                    <p class="mb-0">На текущий момент проблем, требующих внимания, не обнаружено.</p>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($idleWidgetCount > 0): ?>
+                <div class="dashboard-widgets-toolbar">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary arm-tool-btn dashboard-widgets-toggle"
+                            id="dashboard-widgets-toggle"
+                            data-idle-count="<?= (int) $idleWidgetCount ?>"
+                            aria-expanded="false"
+                            aria-controls="dashboard-widgets">
+                        <i class="fas fa-th-large" aria-hidden="true"></i>
+                        <span class="arm-btn-label dashboard-widgets-toggle__label">Показать все виджеты</span>
+                        <span class="dashboard-widgets-toggle__count">(<?= (int) $idleWidgetCount ?>)</span>
+                    </button>
+                </div>
+            <?php endif; ?>
+
+            <div class="dashboard-widgets" id="dashboard-widgets">
+                <?php foreach ($widgets as $widget): ?>
+                    <?= $this->render('_attention_widget', [
+                        'widgetId' => (string) ($widget['id'] ?? 'widget'),
+                        'title' => (string) ($widget['title'] ?? ''),
+                        'icon' => (string) ($widget['icon'] ?? 'fas fa-circle'),
+                        'severity' => (string) ($widget['severity'] ?? 'info'),
+                        'count' => (int) ($widget['count'] ?? 0),
+                        'items' => $widget['items'] ?? [],
+                        'url' => $widget['url'] ?? null,
+                        'urlLabel' => (string) ($widget['url_label'] ?? 'Перейти →'),
+                        'emptyText' => (string) ($widget['empty_text'] ?? 'Нет записей.'),
+                    ]) ?>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 </div>

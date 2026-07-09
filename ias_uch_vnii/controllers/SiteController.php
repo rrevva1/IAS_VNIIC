@@ -9,6 +9,8 @@ use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\forms\LoginForm;
 use app\models\forms\ContactForm;
+use app\components\DashboardAttentionService;
+use app\models\entities\Users;
 
 /**
  * SiteController обрабатывает основные действия сайта
@@ -79,7 +81,16 @@ class SiteController extends Controller
             return $this->redirect(['login']);
         }
 
-        return $this->redirect($this->resolveHomeUrl());
+        $identity = Yii::$app->user->identity;
+        if (!$identity instanceof Users) {
+            return $this->redirect(['/tasks/index']);
+        }
+
+        $dashboard = (new DashboardAttentionService($identity))->build();
+
+        return $this->render('index', [
+            'dashboard' => $dashboard,
+        ]);
     }
 
     /**

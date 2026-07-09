@@ -81,6 +81,7 @@ $statsFilterClass = 'tasks-kpi-filter';
 if ($statsTab === 'movements') {
     $statsFilterClass .= ' tasks-kpi-filter--movements';
 }
+$statsFormAction = Yii::$app->request->scriptUrl ?: Url::to(['/']);
 ?>
 
 <div class="<?= Html::encode($statsRootClasses) ?>">
@@ -98,7 +99,8 @@ if ($statsTab === 'movements') {
         </ul>
     </div>
 
-    <form method="get" action="<?= Html::encode(Url::to(['/tasks/statistics'])) ?>" class="<?= Html::encode($statsFilterClass) ?>">
+    <form method="get" action="<?= Html::encode($statsFormAction) ?>" class="<?= Html::encode($statsFilterClass) ?>">
+        <?= Html::hiddenInput('r', $this->context->route) ?>
         <input type="hidden" name="tab" value="<?= Html::encode($statsTab) ?>">
         <input type="hidden" name="trend" value="<?= Html::encode($trendMode) ?>">
         <div class="tasks-kpi-filter__fields">
@@ -111,10 +113,10 @@ if ($statsTab === 'movements') {
                 <label for="statsDateTo">по</label>
                 <input type="date" id="statsDateTo" name="date_to" class="form-control"
                        value="<?= Html::encode($dateTo ?? '') ?>">
-            </div>
+                    </div>
             <?php if ($statsTab === 'movements'): ?>
             <div class="tasks-kpi-filter__field tasks-kpi-filter__field--search">
-                <label for="statsMovementQuickFilter">Поиск по таблице</label>
+                <label class="visually-hidden" for="statsMovementQuickFilter">Поиск по таблице</label>
                 <div class="arm-search tasks-kpi-filter__search">
                     <i class="fas fa-search arm-search__icon" aria-hidden="true"></i>
                     <input type="search" id="statsMovementQuickFilter" class="form-control arm-search__input"
@@ -217,7 +219,7 @@ if ($statsTab === 'movements') {
                         <span class="tasks-kpi-trend-chart__label"><?= Html::encode($row['label']) ?></span>
                     </div>
                     <?php endforeach; ?>
-            </div>
+        </div>
             <?php if ($monthlyCompleted === [] && $dailyCompleted === []): ?>
                 <p class="tasks-kpi-panel__empty">Нет данных для выбранного режима.</p>
             <?php endif; ?>
@@ -237,8 +239,8 @@ if ($statsTab === 'movements') {
                      class="ag-theme-quartz tasks-kpi-grid"
                      data-url="<?= Html::encode($executorGridUrl) ?>"
                      data-grid-type="executor"></div>
-            </div>
-        </div>
+                    </div>
+                </div>
     </section>
     </div>
     <?php endif; ?>
@@ -310,7 +312,7 @@ if ($statsTab === 'movements') {
                          class="ag-theme-quartz tasks-kpi-grid tasks-kpi-grid--movement"
                          data-url="<?= Html::encode($movementGridUrl) ?>"
                          data-grid-type="movement"></div>
-                </div>
+    </div>
             </div>
         <?php endif; ?>
     </section>

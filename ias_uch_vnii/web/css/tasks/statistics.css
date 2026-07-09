@@ -278,6 +278,7 @@ body.app-body:has(.tasks-page--stats) {
 
 .tasks-kpi-filter__field--search {
     min-width: 0;
+    align-self: end;
 }
 
 .tasks-kpi-filter__field--search .tasks-kpi-filter__search,
@@ -293,8 +294,7 @@ body.app-body:has(.tasks-page--stats) {
     width: 100%;
     height: 32px;
     min-height: 32px;
-    padding-top: 0.2rem;
-    padding-bottom: 0.2rem;
+    padding: 0.2rem 2rem;
     font-size: var(--ias-font-body, 0.75rem);
     box-sizing: border-box;
 }

@@ -17,7 +17,10 @@ class SoftwareGridAsset extends AssetBundle
         'css/ag-grid-filter.css',
         'css/tasks/ag-grid.css',
         'css/arm/index.css',
+        'css/arm/form.css',
+        'css/arm/view.css',
         'css/section-grid-page.css',
+        'css/software/page.css',
     ];
 
     public $js = [
@@ -27,6 +30,8 @@ class SoftwareGridAsset extends AssetBundle
         'js/ag-grid-theme-config.js',
         'js/section-grid-utils.js',
         'js/software/ag-grid.js',
+        'js/software/license-attachments.js',
+        'js/software/license-form-modal.js',
     ];
 
     public $depends = [

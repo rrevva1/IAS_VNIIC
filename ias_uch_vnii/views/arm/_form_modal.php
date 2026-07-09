@@ -190,90 +190,87 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
         </div>
     </div>
 
-    <section id="dynamic-fields-block" class="arm-view-card arm-form-create__card arm-form-create__config-section arm-form-section--chars<?= $showConfigSection ? ' arm-form-create__config-visible' : ' d-none' ?>" aria-labelledby="arm-create-section-config">
-        <h2 id="arm-create-section-config" class="arm-view-card__title">Конфигурация</h2>
-        <div class="arm-view-card__body arm-form-create__card-fields">
-            <div id="dynamic-fields-content" class="arm-form-create__config-fields">
-                <?php if ($showConfigSection): ?>
-                    <?= $this->render('_form_config_fields', [
-                        'fields' => $initialConfigFields,
-                        'chars' => $chars,
-                        'orgTech' => $orgTech,
-                    ]) ?>
-                <?php endif; ?>
-            </div>
-        </div>
-    </section>
-
-    <div class="row g-3 arm-form-create__cards-row">
-        <div class="col-md-6 arm-form-create__cards-row-col">
-        <section class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-purchase">
-            <h2 id="arm-create-section-purchase" class="arm-view-card__title">Закупка и гарантия</h2>
-            <div class="arm-view-card__body arm-form-create__card-fields">
-                <?= $form->field($model, 'supplier', ['options' => ['class' => 'arm-form-create__field arm-form-create__field--supplier']])
-                    ->textInput([
-                        'maxlength' => true,
-                        'list' => 'arm-supplier-datalist',
-                        'autocomplete' => 'off',
-                        'placeholder' => $formPlaceholders['supplier'],
-                    ]) ?>
-                <div class="row g-3 arm-form-create__dates-row">
-                    <div class="col-md-6">
-                        <?= $form->field($model, 'purchase_date', ['options' => ['class' => 'arm-form-create__field mb-0']])
-                            ->label('Дата закупки')
-                            ->input('date', [
-                                'id' => 'equipment-purchase-date',
-                                'class' => 'form-control js-warranty-base-date',
+    <div class="row g-3 arm-form-create__details-row">
+        <div class="col-md-6 arm-form-create__details-col arm-form-create__details-col--config">
+            <section id="dynamic-fields-block" class="arm-view-card arm-form-create__card arm-form-create__config-section arm-form-section--chars<?= $showConfigSection ? ' arm-form-create__config-visible' : ' d-none' ?>" aria-labelledby="arm-create-section-config">
+                <h2 id="arm-create-section-config" class="arm-view-card__title">Конфигурация</h2>
+                <div class="arm-view-card__body arm-form-create__card-fields">
+                    <div id="dynamic-fields-content" class="arm-form-create__config-fields">
+                        <?php if ($showConfigSection): ?>
+                            <?= $this->render('_form_config_fields', [
+                                'fields' => $initialConfigFields,
+                                'chars' => $chars,
+                                'orgTech' => $orgTech,
                             ]) ?>
+                        <?php endif; ?>
                     </div>
-                    <div class="col-md-6">
-                        <?= $form->field($model, 'warranty_years', ['options' => ['class' => 'arm-form-create__field mb-0']])
-                            ->label('Гарантия, лет')
-                            ->input('number', [
-                                'id' => 'equipment-warranty-years',
+                </div>
+            </section>
+        </div>
+
+        <div class="col-md-6 arm-form-create__details-col arm-form-create__details-col--side">
+            <div class="arm-form-create__side-stack">
+                <section class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-purchase">
+                    <h2 id="arm-create-section-purchase" class="arm-view-card__title">Закупка и гарантия</h2>
+                    <div class="arm-view-card__body arm-form-create__card-fields">
+                        <?= $form->field($model, 'supplier', ['options' => ['class' => 'arm-form-create__field arm-form-create__field--supplier']])
+                            ->textInput([
+                                'maxlength' => true,
+                                'list' => 'arm-supplier-datalist',
+                                'autocomplete' => 'off',
+                                'placeholder' => $formPlaceholders['supplier'],
+                            ]) ?>
+                        <div class="row g-3 arm-form-create__dates-row">
+                            <div class="col-md-6">
+                                <?= $form->field($model, 'purchase_date', ['options' => ['class' => 'arm-form-create__field mb-0']])
+                                    ->label('Дата закупки')
+                                    ->input('date', [
+                                        'id' => 'equipment-purchase-date',
+                                        'class' => 'form-control js-warranty-base-date',
+                                    ]) ?>
+                            </div>
+                            <div class="col-md-6">
+                                <?= $form->field($model, 'warranty_years', ['options' => ['class' => 'arm-form-create__field mb-0']])
+                                    ->label('Гарантия, лет')
+                                    ->input('number', [
+                                        'id' => 'equipment-warranty-years',
+                                        'class' => 'form-control',
+                                        'min' => 0,
+                                        'max' => 50,
+                                        'step' => '0.5',
+                                        'placeholder' => $formPlaceholders['warranty_years'],
+                                    ]) ?>
+                            </div>
+                        </div>
+                        <div id="arm-form-cartridge-section" class="arm-form-create__field mb-0<?= $isPrinterOrMfu ? '' : ' d-none' ?>">
+                            <?= $this->render('_form_config_fields', [
+                                'fields' => [$cartridgeField],
+                                'chars' => $chars,
+                                'orgTech' => $orgTech,
+                            ]) ?>
+                        </div>
+                    </div>
+                </section>
+
+                <?= $this->render('_form_attachments', [
+                    'model' => $model,
+                    'photos' => $photos ?? [],
+                    'canEditPhotos' => $canEditPhotos ?? false,
+                ]) ?>
+
+                <section id="arm-form-description-section" class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-note">
+                    <h2 id="arm-create-section-note" class="arm-view-card__title"><?= Html::encode($descriptionSectionTitle) ?></h2>
+                    <div class="arm-view-card__body arm-form-create__card-fields">
+                        <?= $form->field($model, 'description', ['options' => ['class' => 'arm-form-create__field mb-0']])
+                            ->label('Комментарий к технике')
+                            ->textarea([
+                                'rows' => 4,
+                                'placeholder' => $descriptionPlaceholder,
                                 'class' => 'form-control',
-                                'min' => 0,
-                                'max' => 50,
-                                'step' => '0.5',
-                                'placeholder' => $formPlaceholders['warranty_years'],
                             ]) ?>
                     </div>
-                </div>
-                <div id="arm-form-cartridge-section" class="arm-form-create__field mb-0<?= $isPrinterOrMfu ? '' : ' d-none' ?>">
-                    <?= $this->render('_form_config_fields', [
-                        'fields' => [$cartridgeField],
-                        'chars' => $chars,
-                        'orgTech' => $orgTech,
-                    ]) ?>
-                </div>
+                </section>
             </div>
-        </section>
-        </div>
-
-        <div class="col-md-6 arm-form-create__cards-row-col">
-        <?= $this->render('_form_attachments', [
-            'model' => $model,
-            'photos' => $photos ?? [],
-            'canEditPhotos' => $canEditPhotos ?? false,
-        ]) ?>
-        </div>
-    </div>
-
-    <div class="row g-3 arm-form-create__note-row">
-        <div class="col-md-6 d-none d-md-block" aria-hidden="true"></div>
-        <div class="col-md-6">
-        <section id="arm-form-description-section" class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-note">
-            <h2 id="arm-create-section-note" class="arm-view-card__title"><?= Html::encode($descriptionSectionTitle) ?></h2>
-            <div class="arm-view-card__body arm-form-create__card-fields">
-                <?= $form->field($model, 'description', ['options' => ['class' => 'arm-form-create__field mb-0']])
-                    ->label('Комментарий к технике')
-                    ->textarea([
-                        'rows' => 4,
-                        'placeholder' => $descriptionPlaceholder,
-                        'class' => 'form-control',
-                    ]) ?>
-            </div>
-        </section>
         </div>
     </div>
 

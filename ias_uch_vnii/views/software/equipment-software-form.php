@@ -5,7 +5,7 @@ use yii\widgets\ActiveForm;
 /** @var app\models\entities\Software $software */
 /** @var array $equipmentItems */
 $this->title = 'Добавить установку на оборудование';
-$this->params['breadcrumbs'][] = ['label' => 'ПО и лицензии', 'url' => ['index']];
+$this->params['breadcrumbs'][] = ['label' => 'Лицензии ПО', 'url' => ['index']];
 $this->params['breadcrumbs'][] = ['label' => $software->name, 'url' => ['view', 'id' => $software->id]];
 $this->params['breadcrumbs'][] = $this->title;
 ?>
