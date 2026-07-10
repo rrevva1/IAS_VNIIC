@@ -70,7 +70,7 @@
         if (field.name === 'os') {
             return DATALIST_WIDGETS['os-datalist'];
         }
-        if (field.name === 'ip') {
+        if (field.name === 'ip' || field.name === 'misc_ip') {
             return DATALIST_WIDGETS['ip-datalist'];
         }
         if (field.name === 'ups_battery') {
@@ -131,6 +131,31 @@
         return div;
     }
 
+    function renderTextareaPartCharField(f, chars) {
+        chars = chars || window.armFormChars || {};
+        var val = chars[f.name] || '';
+        var div = createDynamicFieldWrapper();
+        div.classList.add('arm-dynamic-field--full');
+        var label = document.createElement('label');
+        label.className = 'form-label';
+        label.textContent = f.label || f.name;
+
+        var textarea = document.createElement('textarea');
+        textarea.className = 'form-control';
+        textarea.name = 'PartChar[' + (f.name || '') + ']';
+        textarea.rows = 4;
+        textarea.setAttribute('data-part', f.part || '');
+        textarea.setAttribute('data-char', f.char || '');
+        if (f.placeholder) {
+            textarea.placeholder = String(f.placeholder);
+        }
+        textarea.value = String(val);
+
+        div.appendChild(label);
+        div.appendChild(textarea);
+        return div;
+    }
+
     function renderCartridgeSelectField(f, orgTechOverride) {
         var orgTech = getOrgTechValues(orgTechOverride);
         var current = String(orgTech.cartridge_procurement || '').trim();
@@ -180,6 +205,10 @@
         return t === 'принтер' || t === 'мфу';
     }
 
+    function isMiscType(type) {
+        return String(type || '').trim().toLowerCase() === 'прочее';
+    }
+
     function isCartridgeField(field) {
         return !!field && (field.widget === 'cartridge-select' || field.name === 'cartridge_procurement');
     }
@@ -218,12 +247,32 @@
         var printerPlaceholder = form.getAttribute('data-arm-description-placeholder-printer') || '';
         var defaultPlaceholder = form.getAttribute('data-arm-description-placeholder-default') || '';
         var isPrinter = isPrinterOrMfuType(type);
+        var isMisc = isMiscType(type);
         if (titleEl) {
             titleEl.textContent = isPrinter ? printerTitle : defaultTitle;
         }
         if (textarea) {
             textarea.placeholder = isPrinter ? printerPlaceholder : defaultPlaceholder;
         }
+        section.classList.toggle('d-none', isMisc);
+    }
+
+    function collectPartCharValuesFromDom(content) {
+        var values = {};
+        if (!content) {
+            return values;
+        }
+        content.querySelectorAll('[name^="PartChar["]').forEach(function(el) {
+            if (!el.name) {
+                return;
+            }
+            var match = el.name.match(/^PartChar\[([^\]]+)\]$/);
+            if (!match) {
+                return;
+            }
+            values[match[1]] = el.value;
+        });
+        return values;
     }
 
     function getArmFormRoot(container) {
@@ -498,6 +547,10 @@
         if (!block || !content) {
             return;
         }
+        var domChars = collectPartCharValuesFromDom(content);
+        if (Object.keys(domChars).length > 0) {
+            chars = Object.assign({}, chars, domChars);
+        }
         syncPrinterCartridgeSection(type, root);
         syncDescriptionSection(type, root);
         if (!type || !fields || fields.length === 0) {
@@ -548,6 +601,10 @@
             }
             if (f.widget === 'number') {
                 content.appendChild(renderNumberPartCharField(f, chars));
+                return;
+            }
+            if (f.widget === 'textarea') {
+                content.appendChild(renderTextareaPartCharField(f, chars));
                 return;
             }
             var val = chars[f.name] || '';

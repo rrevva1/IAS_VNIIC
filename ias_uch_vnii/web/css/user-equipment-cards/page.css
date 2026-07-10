@@ -201,3 +201,387 @@
     text-decoration: none;
     box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
 }
+
+#agGridUserEquipmentCardsContainer .uec-grid-user-link {
+    border: 0;
+    background: none;
+    padding: 0;
+    color: var(--bs-link-color, #0d6efd);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+#agGridUserEquipmentCardsContainer .uec-grid-user-link:hover,
+#agGridUserEquipmentCardsContainer .uec-grid-user-link:focus {
+    color: var(--bs-link-hover-color, #0a58ca);
+    text-decoration: underline;
+}
+
+/* —— Модальное окно закреплённой техники —— */
+.uec-user-equipment-modal__dialog {
+    max-width: min(920px, calc(100vw - 2rem));
+    margin: 1rem auto;
+}
+
+.uec-user-equipment-modal__content {
+    border: none;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+    max-height: min(88vh, 780px);
+    display: flex;
+    flex-direction: column;
+}
+
+.uec-user-equipment-modal__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.15rem 1.35rem;
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 55%, #ffffff 100%);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.uec-user-equipment-modal__header-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.uec-user-equipment-modal__header-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: #fff;
+    color: #2563eb;
+    font-size: 1.1rem;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15);
+}
+
+.uec-user-equipment-modal__header-text {
+    min-width: 0;
+}
+
+.uec-user-equipment-modal__header .modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+    line-height: 1.35;
+}
+
+.uec-user-equipment-modal__subtitle {
+    margin: 0.3rem 0 0;
+    font-size: 0.8125rem;
+    color: #64748b;
+    line-height: 1.45;
+}
+
+.uec-user-equipment-modal__body {
+    flex: 1 1 auto;
+    min-height: 12rem;
+    padding: 1.15rem 1.35rem;
+    background: #f1f5f9;
+    overflow-y: auto;
+}
+
+.uec-user-equipment-modal__footer {
+    padding: 0.85rem 1.35rem;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    justify-content: flex-end;
+}
+
+.uec-user-equipment-modal__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    text-align: center;
+    color: #64748b;
+}
+
+.uec-user-equipment-modal__loading i {
+    font-size: 1.75rem;
+    color: #2563eb;
+    margin-bottom: 0.75rem;
+}
+
+.uec-user-equipment-modal__loading p {
+    margin: 0;
+    font-size: 0.8125rem;
+}
+
+.uec-user-equipment__hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.9rem 1rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.uec-user-equipment__hero-label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 0.2rem;
+}
+
+.uec-user-equipment__hero-name {
+    display: block;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.35;
+}
+
+.uec-user-equipment__hero-meta {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 0.8125rem;
+    color: #64748b;
+}
+
+.uec-user-equipment__hero-stat {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.5rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #bfdbfe;
+}
+
+.uec-user-equipment__hero-stat-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #1d4ed8;
+}
+
+.uec-user-equipment__hero-stat-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: #3b82f6;
+    text-transform: lowercase;
+}
+
+.uec-user-equipment__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2.5rem 1.25rem;
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+}
+
+.uec-user-equipment__empty-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.85rem;
+    border-radius: 50%;
+    background: #f8fafc;
+    color: #94a3b8;
+    font-size: 1.35rem;
+}
+
+.uec-user-equipment__empty-title {
+    margin: 0 0 0.35rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.uec-user-equipment__empty-text {
+    margin: 0;
+    max-width: 28rem;
+    font-size: 0.8125rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.uec-equipment-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.uec-equipment-card {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.85rem;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.uec-equipment-card:hover {
+    border-color: #bfdbfe;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+    transform: translateY(-1px);
+}
+
+.uec-equipment-card__icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #2563eb;
+    font-size: 1rem;
+}
+
+.uec-equipment-card__main {
+    min-width: 0;
+}
+
+.uec-equipment-card__title {
+    display: inline-block;
+    max-width: 100%;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1d4ed8;
+    text-decoration: none;
+    line-height: 1.35;
+    margin-bottom: 0.35rem;
+}
+
+.uec-equipment-card__title:hover {
+    color: #1e40af;
+    text-decoration: underline;
+}
+
+.uec-equipment-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.uec-equipment-card__chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.12rem 0.5rem;
+    border-radius: 999px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    font-weight: 600;
+    font-size: 0.6875rem;
+}
+
+.uec-equipment-card__meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.uec-equipment-card__meta-item i {
+    color: #94a3b8;
+    font-size: 0.7rem;
+}
+
+.uec-equipment-card__aside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    min-width: 0;
+    max-width: 11rem;
+}
+
+.uec-equipment-card__location {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    text-align: right;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.uec-equipment-card__location i {
+    color: #94a3b8;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .uec-user-equipment-modal__dialog {
+        max-width: calc(100vw - 1rem);
+        margin: 0.5rem auto;
+    }
+
+    .uec-user-equipment-modal__content {
+        max-height: calc(100vh - 1rem);
+        border-radius: 14px;
+    }
+
+    .uec-user-equipment__hero {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .uec-user-equipment__hero-stat {
+        flex-direction: row;
+        justify-content: center;
+        gap: 0.45rem;
+        min-width: 0;
+    }
+
+    .uec-equipment-card {
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+    }
+
+    .uec-equipment-card__aside {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        max-width: none;
+    }
+
+    .uec-equipment-card__location {
+        text-align: left;
+    }
+}

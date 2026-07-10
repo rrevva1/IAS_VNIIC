@@ -440,7 +440,8 @@
     min-width: 0;
 }
 
-.arm-form-create__config-grid .arm-dynamic-field--disks {
+.arm-form-create__config-grid .arm-dynamic-field--disks,
+.arm-form-create__config-grid .arm-dynamic-field--full {
     grid-column: 1 / -1;
 }
 
@@ -472,7 +473,8 @@
     margin: 0;
 }
 
-#createArmModal .arm-form-create__config-fields > .arm-dynamic-field--disks {
+#createArmModal .arm-form-create__config-fields > .arm-dynamic-field--disks,
+#createArmModal .arm-form-create__config-fields > .arm-dynamic-field--full {
     grid-column: 1 / -1;
 }
 
@@ -489,6 +491,11 @@
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+}
+
+#createArmModal .arm-form-create__config-fields textarea.form-control {
+    min-height: 6.5rem;
+    resize: vertical;
 }
 
 #createArmModal .arm-form-create__config-fields .arm-disk-add {

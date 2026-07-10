@@ -24,8 +24,30 @@
         if (window.yii && typeof yii.getCsrfParam === 'function') {
             body.append(yii.getCsrfParam(), yii.getCsrfToken());
         }
-        return fetch(url, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(function(r) { return r.json(); });
+        return fetch(url, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function(response) {
+                return response.text().then(function(text) {
+                    var payload = null;
+                    if (text) {
+                        try {
+                            payload = JSON.parse(text);
+                        } catch (parseError) {
+                            var error = new Error('Сервер вернул некорректный ответ');
+                            error.isParseError = true;
+                            error.status = response.status;
+                            throw error;
+                        }
+                    }
+                    if (!response.ok) {
+                        var httpError = new Error(
+                            (payload && payload.message) ? payload.message : ('HTTP ' + response.status)
+                        );
+                        httpError.payload = payload;
+                        throw httpError;
+                    }
+                    return payload || { success: false, message: 'Пустой ответ сервера' };
+                });
+            });
     }
 
     function showToast(message, isError) {
@@ -68,6 +90,9 @@
     function handleTaskChangeSuccess(res, taskId) {
         var id = taskId || (window.WorkTasksView && window.WorkTasksView.getTaskId());
         updateBoardCard(res, id);
+        if (window.IasRealtimeSync && typeof window.IasRealtimeSync.refreshWorkTasksPoll === 'function') {
+            window.IasRealtimeSync.refreshWorkTasksPoll();
+        }
         if (window.WorkTasksView && window.WorkTasksView.isOpen()) {
             closeViewModal();
             showToast(res.message || 'Готово', false);
@@ -101,8 +126,8 @@
                     btn.disabled = false;
                 }
             })
-            .catch(function() {
-                showToast('Ошибка сети', true);
+            .catch(function(err) {
+                showToast((err && err.message) ? err.message : 'Ошибка сети', true);
                 btn.disabled = false;
             });
     });

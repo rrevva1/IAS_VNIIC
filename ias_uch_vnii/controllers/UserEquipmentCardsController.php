@@ -172,6 +172,27 @@ class UserEquipmentCardsController extends Controller
         return $orderBy;
     }
 
+    /**
+     * Список закреплённой техники пользователя (модальное окно).
+     */
+    public function actionUserEquipment(int $userId)
+    {
+        if (!UserEquipmentCardService::isCardsTableReady()) {
+            throw new NotFoundHttpException('Раздел карточек недоступен.');
+        }
+
+        $data = UserEquipmentCardService::buildCardData($userId);
+        if ($data['user'] === null) {
+            throw new NotFoundHttpException('Пользователь не найден.');
+        }
+
+        return $this->renderAjax('_user_equipment_content', [
+            'user' => $data['user'],
+            'equipment' => $data['equipment'],
+            'isModal' => true,
+        ]);
+    }
+
     public function actionDownload(int $userId)
     {
         if (!UserEquipmentCardService::isCardsTableReady()) {

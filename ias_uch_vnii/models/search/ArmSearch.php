@@ -2,6 +2,7 @@
 
 namespace app\models\search;
 
+use app\components\EquipmentCharCatalog;
 use app\models\entities\Equipment;
 use app\models\entities\EquipmentLink;
 use app\models\entities\EquipmentTypes;
@@ -326,11 +327,10 @@ class ArmSearch extends Model
             'system_block' => ['column' => 'equipment.name'],
             'inventory_number' => ['column' => 'equipment.inventory_number'],
             'purchase_date' => ['column' => new Expression('CAST(equipment.purchase_date AS TEXT)')],
-            'other_tech' => ['column' => 'equipment.description'],
             'cartridge_procurement' => ['column' => 'equipment.description'],
         ];
 
-        $partCharFields = ['cpu', 'ram', 'disk', 'monitor', 'screen_diagonal', 'hostname', 'ip', 'os'];
+        $partCharFields = array_keys(EquipmentCharCatalog::getArmGridPartCharFilterMap());
 
         foreach ($model as $field => $cfg) {
             if (!is_array($cfg)) {
@@ -338,6 +338,10 @@ class ArmSearch extends Model
             }
             if ($field === 'ups') {
                 $this->applyLinkedComponentGridFilter($query, $cfg, EquipmentLink::TYPE_UPS, null);
+                continue;
+            }
+            if ($field === 'other_tech') {
+                $this->applyOtherTechGridFilter($query, $cfg);
                 continue;
             }
             if (in_array($field, $partCharFields, true)) {
@@ -377,6 +381,90 @@ class ArmSearch extends Model
         } else {
             $query->andWhere(['ilike', $column, $value]);
         }
+    }
+
+    /**
+     * Фильтр «Комментарий»: equipment.description и характеристика «Прочее / Описание».
+     */
+    private function applyOtherTechGridFilter($query, array $cfg): void
+    {
+        $type = (string) ($cfg['type'] ?? '');
+        $value = isset($cfg['filter']) ? trim((string) $cfg['filter']) : '';
+        if ($value === '' && $type !== 'blank' && $type !== 'notBlank') {
+            return;
+        }
+
+        $idCol = $this->getPartCharEquipmentFkColumn();
+        $eqTable = Equipment::tableName();
+        $valExpr = $this->getPartCharCoalescedValueExpression();
+        $nonEmptyExpr = new Expression("(TRIM(COALESCE(pcv.value_text, '')) <> '' OR pcv.value_num IS NOT NULL)");
+
+        $miscCommentScope = static function () use ($idCol, $eqTable) {
+            if ($idCol === null) {
+                return null;
+            }
+
+            return (new Query())
+                ->from(['pcv' => 'part_char_values'])
+                ->innerJoin(['sp' => 'spr_parts'], 'sp.id = pcv.part_id')
+                ->innerJoin(['sc' => 'spr_chars'], 'sc.id = pcv.char_id')
+                ->where(['=', 'pcv.' . $idCol, new Expression($eqTable . '.id')])
+                ->andWhere(['sp.name' => 'Прочее', 'sc.name' => 'Описание']);
+        };
+
+        if ($type === 'blank') {
+            $and = ['and', ['or', ['equipment.description' => null], ['equipment.description' => '']]];
+            $scope = $miscCommentScope();
+            if ($scope !== null) {
+                $sub = $scope;
+                $sub->andWhere($nonEmptyExpr);
+                $and[] = ['not exists', $sub];
+            }
+            $query->andWhere($and);
+
+            return;
+        }
+
+        if ($type === 'notBlank') {
+            $or = ['or', ['and', ['not', ['equipment.description' => null]], ['<>', 'equipment.description', '']]];
+            $scope = $miscCommentScope();
+            if ($scope !== null) {
+                $sub = $scope;
+                $sub->andWhere($nonEmptyExpr);
+                $or[] = ['exists', $sub];
+            }
+            $query->andWhere($or);
+
+            return;
+        }
+
+        $or = ['or'];
+        if ($type === 'equals') {
+            $or[] = ['ilike', 'equipment.description', $value];
+        } elseif ($type === 'startsWith') {
+            $or[] = ['ilike', 'equipment.description', $value . '%', false];
+        } elseif ($type === 'endsWith') {
+            $or[] = ['ilike', 'equipment.description', '%' . $value, false];
+        } else {
+            $or[] = ['ilike', 'equipment.description', $value];
+        }
+
+        $scope = $miscCommentScope();
+        if ($scope !== null) {
+            $sub = $scope;
+            if ($type === 'equals') {
+                $sub->andWhere(['ilike', $valExpr, $value]);
+            } elseif ($type === 'startsWith') {
+                $sub->andWhere(['ilike', $valExpr, $value . '%', false]);
+            } elseif ($type === 'endsWith') {
+                $sub->andWhere(['ilike', $valExpr, '%' . $value, false]);
+            } else {
+                $sub->andWhere(['ilike', $valExpr, $value]);
+            }
+            $or[] = ['exists', $sub];
+        }
+
+        $query->andWhere($or);
     }
 
     private function getPartCharEquipmentFkColumn(): ?string
@@ -668,6 +756,8 @@ class ArmSearch extends Model
                 $q->andWhere(['or',
                     ['and', ['sp.name' => 'ПК'], ['sc.name' => 'IP адрес']],
                     ['and', ['sp.name' => 'ПК'], ['ilike', 'sc.name', 'ip', false]],
+                    ['and', ['sp.name' => 'Принтер'], ['sc.name' => 'IP адрес']],
+                    ['and', ['sp.name' => 'Прочее'], ['sc.name' => 'IP адрес']],
                 ]);
                 break;
             case 'os':
@@ -675,6 +765,12 @@ class ArmSearch extends Model
                     ['and', ['sp.name' => 'ПК'], ['sc.name' => 'ОС']],
                     ['ilike', 'sc.name', 'операционн', false],
                 ]);
+                break;
+            default:
+                $pair = EquipmentCharCatalog::getArmGridPartCharFilterMap()[$gridField] ?? null;
+                if ($pair !== null) {
+                    $q->andWhere(['sp.name' => $pair[0], 'sc.name' => $pair[1]]);
+                }
                 break;
         }
     }
@@ -761,6 +857,8 @@ class ArmSearch extends Model
                 return implode(' OR ', [
                     '(' . $this->sqlEquals('sp.name', 'ПК') . ' AND ' . $this->sqlEquals('sc.name', 'IP адрес') . ')',
                     '(' . $this->sqlEquals('sp.name', 'ПК') . ' AND ' . $this->sqlIlikeContains('sc.name', 'ip') . ')',
+                    '(' . $this->sqlEquals('sp.name', 'Принтер') . ' AND ' . $this->sqlEquals('sc.name', 'IP адрес') . ')',
+                    '(' . $this->sqlEquals('sp.name', 'Прочее') . ' AND ' . $this->sqlEquals('sc.name', 'IP адрес') . ')',
                 ]);
             case 'os':
                 return implode(' OR ', [
@@ -768,7 +866,12 @@ class ArmSearch extends Model
                     $this->sqlIlikeContains('sc.name', 'операционн'),
                 ]);
             default:
-                return '';
+                $pair = EquipmentCharCatalog::getArmGridPartCharFilterMap()[$gridField] ?? null;
+                if ($pair === null) {
+                    return '';
+                }
+
+                return '(' . $this->sqlEquals('sp.name', $pair[0]) . ' AND ' . $this->sqlEquals('sc.name', $pair[1]) . ')';
         }
     }
 
@@ -862,7 +965,7 @@ class ArmSearch extends Model
             return new Expression($map[$col]['column'] . ' ' . $suffix);
         }
 
-        $partCharFields = ['cpu', 'ram', 'screen_diagonal', 'hostname', 'ip', 'os'];
+        $partCharFields = array_keys(EquipmentCharCatalog::getArmGridPartCharFilterMap());
         if (in_array($col, $partCharFields, true)) {
             $sub = $this->buildPartCharMinSortSubquery($col);
 

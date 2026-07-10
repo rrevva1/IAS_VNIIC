@@ -95,6 +95,15 @@ $config = [
 ];
 
 if (YII_ENV_DEV) {
+    // HTTPS dev-proxy (scripts/https-proxy.php) передаёт X-Forwarded-Proto с 127.0.0.1.
+    $config['components']['request']['trustedHosts'] = [
+        '127.0.0.1',
+        '::1',
+        '10.0.0.0/8',
+        '172.16.0.0/12',
+        '192.168.0.0/16',
+    ];
+
     // настройки конфигурации для 'dev' окружения (модули подключаются только если установлены)
     if (class_exists('yii\debug\Module')) {
         $config['bootstrap'][] = 'debug';

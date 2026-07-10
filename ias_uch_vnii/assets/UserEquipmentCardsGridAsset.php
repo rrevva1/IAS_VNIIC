@@ -14,6 +14,7 @@ class UserEquipmentCardsGridAsset extends AssetBundle
         'css/ag-grid-filter.css',
         'css/tasks/ag-grid.css',
         'css/arm/index.css',
+        'css/arm/view.css',
         'css/user-equipment-cards/page.css',
     ];
 
@@ -21,6 +22,8 @@ class UserEquipmentCardsGridAsset extends AssetBundle
         'ag-grid-community/dist/ag-grid-community.min.js',
         'js/ag-grid-filter-config.js',
         'js/ag-grid-theme-config.js',
+        'js/user-equipment-cards/user-equipment-modal.js',
+        'js/arm/arm-view.js',
         'js/user-equipment-cards/ag-grid.js',
     ];
 

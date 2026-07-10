@@ -20,6 +20,7 @@ class WorkTasksAsset extends AssetBundle
         'js/work-tasks/work-tasks-create.js',
         'js/work-tasks/work-tasks-executors.js',
         'js/work-tasks/work-tasks-view.js',
+        'js/realtime-sync.js',
     ];
     public $depends = [
         'yii\web\YiiAsset',

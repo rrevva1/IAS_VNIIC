@@ -225,6 +225,12 @@ function initializeAgGrid() {
         domLayout: 'normal',
         suppressCellFocus: true,
         enableCellTextSelection: false,
+        getRowId: function(params) {
+            if (!params.data || params.data.id == null) {
+                return String(params.rowIndex);
+            }
+            return String(params.data.id);
+        },
 
         // Локализация
         localeText: {
@@ -913,6 +919,9 @@ function loadGridData() {
                     }
                     cleanupExecutorSelect2InGrid();
                 }, 0);
+                if (window.IasRealtimeSync && typeof window.IasRealtimeSync.ensureTasksPolling === 'function') {
+                    window.IasRealtimeSync.ensureTasksPolling();
+                }
             } else {
                 console.error('AG Grid: Ошибка в ответе сервера:', result.error || 'Неизвестная ошибка');
             }

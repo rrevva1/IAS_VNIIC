@@ -69,9 +69,14 @@ $this->params['breadcrumbs'] = [];
     </div>
 </div>
 
+<?= $this->render('_user_equipment_modal') ?>
+<?= $this->render('/arm/_view_modal') ?>
+
 <?php
 $this->registerJs(
     'window.userEquipmentCardsDataUrl = ' . json_encode(Url::to(['user-equipment-cards/get-grid-data'])) . ';'
+    . 'window.userEquipmentCardsUserEquipmentUrl = ' . json_encode(Url::to(['user-equipment-cards/user-equipment', 'userId' => '__ID__'])) . ';'
+    . 'window.agGridArmViewModalUrlTemplate = ' . json_encode(Url::to(['arm/view-modal', 'id' => '__ID__'])) . ';'
     . 'window.userEquipmentCardsTab = ' . json_encode((string) $tab) . ';'
     . 'window.userEquipmentCardsSearch = ' . json_encode((string) $q) . ';'
     . 'window.userEquipmentCardsDefaultLimit = 20;'

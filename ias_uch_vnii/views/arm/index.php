@@ -5,6 +5,7 @@
  */
 
 use app\assets\ArmGridAsset;
+use app\components\EquipmentCharCatalog;
 use yii\helpers\Html;
 use yii\helpers\Url;
 
@@ -149,19 +150,39 @@ $this->title = $pageTitle;
 
 <input type="file" id="armImportFileInput" accept=".xlsx,.xls" style="display:none;">
 
-<div class="modal fade" id="armColumnsModal" tabindex="-1" aria-labelledby="armColumnsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="armColumnsModalLabel">Настройка столбцов</h5>
+<div class="modal fade arm-columns-modal" id="armColumnsModal" tabindex="-1" aria-labelledby="armColumnsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable arm-columns-modal__dialog">
+        <div class="modal-content arm-columns-modal__content">
+            <div class="modal-header arm-columns-modal__header">
+                <div class="arm-columns-modal__header-main">
+                    <div class="arm-columns-modal__header-icon" aria-hidden="true">
+                        <i class="fas fa-table-columns"></i>
+                    </div>
+                    <div class="arm-columns-modal__header-text">
+                        <h5 class="modal-title" id="armColumnsModalLabel">Настройка столбцов</h5>
+                        <p class="arm-columns-modal__subtitle" id="armColumnsModalSubtitle">Выберите параметры для отображения в таблице</p>
+                    </div>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
-            <div class="modal-body">
-                <p class="text-muted small mb-2">Отметьте столбцы, которые должны отображаться в таблице.</p>
-                <div id="armColumnsList"></div>
+            <div class="modal-body arm-columns-modal__body">
+                <div class="arm-columns-modal__toolbar">
+                    <label class="arm-columns-modal__search" for="armColumnsSearch">
+                        <i class="fas fa-search" aria-hidden="true"></i>
+                        <input type="search" id="armColumnsSearch" class="form-control" placeholder="Поиск столбца…" autocomplete="off">
+                    </label>
+                    <div class="arm-columns-modal__bulk" role="group" aria-label="Массовый выбор">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="armColumnsSelectAll">Выбрать все</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="armColumnsSelectNone">Снять все</button>
+                    </div>
+                </div>
+                <p class="arm-columns-modal__meta">
+                    <span class="arm-columns-modal__counter" id="armColumnsCounter">Выбрано: 0 из 0</span>
+                </p>
+                <div id="armColumnsList" class="arm-columns-modal__groups"></div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="armColumnsReset">Сбросить</button>
+            <div class="modal-footer arm-columns-modal__footer">
+                <button type="button" class="btn btn-outline-secondary" id="armColumnsReset">По умолчанию</button>
                 <button type="button" class="btn btn-primary" id="armColumnsApply">Применить</button>
             </div>
         </div>
@@ -354,6 +375,7 @@ $this->registerJs(
     "window.agGridArmImportPreviewUrl = " . json_encode(Url::to(['arm/import-preview'])) . ";" .
     "window.agGridArmImportApplyUrl = " . json_encode(Url::to(['arm/import-apply'])) . ";" .
     "window.agGridArmGetSelectedInfoUrl = " . json_encode(Url::to(['arm/get-selected-info'])) . ";" .
+    "window.agGridArmColumnCatalog = " . json_encode(EquipmentCharCatalog::getArmGridColumnCatalog(), JSON_UNESCAPED_UNICODE) . ";" .
     "window.armReassignCsrf = {param: " . json_encode(Yii::$app->request->csrfParam) . ", token: " . json_encode(Yii::$app->request->csrfToken) . "};" .
     "window.armUsers = " . json_encode($users ?? []) . ";" .
     "window.armLocations = " . json_encode($locations ?? []) . ";" .

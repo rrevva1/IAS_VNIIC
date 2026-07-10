@@ -18,6 +18,7 @@ use app\models\entities\WorkTaskAttachments;
 use app\components\AuditLog;
 use app\components\TaskStatisticsService;
 use app\components\WorkTaskService;
+use app\components\RealtimeSyncService;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\VerbFilter;
@@ -1113,59 +1114,129 @@ class TasksController extends Controller
     public function actionGetGridData()
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        
+
         try {
             $searchModel = new TasksSearch();
             $dataProvider = $searchModel->search($this->request->queryParams);
-            
-            /** Отключаем пагинацию для получения всех данных */
             $dataProvider->pagination = false;
-            
-            $models = $dataProvider->models;
-            $data = [];
-            
-            foreach ($models as $model) {
-                $data[] = [
-                    'id' => $model->id,
-                    'description' => $model->description,
-                    'status_id' => $model->status_id,
-                    'status_name' => $model->status ? $model->status->status_name : '',
-                    'status_code' => $model->status ? (string) $model->status->status_code : '',
-                    'user_id' => $model->requester_id,
-                    'user_name' => $model->requester ? $model->requester->full_name : '',
-                    'executor_id' => $model->executor_id,
-                    'executor_names' => $model->getDisplayExecutorNames(),
-                    'executor_name' => $model->getDisplayExecutorNamesString(),
-                    'date' => $model->created_at ? Yii::$app->formatter->asDatetime($model->created_at, 'php:d.m.Y H:i') : '',
-                    'last_time_update' => $model->updated_at ? Yii::$app->formatter->asDatetime($model->updated_at, 'php:d.m.Y H:i') : '',
-                    'comment' => $model->comment,
-                    'attachments' => array_map(function($attachment) {
-                        return [
-                            'id' => $attachment->id,
-                            'name' => $attachment->original_name,
-                            'icon' => $attachment->getFileIcon(),
-                            'is_previewable' => $attachment->isImageOrScan(),
-                            'preview_url' => $attachment->getPreviewUrl(),
-                            'download_url' => $attachment->getDownloadUrl(),
-                        ];
-                    }, $model->getAllAttachments()),
-                ];
-            }
-            
+            $data = $this->serializeTasksForGrid($dataProvider->models);
+
             return [
                 'success' => true,
                 'data' => $data,
                 'total' => count($data),
             ];
-            
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Ошибка при загрузке данных: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
                 'data' => [],
                 'total' => 0,
             ];
         }
+    }
+
+    /**
+     * Лёгкая проверка изменений заявок для фонового обновления грида.
+     */
+    public function actionPollChanges()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        try {
+            $searchModel = new TasksSearch();
+            $dataProvider = $searchModel->search($this->request->queryParams);
+            $dataProvider->pagination = false;
+            $models = $dataProvider->models;
+
+            $fingerprints = [];
+            foreach ($models as $model) {
+                $fingerprints[] = $this->buildTaskPollFingerprint($model);
+            }
+            $version = RealtimeSyncService::hashFingerprints($fingerprints);
+            $clientVersion = trim((string) $this->request->get('version', ''));
+
+            if ($clientVersion !== '' && hash_equals($clientVersion, $version)) {
+                return [
+                    'success' => true,
+                    'changed' => false,
+                    'version' => $version,
+                ];
+            }
+
+            return [
+                'success' => true,
+                'changed' => true,
+                'version' => $version,
+                'data' => $this->serializeTasksForGrid($models),
+                'total' => count($models),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'changed' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    private function buildTaskPollFingerprint(Tasks $model): string
+    {
+        $parts = [
+            (int) $model->id,
+            (string) ($model->updated_at ?? ''),
+            (int) $model->status_id,
+            (int) ($model->executor_id ?? 0),
+        ];
+
+        $workTask = $model->linkedWorkTask;
+        if ($workTask !== null) {
+            $parts[] = (string) ($workTask->updated_at ?? '');
+            $parts[] = (string) ($workTask->status_changed_at ?? '');
+            $parts[] = (int) $workTask->status_id;
+            $parts[] = implode(',', $workTask->getExecutorIds());
+        }
+
+        return implode(':', $parts);
+    }
+
+    /**
+     * @param Tasks[] $models
+     * @return array<int, array<string, mixed>>
+     */
+    private function serializeTasksForGrid(array $models): array
+    {
+        $data = [];
+
+        foreach ($models as $model) {
+            $data[] = [
+                'id' => $model->id,
+                'description' => $model->description,
+                'status_id' => $model->status_id,
+                'status_name' => $model->status ? $model->status->status_name : '',
+                'status_code' => $model->status ? (string) $model->status->status_code : '',
+                'user_id' => $model->requester_id,
+                'user_name' => $model->requester ? $model->requester->full_name : '',
+                'executor_id' => $model->executor_id,
+                'executor_names' => $model->getDisplayExecutorNames(),
+                'executor_name' => $model->getDisplayExecutorNamesString(),
+                'date' => $model->created_at ? Yii::$app->formatter->asDatetime($model->created_at, 'php:d.m.Y H:i') : '',
+                'last_time_update' => $model->updated_at ? Yii::$app->formatter->asDatetime($model->updated_at, 'php:d.m.Y H:i') : '',
+                'comment' => $model->comment,
+                'attachments' => array_map(function ($attachment) {
+                    return [
+                        'id' => $attachment->id,
+                        'name' => $attachment->original_name,
+                        'icon' => $attachment->getFileIcon(),
+                        'is_previewable' => $attachment->isImageOrScan(),
+                        'preview_url' => $attachment->getPreviewUrl(),
+                        'download_url' => $attachment->getDownloadUrl(),
+                    ];
+                }, $model->getAllAttachments()),
+            ];
+        }
+
+        return $data;
     }
 
     /**

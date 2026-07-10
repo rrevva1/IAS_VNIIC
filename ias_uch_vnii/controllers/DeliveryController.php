@@ -455,11 +455,13 @@ class DeliveryController extends Controller
                 ],
             ]
         ));
+        $armFormTemplateData = EquipmentCharCatalog::buildFormFieldTemplates($orgTechFields, true);
 
         return [
             'chars' => [],
             'orgTech' => [],
             'orgTechFields' => $orgTechFields,
+            'armFormFieldTemplates' => $armFormTemplateData['templates'],
             'cpuModels' => EquipmentCharCatalog::getDistinctCpuModels(),
             'ramModels' => EquipmentCharCatalog::getDistinctRamValues(),
             'osModels' => EquipmentCharCatalog::getDistinctOsValues(),

@@ -41,8 +41,14 @@ foreach ($fields as $field):
     $label = (string) ($field['label'] ?? $name);
     $widget = (string) ($field['widget'] ?? '');
     $placeholder = (string) ($field['placeholder'] ?? '');
+    $fieldClass = 'arm-dynamic-field';
+    if ($widget === 'disk-datalist-multi' || $name === 'disk') {
+        $fieldClass .= ' arm-dynamic-field--disks';
+    } elseif ($widget === 'textarea') {
+        $fieldClass .= ' arm-dynamic-field--full';
+    }
     ?>
-    <div class="arm-dynamic-field<?= $widget === 'disk-datalist-multi' || $name === 'disk' ? ' arm-dynamic-field--disks' : '' ?>">
+    <div class="<?= $fieldClass ?>">
         <?php if ($widget === 'cartridge-select' || $name === 'cartridge_procurement'): ?>
             <label class="form-label"><?= Html::encode($label) ?></label>
             <input type="hidden" name="OrgTechSubmitted" value="1">
@@ -104,6 +110,19 @@ foreach ($fields as $field):
                     'data-char' => (string) ($field['char'] ?? ''),
                 ]
             ) ?>
+        <?php elseif ($widget === 'textarea'): ?>
+            <label class="form-label"><?= Html::encode($label) ?></label>
+            <?= Html::textarea(
+                'PartChar[' . $name . ']',
+                (string) ($chars[$name] ?? ''),
+                [
+                    'class' => 'form-control',
+                    'rows' => 4,
+                    'placeholder' => $placeholder !== '' ? $placeholder : null,
+                    'data-part' => (string) ($field['part'] ?? ''),
+                    'data-char' => (string) ($field['char'] ?? ''),
+                ]
+            ) ?>
         <?php else: ?>
             <?php
             $listId = $datalistMap[$widget] ?? ($datalistMap[$name] ?? null);
@@ -119,6 +138,8 @@ foreach ($fields as $field):
                 $listId = 'arm-ups-battery-datalist';
             } elseif ($name === 'screen_diagonal') {
                 $listId = 'arm-screen-diagonal-datalist';
+            } elseif ($name === 'misc_ip') {
+                $listId = 'arm-ip-datalist';
             }
             ?>
             <label class="form-label"><?= Html::encode($label) ?></label>

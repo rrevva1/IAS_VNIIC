@@ -20,6 +20,7 @@ use yii\helpers\Url;
 $isModal = !empty($isModal);
 
 $isOrgTech = EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName());
+$isMiscEquipment = EquipmentCharCatalog::isMiscType($model->resolveEquipmentTypeName());
 $cartridgeStatus = $isOrgTech
     ? EquipmentCharCatalog::formatCartridgeProcurementStatus($model->description)
     : '';
@@ -113,12 +114,20 @@ $charLabels = array_merge([
     'ups_battery' => 'Модель аккумулятора',
     'ups_battery_replaced_at' => 'Дата замены аккумулятора',
     'ups_battery_service_life' => 'Срок службы аккумулятора',
-], EquipmentCharCatalog::getPrinterMfuCharDisplayLabels());
+], array_merge(
+    EquipmentCharCatalog::getPrinterMfuCharDisplayLabels(),
+    EquipmentCharCatalog::getScannerCharDisplayLabels(),
+    EquipmentCharCatalog::getServerCharDisplayLabels(),
+    EquipmentCharCatalog::getMiscCharDisplayLabels()
+));
 $isMonitorEquipment = str_contains(mb_strtolower(trim($equipmentTypeName)), 'монитор');
 $isHost = !empty($isHost);
 $linkedComponentRows = $linkedComponentRows ?? [];
 $visibleChars = [];
 foreach ($charLabels as $key => $label) {
+    if ($isMiscEquipment && $key === 'misc_description') {
+        continue;
+    }
     if ($key === 'monitor_inv' && $isMonitorEquipment) {
         continue;
     }
@@ -341,7 +350,16 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
     ]) ?>
 
     <?php
-    $noteText = $isOrgTech ? $printerComment : trim((string) ($model->description ?? ''));
+    if ($isMiscEquipment) {
+        $noteText = EquipmentCharCatalog::normalizeEquipmentComment($chars['misc_description'] ?? '');
+        if ($noteText === '') {
+            $noteText = EquipmentCharCatalog::normalizeEquipmentComment($model->description);
+        }
+    } else {
+        $noteText = $isOrgTech
+            ? $printerComment
+            : EquipmentCharCatalog::normalizeEquipmentComment($model->description);
+    }
     if ($noteText !== ''):
     ?>
     <section class="arm-view-section" aria-labelledby="arm-view-note-title">

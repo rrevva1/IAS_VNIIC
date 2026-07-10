@@ -1,9 +1,13 @@
 (function() {
     'use strict';
 
-    var board = document.getElementById('workKanbanBoard');
-    if (!board) {
+    var boardHost = document.querySelector('.work-tasks-board-card__body');
+    if (!boardHost) {
         return;
+    }
+
+    function getBoard() {
+        return document.getElementById('workKanbanBoard');
     }
 
     var dragState = null;
@@ -22,8 +26,29 @@
             method: 'POST',
             body: body,
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        }).then(function(r) {
-            return r.json();
+            credentials: 'same-origin',
+        }).then(function(response) {
+            return response.text().then(function(text) {
+                var payload = null;
+                if (text) {
+                    try {
+                        payload = JSON.parse(text);
+                    } catch (parseError) {
+                        var error = new Error('Сервер вернул некорректный ответ');
+                        error.isParseError = true;
+                        error.status = response.status;
+                        throw error;
+                    }
+                }
+                if (!response.ok) {
+                    var httpError = new Error(
+                        (payload && payload.message) ? payload.message : ('HTTP ' + response.status)
+                    );
+                    httpError.payload = payload;
+                    throw httpError;
+                }
+                return payload || { success: false, message: 'Пустой ответ сервера' };
+            });
         });
     }
 
@@ -79,6 +104,10 @@
         if (!statusCode) {
             return null;
         }
+        var board = getBoard();
+        if (!board) {
+            return null;
+        }
         var column = board.querySelector('.work-kanban__column[data-status-code="' + statusCode + '"]');
         return column ? column.querySelector('[data-drop-zone]') : null;
     }
@@ -93,7 +122,8 @@
     }
 
     function isActiveBoardFilter() {
-        return board.getAttribute('data-board-filter') === 'active';
+        var board = getBoard();
+        return board && board.getAttribute('data-board-filter') === 'active';
     }
 
     /** На вкладке «Активные» закрытые задачи с доски убираются. */
@@ -215,6 +245,10 @@
     var PENDING_REVIEW_STATUS = 'pending_review';
 
     function countPendingReviewOnBoard() {
+        var board = getBoard();
+        if (!board) {
+            return 0;
+        }
         var column = board.querySelector(
             '.work-kanban__column[data-status-code="' + PENDING_REVIEW_STATUS + '"]'
         );
@@ -245,6 +279,10 @@
     }
 
     function updateColumnCounts() {
+        var board = getBoard();
+        if (!board) {
+            return;
+        }
         board.querySelectorAll('.work-kanban__column').forEach(function(col) {
             var zone = col.querySelector('[data-drop-zone]');
             var countEl = col.querySelector('.work-kanban__column-count');
@@ -256,6 +294,10 @@
     }
 
     function highlightDropTargets(allowed) {
+        var board = getBoard();
+        if (!board) {
+            return;
+        }
         board.querySelectorAll('.work-kanban__column').forEach(function(col) {
             var code = col.getAttribute('data-status-code');
             var canDrop = allowed.indexOf(code) >= 0;
@@ -265,6 +307,10 @@
     }
 
     function clearDropHighlights() {
+        var board = getBoard();
+        if (!board) {
+            return;
+        }
         board.querySelectorAll('.work-kanban__column').forEach(function(col) {
             col.classList.remove('is-drop-target', 'is-drop-disabled', 'is-drag-over');
         });
@@ -289,7 +335,11 @@
         return code === 'done' || code === 'cancelled';
     }
 
-    board.addEventListener('dragstart', function(e) {
+    boardHost.addEventListener('dragstart', function(e) {
+        var board = getBoard();
+        if (!board || !board.contains(e.target)) {
+            return;
+        }
         var card = e.target.closest('.work-task-card--kanban');
         if (!card || !card.getAttribute('draggable')) {
             e.preventDefault();
@@ -305,7 +355,11 @@
         highlightDropTargets(parseAllowed(card));
     });
 
-    board.addEventListener('dragend', function() {
+    boardHost.addEventListener('dragend', function() {
+        var board = getBoard();
+        if (!board) {
+            return;
+        }
         board.querySelectorAll('.work-task-card--kanban.is-dragging').forEach(function(card) {
             card.classList.remove('is-dragging');
         });
@@ -313,8 +367,12 @@
         dragState = null;
     });
 
-    board.addEventListener('dragover', function(e) {
+    boardHost.addEventListener('dragover', function(e) {
         if (!dragState) {
+            return;
+        }
+        var board = getBoard();
+        if (!board) {
             return;
         }
         var column = e.target.closest('.work-kanban__column');
@@ -332,19 +390,29 @@
         }
     });
 
-    board.addEventListener('dragleave', function(e) {
+    boardHost.addEventListener('dragleave', function(e) {
+        var board = getBoard();
+        if (!board) {
+            return;
+        }
         var column = e.target.closest('.work-kanban__column');
         if (column && board.contains(column)) {
             column.classList.remove('is-drag-over');
         }
     });
 
-    board.addEventListener('drop', function(e) {
+    boardHost.addEventListener('drop', function(e) {
         e.preventDefault();
         e.stopPropagation();
 
         var state = dragState;
         if (!state || !state.card) {
+            return;
+        }
+
+        var board = getBoard();
+        if (!board) {
+            clearDragState();
             return;
         }
 
@@ -380,6 +448,13 @@
         dragState = null;
         clearDropHighlights();
 
+        if (!url) {
+            showToast('Не найден адрес для смены статуса', true);
+            clearDragState();
+            return;
+        }
+
+        window.workTasksRealtimePollPaused = true;
         postForm(url, { status_code: targetCode })
             .then(function(res) {
                 if (!res.success) {
@@ -399,12 +474,19 @@
 
                 if (finalizeCardOnActiveBoard(cardRef, newCode)) {
                     showToast((res.message || 'Статус обновлён') + '. Задача закрыта — см. вкладку «Закрытые».', false);
+                    if (window.IasRealtimeSync && typeof window.IasRealtimeSync.refreshWorkTasksPoll === 'function') {
+                        window.IasRealtimeSync.refreshWorkTasksPoll();
+                    }
                     return;
                 }
 
                 var targetColumn = placeCardInColumn(cardRef, newCode);
                 updateCardTimeInStatus(cardRef, res);
-                updateColumnCounts();
+                try {
+                    updateColumnCounts();
+                } catch (countError) {
+                    console.error('work-tasks-board: updateColumnCounts failed', countError);
+                }
 
                 if (targetColumn) {
                     targetColumn.classList.add('is-drop-flash');
@@ -415,22 +497,31 @@
                 }
 
                 showToast(res.message || 'Статус обновлён', false);
+
+                if (window.IasRealtimeSync && typeof window.IasRealtimeSync.refreshWorkTasksPoll === 'function') {
+                    window.IasRealtimeSync.refreshWorkTasksPoll();
+                }
             })
-            .catch(function() {
+            .catch(function(err) {
                 if (sourceCol) {
                     var revertZone = sourceCol.querySelector('[data-drop-zone]');
                     if (revertZone) {
                         revertZone.appendChild(cardRef);
                     }
                 }
-                showToast('Ошибка сети', true);
+                showToast((err && err.message) ? err.message : 'Ошибка сети', true);
             })
             .finally(function() {
+                window.workTasksRealtimePollPaused = false;
                 resetCardDragStyles(cardRef);
             });
     });
 
     window.workTasksBoardRemoveCard = function(taskId) {
+        var board = getBoard();
+        if (!board) {
+            return;
+        }
         var card = board.querySelector('.work-task-card--kanban[data-task-id="' + taskId + '"]');
         if (!card) {
             return;
@@ -442,6 +533,10 @@
     window.workTasksBoardUpdateBulkConfirm = updateBulkConfirmButton;
 
     window.workTasksBoardUpdateCard = function(taskId, res) {
+        var board = getBoard();
+        if (!board) {
+            return;
+        }
         var card = board.querySelector('.work-task-card--kanban[data-task-id="' + taskId + '"]');
         if (!card || !res) {
             return;
@@ -484,4 +579,34 @@
             }
         }
     };
+
+    window.workTasksBoardGetTaskIds = function() {
+        var board = getBoard();
+        if (board) {
+            return Array.prototype.map.call(
+                board.querySelectorAll('.work-task-card--kanban[data-task-id]'),
+                function(card) {
+                    return parseInt(card.getAttribute('data-task-id'), 10);
+                }
+            ).filter(function(id) {
+                return id > 0;
+            });
+        }
+
+        var closedList = document.getElementById('workTasksClosedList');
+        if (!closedList) {
+            return [];
+        }
+
+        return Array.prototype.map.call(
+            closedList.querySelectorAll('[data-task-id]'),
+            function(card) {
+                return parseInt(card.getAttribute('data-task-id'), 10);
+            }
+        ).filter(function(id) {
+            return id > 0;
+        });
+    };
+
+    window.workTasksBoardUpdateColumnCounts = updateColumnCounts;
 })();

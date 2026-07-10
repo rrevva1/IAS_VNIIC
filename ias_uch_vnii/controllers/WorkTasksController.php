@@ -3,6 +3,7 @@
 namespace app\controllers;
 
 use app\components\AuditLog;
+use app\components\RealtimeSyncService;
 use app\components\WorkTaskService;
 use app\models\dictionaries\DicTaskStatus;
 use app\models\dictionaries\DicWorkTaskStatus;
@@ -121,7 +122,154 @@ class WorkTasksController extends Controller
             'pendingReviewCount' => $pendingReviewCount,
             'executors' => WorkTaskService::getExecutorList(),
             'createModel' => $canCreateTask ? new WorkTask() : null,
+            'boardColumns' => $this->resolveBoardColumns($searchModel->filter ?: 'active'),
+            'showCancelledColumn' => ($searchModel->filter ?: 'active') === 'done',
         ]);
+    }
+
+    /**
+     * Фоновое обновление доски задач без перезагрузки страницы.
+     */
+    public function actionPollBoard()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+
+        $queryParams = Yii::$app->request->queryParams;
+        $searchModel = new WorkTaskSearch();
+        $searchModel->applyRequestParams($queryParams);
+        $filter = $searchModel->filter ?: 'active';
+        $isClosedTab = $filter === 'done';
+        $board = $searchModel->searchForBoard($queryParams);
+        $user = Yii::$app->user->identity;
+
+        $fingerprints = [];
+        foreach ($board['tasks'] as $task) {
+            $fingerprints[] = (int) $task->id . ':' . $this->buildWorkTaskSyncStamp($task);
+        }
+        $version = RealtimeSyncService::hashFingerprints($fingerprints);
+        $clientVersion = trim((string) Yii::$app->request->get('version', ''));
+
+        $pendingReviewCount = 0;
+        if ($this->isManager() && $filter === 'active') {
+            $pendingReviewCount = $searchModel->countPendingReview($queryParams);
+        }
+
+        if ($clientVersion !== '' && hash_equals($clientVersion, $version)) {
+            return [
+                'success' => true,
+                'changed' => false,
+                'version' => $version,
+                'pending_review_count' => $pendingReviewCount,
+            ];
+        }
+
+        $serverIds = array_map(static fn(WorkTask $task): int => (int) $task->id, $board['tasks']);
+        sort($serverIds, SORT_NUMERIC);
+        $clientIdsRaw = trim((string) Yii::$app->request->get('ids', ''));
+        $clientIds = $clientIdsRaw === ''
+            ? []
+            : array_values(array_filter(array_map('intval', explode(',', $clientIdsRaw)), static fn(int $id): bool => $id > 0));
+        sort($clientIds, SORT_NUMERIC);
+        $structureChanged = $clientIdsRaw !== '' && $clientIds !== $serverIds;
+
+        $response = [
+            'success' => true,
+            'changed' => true,
+            'version' => $version,
+            'mode' => $isClosedTab ? 'closed' : 'kanban',
+            'structure_changed' => $structureChanged,
+            'pending_review_count' => $pendingReviewCount,
+            'total' => count($board['tasks']),
+        ];
+
+        if ($structureChanged) {
+            if ($isClosedTab) {
+                $response['html'] = $this->renderPartial('_closed_list', ['closedTasks' => $board['tasks']]);
+                $response['html_target'] = 'workTasksClosedList';
+            } else {
+                $allowedByTask = [];
+                foreach ($board['tasks'] as $task) {
+                    $allowedByTask[$task->id] = $this->workTaskService->getAllowedTransitions($task, $user);
+                }
+                $response['html'] = $this->renderPartial('_board_kanban', [
+                    'boardColumns' => $this->resolveBoardColumns($filter),
+                    'byStatus' => $board['byStatus'] ?? [],
+                    'allowedByTask' => $allowedByTask,
+                    'filter' => $filter,
+                    'showCancelledColumn' => $filter === 'done',
+                ]);
+                $response['html_target'] = 'workKanbanBoard';
+            }
+
+            return $response;
+        }
+
+        if ($isClosedTab) {
+            $response['structure_changed'] = true;
+            $response['html'] = $this->renderPartial('_closed_list', ['closedTasks' => $board['tasks']]);
+            $response['html_target'] = 'workTasksClosedList';
+
+            return $response;
+        }
+
+        $tasks = [];
+        foreach ($board['tasks'] as $task) {
+            $tasks[] = $this->serializeBoardTaskState($task, $user);
+        }
+        $response['tasks'] = $tasks;
+
+        return $response;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function resolveBoardColumns(string $filter): array
+    {
+        $timelineSteps = DicWorkTaskStatus::getTimelineSteps();
+        if ($filter === 'active') {
+            return array_values(array_filter(
+                $timelineSteps,
+                static fn(array $step): bool => ($step['code'] ?? '') !== DicWorkTaskStatus::CODE_DONE
+            ));
+        }
+        if ($filter === 'done') {
+            return array_values(array_filter(
+                $timelineSteps,
+                static fn(array $step): bool => ($step['code'] ?? '') === DicWorkTaskStatus::CODE_DONE
+            ));
+        }
+
+        return $timelineSteps;
+    }
+
+    private function buildWorkTaskSyncStamp(WorkTask $task): string
+    {
+        return implode('|', [
+            (string) ($task->updated_at ?? ''),
+            (string) ($task->status_changed_at ?? ''),
+            (int) $task->status_id,
+            (string) ($task->confirmed_at ?? ''),
+            (string) ($task->submitted_at ?? ''),
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeBoardTaskState(WorkTask $task, ?\app\models\entities\Users $user): array
+    {
+        $allowed = $user ? $this->workTaskService->getAllowedTransitions($task, $user) : [];
+        $executorName = $task->getExecutorName();
+
+        return array_merge([
+            'id' => (int) $task->id,
+            'status_code' => $task->getStatusCode(),
+            'status_name' => $task->status ? $task->status->getDisplayName() : '',
+            'allowed_transitions' => $allowed,
+            'executor_names' => $task->getExecutorNames(),
+            'executor_name' => $executorName !== '—' ? $executorName : null,
+        ], WorkTaskService::boardTimeMeta($task));
     }
 
     public function actionView($id)
@@ -401,7 +549,12 @@ class WorkTasksController extends Controller
     public function actionTransition($id)
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
-        $model = $this->findModel((int) $id);
+
+        try {
+            $model = $this->findModel((int) $id);
+        } catch (NotFoundHttpException $e) {
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
 
         try {
             $code = (string) Yii::$app->request->post('status_code', '');

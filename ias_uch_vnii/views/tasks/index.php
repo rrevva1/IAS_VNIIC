@@ -32,6 +32,7 @@ $this->registerJs("
     window.taskExecutorsList = " . json_encode($usersList) . ";
     window.allUsersList = window.taskExecutorsList;
     window.agGridDataUrl = '" . Url::to(['tasks/get-grid-data']) . "';
+    window.tasksRealtimePollUrl = '" . Url::to(['tasks/poll-changes']) . "';
     window.tasksBulkDeleteUrl = '" . Url::to(['tasks/bulk-delete']) . "';
     window.tasksMinSelectedForDelete = 1;
     window.agGridTasksViewModalUrlTemplate = " . json_encode(Url::to(['view-modal', 'id' => '__ID__'])) . ";
@@ -93,16 +94,6 @@ $this->registerJs("
                 'class' => 'btn btn-outline-secondary tasks-tool-btn',
                 'onclick' => 'refreshGrid()',
                 'title' => 'Перезагрузить данные',
-            ]) ?>
-            <?= Html::button('<i class="fas fa-file-excel" aria-hidden="true"></i><span>Excel</span>', [
-                'class' => 'btn btn-outline-primary tasks-tool-btn',
-                'onclick' => 'exportToExcel()',
-                'title' => 'Экспорт в Excel',
-            ]) ?>
-            <?= Html::button('<i class="fas fa-file-csv" aria-hidden="true"></i><span>CSV</span>', [
-                'class' => 'btn btn-outline-primary tasks-tool-btn',
-                'onclick' => 'exportToCsv()',
-                'title' => 'Экспорт в CSV',
             ]) ?>
         </div>
     </div>

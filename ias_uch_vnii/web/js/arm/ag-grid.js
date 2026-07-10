@@ -11,7 +11,7 @@
     let armQuickFilterTimer = null;
     let currentPageSize = Number(window.agGridArmDefaultLimit || 20) || 20;
     const ARM_CLIENT_DATA_LIMIT = 5000;
-    const ARM_COLUMNS_STORAGE_PREFIX = 'arm-columns:v4:';
+    const ARM_COLUMNS_STORAGE_PREFIX = 'arm-columns:v7:';
     let armFitColumnsTimer = null;
     /** Не сбрасывать ширину после ручного изменения столбца мышью. */
     let armSuppressFitUntil = 0;
@@ -75,25 +75,122 @@
 
     const COLUMN_PRESETS = {
         /** Вся техника */
-        all: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'],
+        all: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'],
         /** Устаревшие типы «АРМ»/«ПК» — как системный блок */
-        arm: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
+        arm: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
         /** Вкладка «Системные блоки» */
-        systemBlock: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
+        systemBlock: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os'],
         /** Ноутбуки: конфигурация и сеть; без колонок «Монитор» и «ИБП» */
-        laptop: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
+        laptop: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
         /** Моноблоки: встроенный экран — без колонки «Монитор» и «ИБП» */
-        monoblock: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
+        monoblock: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
         /** Прочие хосты (сервер и т.п.) */
-        host: ['user_name', 'location_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os'],
-        monitor: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal'],
-        upsType: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date'],
-        print: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date', 'cartridge_procurement', 'ip', 'other_tech'],
+        host: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os'],
+        monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal'],
+        upsType: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+        print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'cartridge_procurement', 'ip', 'printer_login', 'printer_password', 'other_tech'],
         /** Сканеры — без «Закупка картриджей» */
-        scanner: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date', 'ip', 'other_tech'],
+        scanner: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'ip', 'other_tech'],
         /** Остальные вкладки — без колонки «ИБП» */
-        generic: ['user_name', 'location_name', 'system_block', 'inventory_number', 'purchase_date'],
+        generic: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+        /** Прочая техника */
+        misc: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'ip', 'other_tech'],
     };
+
+    /** Резервный каталог столбцов (если window.agGridArmColumnCatalog не задан). */
+    const FALLBACK_COLUMN_GROUPS = [
+        {
+            id: 'base',
+            title: 'Основное',
+            icon: 'fa-id-card',
+            columns: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+        },
+        {
+            id: 'config',
+            title: 'Конфигурация',
+            icon: 'fa-microchip',
+            columns: ['cpu', 'cpu_count', 'ram', 'disk', 'screen_diagonal'],
+        },
+        {
+            id: 'periphery',
+            title: 'Периферия',
+            icon: 'fa-plug',
+            columns: ['monitor', 'monitor_inv', 'ups', 'ups_battery', 'ups_battery_replaced_at', 'ups_battery_service_life'],
+        },
+        {
+            id: 'network',
+            title: 'Сеть и ПО',
+            icon: 'fa-network-wired',
+            columns: ['hostname', 'ip', 'os'],
+        },
+        {
+            id: 'printer',
+            title: 'Принтер / МФУ',
+            icon: 'fa-print',
+            columns: ['paper_size_max', 'print_technology', 'print_color', 'connection_type', 'printer_wifi', 'printer_login', 'printer_password'],
+        },
+        {
+            id: 'scanner',
+            title: 'Сканер',
+            icon: 'fa-barcode',
+            columns: ['scanner_type'],
+        },
+        {
+            id: 'extra',
+            title: 'Дополнительно',
+            icon: 'fa-comment-dots',
+            columns: ['cartridge_procurement', 'other_tech'],
+        },
+    ];
+
+    function getArmColumnCatalog() {
+        return window.agGridArmColumnCatalog || null;
+    }
+
+    function getColumnGroups() {
+        var catalog = getArmColumnCatalog();
+        if (catalog && Array.isArray(catalog.groups) && catalog.groups.length) {
+            return catalog.groups;
+        }
+        return FALLBACK_COLUMN_GROUPS;
+    }
+
+    function getAllGridColumnIds() {
+        var ids = [];
+        getColumnGroups().forEach(function(group) {
+            (group.columns || []).forEach(function(colId) {
+                if (ids.indexOf(colId) < 0) {
+                    ids.push(colId);
+                }
+            });
+        });
+        return ids;
+    }
+
+    function appendCatalogColumnDefs(defs) {
+        var catalog = getArmColumnCatalog();
+        var labels = catalog && catalog.labels ? catalog.labels : {};
+        var existing = {};
+        defs.forEach(function(def) {
+            if (def && def.field) {
+                existing[def.field] = true;
+            }
+        });
+        getAllGridColumnIds().forEach(function(field) {
+            if (existing[field]) {
+                return;
+            }
+            defs.push({
+                headerName: labels[field] || field,
+                field: field,
+                minWidth: field === 'printer_password' || field === 'printer_login' ? 110 : 100,
+                filter: 'agTextColumnFilter',
+                hide: true,
+            });
+            existing[field] = true;
+        });
+        return defs;
+    }
 
     function buildCardViewLink(id, innerHtml, extraClass, title) {
         var cls = 'arm-link-to-card';
@@ -540,9 +637,16 @@
                 filter: 'agTextColumnFilter',
                 tooltipField: 'cartridge_procurement',
             },
-            { headerName: 'Комментарий', field: 'other_tech', minWidth: 140, filter: 'agTextColumnFilter', tooltipField: 'other_tech' },
+            {
+                headerName: 'Комментарий',
+                field: 'other_tech',
+                minWidth: 140,
+                filter: 'agTextColumnFilter',
+                wrapText: true,
+                tooltipField: 'other_tech',
+            },
         ];
-        return defs;
+        return appendCatalogColumnDefs(defs);
     }
 
     function escapeHtml(str) {
@@ -788,14 +892,6 @@
         return ARM_COLUMNS_STORAGE_PREFIX + normalized;
     }
 
-    function typeAllowsUpsColumn(typeId) {
-        return getPresetColumns(typeId).indexOf('ups') >= 0;
-    }
-
-    function typeAllowsCartridgeColumn(typeId) {
-        return getPresetColumns(typeId).indexOf('cartridge_procurement') >= 0;
-    }
-
     function getPresetColumns(typeId) {
         var raw = (typeId || '').toString().trim().toLowerCase();
         var preset;
@@ -817,11 +913,26 @@
             preset = COLUMN_PRESETS.scanner;
         } else if (raw.indexOf('мфу') >= 0 || raw.indexOf('принтер') >= 0) {
             preset = COLUMN_PRESETS.print;
+        } else if (raw.indexOf('проч') >= 0) {
+            preset = COLUMN_PRESETS.misc;
         } else {
             preset = COLUMN_PRESETS.generic;
         }
         return filterPresetColumnsForScope(preset, typeId);
     }
+
+    function getColumnOptionsForType(typeId) {
+        return filterPresetColumnsForScope(getAllGridColumnIds(), typeId);
+    }
+
+    function normalizeSavedColumnId(colId) {
+        return LEGACY_COLUMN_ID_MAP[colId] || colId;
+    }
+
+    var LEGACY_COLUMN_ID_MAP = {
+        misc_ip: 'ip',
+        misc_description: 'other_tech',
+    };
 
     function loadSavedColumnsByColId(typeId) {
         if (typeof window.localStorage === 'undefined') {
@@ -839,7 +950,11 @@
             var map = {};
             parsed.forEach(function(item) {
                 if (item && item.colId) {
-                    map[item.colId] = !!item.hide;
+                    var colId = normalizeSavedColumnId(item.colId);
+                    if (!colId) {
+                        return;
+                    }
+                    map[colId] = !!item.hide;
                 }
             });
             return Object.keys(map).length > 0 ? map : null;
@@ -850,8 +965,7 @@
 
     function buildColumnVisibilityState(typeId, forcePreset) {
         var allowed = getPresetColumns(typeId);
-        var upsAllowed = typeAllowsUpsColumn(typeId);
-        var cartridgeAllowed = typeAllowsCartridgeColumn(typeId);
+        var optionsForType = getColumnOptionsForType(typeId);
         var savedByColId = forcePreset ? null : loadSavedColumnsByColId(typeId);
         var columns = gridApi.getColumns ? gridApi.getColumns() : [];
         var state = [];
@@ -865,9 +979,7 @@
                 return;
             }
             var hide;
-            if (colId === 'ups' && !upsAllowed) {
-                hide = true;
-            } else if (colId === 'cartridge_procurement' && !cartridgeAllowed) {
+            if (optionsForType.indexOf(colId) === -1) {
                 hide = true;
             } else if (colId === 'user_name' && isWarehouseGrid()) {
                 hide = true;
@@ -885,22 +997,26 @@
 
     function saveCurrentColumnsStateForType(typeId) {
         if (!gridApi || typeof window.localStorage === 'undefined') return;
-        var upsAllowed = typeAllowsUpsColumn(typeId);
-        var cartridgeAllowed = typeAllowsCartridgeColumn(typeId);
+        var optionsForType = getColumnOptionsForType(typeId);
         var columns = gridApi.getColumns ? gridApi.getColumns() : [];
-        var state = [];
+        var colById = {};
         columns.forEach(function(col) {
-            if (!col || !col.getColId || !col.getColDef) return;
+            if (!col || !col.getColId) {
+                return;
+            }
+            colById[col.getColId()] = col;
+        });
+        var state = [];
+        optionsForType.forEach(function(colId) {
+            var col = colById[colId];
+            if (!col || !col.getColDef) {
+                return;
+            }
             var def = col.getColDef() || {};
-            var colId = col.getColId();
-            if (!colId || !def.field) return;
+            if (!def.field) {
+                return;
+            }
             var visible = col.isVisible ? col.isVisible() : true;
-            if (colId === 'ups' && !upsAllowed) {
-                visible = false;
-            }
-            if (colId === 'cartridge_procurement' && !cartridgeAllowed) {
-                visible = false;
-            }
             state.push({ colId: colId, hide: !visible });
         });
         window.localStorage.setItem(getColumnsStorageKey(typeId), JSON.stringify(state));
@@ -1028,61 +1144,213 @@
         var listEl = document.getElementById('armColumnsList');
         var applyBtn = document.getElementById('armColumnsApply');
         var resetBtn = document.getElementById('armColumnsReset');
+        var searchEl = document.getElementById('armColumnsSearch');
+        var selectAllBtn = document.getElementById('armColumnsSelectAll');
+        var selectNoneBtn = document.getElementById('armColumnsSelectNone');
+        var counterEl = document.getElementById('armColumnsCounter');
+        var subtitleEl = document.getElementById('armColumnsModalSubtitle');
         if (!btn || !modalEl || !listEl || !applyBtn || !resetBtn) return;
 
         var modal = new bootstrap.Modal(modalEl);
 
+        function getActiveTabLabel() {
+            var activeTab = document.querySelector('.arm-type-tab.active');
+            return activeTab ? String(activeTab.textContent || '').trim() : 'Вся техника';
+        }
+
+        function getColumnMetaById() {
+            var cols = gridApi && gridApi.getColumns ? gridApi.getColumns() : [];
+            var map = {};
+            cols.forEach(function(col) {
+                if (!col || !col.getColId || !col.getColDef) {
+                    return;
+                }
+                var def = col.getColDef() || {};
+                if (!def.field) {
+                    return;
+                }
+                map[col.getColId()] = {
+                    col: col,
+                    label: (def.headerName != null ? String(def.headerName) : col.getColId()).trim(),
+                };
+            });
+            return map;
+        }
+
+        function syncChipState(chip) {
+            if (!chip) {
+                return;
+            }
+            var input = chip.querySelector('.arm-col-check');
+            chip.classList.toggle('is-checked', !!(input && input.checked));
+        }
+
+        function updateColumnsCounter() {
+            if (!counterEl) {
+                return;
+            }
+            var checks = listEl.querySelectorAll('.arm-col-check:not(:disabled)');
+            var total = checks.length;
+            var selected = 0;
+            checks.forEach(function(ch) {
+                if (ch.checked) {
+                    selected += 1;
+                }
+            });
+            counterEl.textContent = 'Выбрано: ' + selected + ' из ' + total;
+        }
+
+        function filterColumnsBySearch(query) {
+            var q = String(query || '').trim().toLowerCase();
+            var groups = listEl.querySelectorAll('.arm-columns-group');
+            groups.forEach(function(group) {
+                var visibleChips = 0;
+                group.querySelectorAll('.arm-columns-chip').forEach(function(chip) {
+                    var label = String(chip.getAttribute('data-label') || '').toLowerCase();
+                    var match = !q || label.indexOf(q) >= 0;
+                    chip.classList.toggle('is-hidden', !match);
+                    if (match) {
+                        visibleChips += 1;
+                    }
+                });
+                group.classList.toggle('is-hidden', visibleChips === 0);
+            });
+        }
+
+        function setAllColumnsChecked(checked) {
+            listEl.querySelectorAll('.arm-col-check:not(:disabled)').forEach(function(ch) {
+                ch.checked = !!checked;
+                syncChipState(ch.closest('.arm-columns-chip'));
+            });
+            updateColumnsCounter();
+        }
+
+        function setGroupColumnsChecked(groupId, checked) {
+            var group = listEl.querySelector('.arm-columns-group[data-group-id="' + groupId + '"]');
+            if (!group) {
+                return;
+            }
+            group.querySelectorAll('.arm-col-check:not(:disabled)').forEach(function(ch) {
+                ch.checked = !!checked;
+                syncChipState(ch.closest('.arm-columns-chip'));
+            });
+            updateColumnsCounter();
+        }
+
         function renderColumnsList() {
             if (!gridApi) return;
             var typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
-            var upsAllowed = typeAllowsUpsColumn(typeId);
-            var cartridgeAllowed = typeAllowsCartridgeColumn(typeId);
-            var cols = gridApi.getColumns ? gridApi.getColumns() : [];
-            var html = '';
-            cols.forEach(function(col) {
-                var def = col.getColDef ? col.getColDef() : {};
-                var colId = col.getColId ? col.getColId() : def.field;
-                var label = (def && def.headerName != null ? String(def.headerName) : '').trim();
-                if (!colId || !def.field) return; // без поля — служебная колонка выбора
-                var checked = col.isVisible ? col.isVisible() : true;
-                var disabled = (colId === 'ups' && !upsAllowed)
-                    || (colId === 'cartridge_procurement' && !cartridgeAllowed);
-                if (disabled) {
-                    checked = false;
-                }
-                html += '<div class="form-check mb-1">';
-                html += '<input class="form-check-input arm-col-check" type="checkbox" id="arm-col-' + escapeHtml(colId) + '" data-col-id="' + escapeHtml(colId) + '"' +
-                    (checked ? ' checked' : '') + (disabled ? ' disabled' : '') + '>';
-                html += '<label class="form-check-label' + (disabled ? ' text-muted' : '') + '" for="arm-col-' + escapeHtml(colId) + '">' + escapeHtml(label) + '</label>';
-                html += '</div>';
+            var options = getColumnOptionsForType(typeId);
+            var optionSet = {};
+            options.forEach(function(colId) {
+                optionSet[colId] = true;
             });
-            listEl.innerHTML = html || '<div class="text-muted">Нет настраиваемых колонок</div>';
+            var metaById = getColumnMetaById();
+            var html = '';
+
+            getColumnGroups().forEach(function(group) {
+                var groupItems = '';
+                group.columns.forEach(function(colId) {
+                    if (!optionSet[colId] || !metaById[colId]) {
+                        return;
+                    }
+                    var meta = metaById[colId];
+                    var col = meta.col;
+                    var label = meta.label;
+                    var checked = col.isVisible ? col.isVisible() : true;
+                    groupItems += '<label class="arm-columns-chip' + (checked ? ' is-checked' : '') + '" data-label="' + escapeHtml(label) + '">';
+                    groupItems += '<input class="arm-col-check" type="checkbox" id="arm-col-' + escapeHtml(colId) + '" data-col-id="' + escapeHtml(colId) + '"' + (checked ? ' checked' : '') + '>';
+                    groupItems += '<span class="arm-columns-chip__label">' + escapeHtml(label) + '</span>';
+                    groupItems += '</label>';
+                });
+                if (!groupItems) {
+                    return;
+                }
+                html += '<section class="arm-columns-group" data-group-id="' + escapeHtml(group.id) + '">';
+                html += '<header class="arm-columns-group__head">';
+                html += '<div class="arm-columns-group__title"><i class="fas ' + escapeHtml(group.icon) + '" aria-hidden="true"></i><span>' + escapeHtml(group.title) + '</span></div>';
+                html += '<div class="arm-columns-group__actions">';
+                html += '<button type="button" class="arm-columns-group__btn" data-group-select="' + escapeHtml(group.id) + '">Все</button>';
+                html += '<button type="button" class="arm-columns-group__btn" data-group-clear="' + escapeHtml(group.id) + '">Снять</button>';
+                html += '</div></header>';
+                html += '<div class="arm-columns-group__items">' + groupItems + '</div>';
+                html += '</section>';
+            });
+
+            listEl.innerHTML = html || '<div class="arm-columns-modal__empty">Нет настраиваемых столбцов</div>';
+            updateColumnsCounter();
+            if (searchEl) {
+                filterColumnsBySearch(searchEl.value);
+            }
+        }
+
+        listEl.addEventListener('change', function(e) {
+            var chip = e.target.closest('.arm-columns-chip');
+            if (chip) {
+                syncChipState(chip);
+            }
+            updateColumnsCounter();
+        });
+
+        listEl.addEventListener('click', function(e) {
+            var selectBtn = e.target.closest('[data-group-select]');
+            if (selectBtn) {
+                setGroupColumnsChecked(selectBtn.getAttribute('data-group-select'), true);
+                return;
+            }
+            var clearBtn = e.target.closest('[data-group-clear]');
+            if (clearBtn) {
+                setGroupColumnsChecked(clearBtn.getAttribute('data-group-clear'), false);
+            }
+        });
+
+        if (searchEl) {
+            searchEl.addEventListener('input', function() {
+                filterColumnsBySearch(searchEl.value);
+            });
+        }
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                setAllColumnsChecked(true);
+            });
+        }
+
+        if (selectNoneBtn) {
+            selectNoneBtn.addEventListener('click', function() {
+                setAllColumnsChecked(false);
+            });
         }
 
         btn.addEventListener('click', function() {
+            if (subtitleEl) {
+                subtitleEl.textContent = 'Вкладка «' + getActiveTabLabel() + '» · полный набор параметров конфигурации';
+            }
+            if (searchEl) {
+                searchEl.value = '';
+            }
             renderColumnsList();
             modal.show();
+            if (searchEl) {
+                setTimeout(function() { searchEl.focus(); }, 180);
+            }
         });
 
         applyBtn.addEventListener('click', function() {
             if (!gridApi) return;
             var typeId = (window.agGridArmCurrentTypeId || '').toString().trim();
+            var options = getColumnOptionsForType(typeId);
             var saved = loadSavedColumnsByColId(typeId) || {};
-            var checks = listEl.querySelectorAll('.arm-col-check');
-            checks.forEach(function(ch) {
-                var colId = ch.getAttribute('data-col-id');
-                if (!colId) return;
+            options.forEach(function(colId) {
+                var ch = listEl.querySelector('.arm-col-check[data-col-id="' + colId + '"]');
+                if (!ch) {
+                    return;
+                }
                 saved[colId] = !ch.checked;
             });
-            if (!typeAllowsUpsColumn(typeId)) {
-                saved.ups = true;
-            }
-            if (!typeAllowsCartridgeColumn(typeId)) {
-                saved.cartridge_procurement = true;
-            }
             if (typeof window.localStorage !== 'undefined') {
-                var toStore = Object.keys(saved).map(function(colId) {
-                    return { colId: colId, hide: saved[colId] };
+                var toStore = options.map(function(colId) {
+                    return { colId: colId, hide: !!saved[colId] };
                 });
                 window.localStorage.setItem(getColumnsStorageKey(typeId), JSON.stringify(toStore));
             }

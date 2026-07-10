@@ -46,6 +46,7 @@ $currentInventoryNumber = trim((string) ($model->inventory_number ?? ''));
 $currentEquipmentName = trim((string) ($model->name ?? ''));
 $descriptionPlaceholder = $formPlaceholders['description'];
 $isPrinterOrMfu = EquipmentCharCatalog::isPrinterOrMfuType($model->resolveEquipmentTypeName());
+$isMiscEquipment = EquipmentCharCatalog::isMiscType($model->resolveEquipmentTypeName());
 $descriptionSectionTitle = $isPrinterOrMfu ? 'Комментарий' : 'Примечание';
 if ($isPrinterOrMfu) {
     $descriptionPlaceholder = $formPlaceholders['description_printer'];
@@ -74,7 +75,7 @@ $orgTechFields = array_merge(EquipmentCharCatalog::getPrinterMfuFormFieldDefinit
 ]);
 
 $buildArmFormFieldTemplates = require __DIR__ . '/_form_field_templates_builder.php';
-$armFormTemplateData = $buildArmFormFieldTemplates($orgTechFields);
+$armFormTemplateData = EquipmentCharCatalog::buildFormFieldTemplates($orgTechFields);
 $armFormFieldTemplates = $armFormTemplateData['templates'];
 $armFormConfigPayload = json_encode([
     'templates' => $armFormFieldTemplates,
@@ -253,7 +254,7 @@ $formId = 'arm-equipment-form';
                 </div>
             </section>
 
-            <section id="arm-form-description-section" class="arm-form-section">
+            <section id="arm-form-description-section" class="arm-form-section<?= $isMiscEquipment ? ' d-none' : '' ?>">
                 <h2 class="arm-form-section__title h6 text-uppercase text-muted">Примечание</h2>
                 <?= $form->field($model, 'description', ['options' => ['class' => 'mb-0']])
                     ->label('Комментарий к технике')

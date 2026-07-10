@@ -475,27 +475,25 @@ class EquipmentCharCatalog
     }
 
     /**
+     * Нормализация многострочного комментария: только края и переводы строк.
+     */
+    public static function normalizeEquipmentComment(?string $value): string
+    {
+        $value = str_replace(["\r\n", "\r"], "\n", (string) $value);
+
+        return trim($value);
+    }
+
+    /**
      * Учёт для закупки картриджей (принтер / МФУ) из equipment.description.
      */
     public static function formatCartridgeProcurementStatus(?string $description): string
     {
-        foreach (self::splitDescriptionParts($description) as $part) {
-            if (self::isCartridgeNotAccountedPart($part)) {
-                return self::CARTRIDGE_NOT_ACCOUNTED_LABEL;
-            }
-            if (self::isCartridgeAccountedPart($part)) {
-                return self::CARTRIDGE_ACCOUNTED_LABEL;
-            }
-        }
-
-        $description = trim((string) $description);
-        if ($description === '') {
-            return '';
-        }
-        if (self::isCartridgeNotAccountedPart($description)) {
+        $code = self::parseCartridgeProcurementCode($description);
+        if ($code === 'no') {
             return self::CARTRIDGE_NOT_ACCOUNTED_LABEL;
         }
-        if (self::isCartridgeAccountedPart($description)) {
+        if ($code === 'yes') {
             return self::CARTRIDGE_ACCOUNTED_LABEL;
         }
 
@@ -507,23 +505,24 @@ class EquipmentCharCatalog
      */
     public static function parseCartridgeProcurementCode(?string $description): string
     {
-        foreach (self::splitDescriptionParts($description) as $part) {
-            if (self::isCartridgeNotAccountedPart($part)) {
-                return 'no';
-            }
-            if (self::isCartridgeAccountedPart($part)) {
-                return 'yes';
-            }
-        }
-
-        $description = trim((string) $description);
+        $description = self::normalizeEquipmentComment($description);
         if ($description === '') {
             return '';
         }
+
         if (self::isCartridgeNotAccountedPart($description)) {
             return 'no';
         }
         if (self::isCartridgeAccountedPart($description)) {
+            return 'yes';
+        }
+
+        $firstLine = strtok($description, "\n");
+        $firstLine = is_string($firstLine) ? trim($firstLine) : '';
+        if ($firstLine !== '' && self::isCartridgeNotAccountedPart($firstLine)) {
+            return 'no';
+        }
+        if ($firstLine !== '' && self::isCartridgeAccountedPart($firstLine)) {
             return 'yes';
         }
 
@@ -543,7 +542,7 @@ class EquipmentCharCatalog
             $parts[] = self::CARTRIDGE_NOT_ACCOUNTED_STORAGE;
         }
 
-        $comment = trim((string) $comment);
+        $comment = self::stripCartridgeProcurementFromDescription($comment);
         if ($comment !== '') {
             $parts[] = $comment;
         }
@@ -552,7 +551,11 @@ class EquipmentCharCatalog
             return null;
         }
 
-        return implode('; ', $parts);
+        if (count($parts) === 1) {
+            return $parts[0];
+        }
+
+        return $parts[0] . '; ' . $parts[1];
     }
 
     /**
@@ -560,20 +563,46 @@ class EquipmentCharCatalog
      */
     public static function formatPrinterComment(?string $description): string
     {
-        $parts = [];
-        foreach (self::splitDescriptionParts($description) as $part) {
-            if ($part === '') {
-                continue;
-            }
-            if (self::isCartridgeAccountedPart($part) || self::isCartridgeNotAccountedPart($part)) {
-                continue;
-            }
-            if (!in_array($part, $parts, true)) {
-                $parts[] = $part;
+        return self::stripCartridgeProcurementFromDescription($description);
+    }
+
+    /**
+     * Удаляет служебную метку учёта картриджей, не изменяя текст комментария.
+     */
+    public static function stripCartridgeProcurementFromDescription(?string $description): string
+    {
+        $description = self::normalizeEquipmentComment($description);
+        if ($description === '') {
+            return '';
+        }
+
+        if (self::isCartridgeAccountedPart($description) || self::isCartridgeNotAccountedPart($description)) {
+            return '';
+        }
+
+        $prefixes = [
+            self::CARTRIDGE_ACCOUNTED_STORAGE,
+            self::CARTRIDGE_NOT_ACCOUNTED_STORAGE,
+        ];
+        foreach ($prefixes as $prefix) {
+            $quoted = preg_quote($prefix, '/');
+            $next = preg_replace('/^' . $quoted . '\s*;\s*/u', '', $description, 1);
+            if (is_string($next) && $next !== $description) {
+                return $next;
             }
         }
 
-        return implode('; ', $parts);
+        return $description;
+    }
+
+    /**
+     * Ключи PartChar с многострочным текстом (без обрезки переносов внутри значения).
+     *
+     * @return string[]
+     */
+    public static function getMultilinePartCharFieldNames(): array
+    {
+        return ['misc_description'];
     }
 
     public static function isPrinterOrMfuType(?string $equipmentType): bool
@@ -581,6 +610,218 @@ class EquipmentCharCatalog
         $type = trim((string) $equipmentType);
 
         return $type === 'Принтер' || $type === 'МФУ';
+    }
+
+    public static function isScannerType(?string $equipmentType): bool
+    {
+        return trim((string) $equipmentType) === 'Сканер';
+    }
+
+    public static function isServerType(?string $equipmentType): bool
+    {
+        return trim((string) $equipmentType) === 'Сервер';
+    }
+
+    /**
+     * Дополнительные поля конфигурации сервера (после «Процессор»).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getServerExtraFormFieldDefinitions(): array
+    {
+        return [
+            [
+                'name' => 'cpu_count',
+                'label' => 'Количество процессоров',
+                'part' => 'ЦП',
+                'char' => 'Количество процессоров',
+                'widget' => 'choice-select',
+                'options' => [
+                    ['value' => '', 'label' => '— не указано —'],
+                    ['value' => 'Один', 'label' => 'Один'],
+                    ['value' => 'Два', 'label' => 'Два'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Вставляет поля сервера сразу после «Процессор (ЦП)».
+     *
+     * @param array<int, array<string, mixed>> $fields
+     * @return array<int, array<string, mixed>>
+     */
+    public static function insertServerFieldsAfterCpu(array $fields): array
+    {
+        $extras = self::getServerExtraFormFieldDefinitions();
+        if ($extras === []) {
+            return $fields;
+        }
+
+        $out = [];
+        foreach ($fields as $field) {
+            $out[] = $field;
+            if (($field['name'] ?? '') === 'cpu') {
+                foreach ($extras as $extra) {
+                    $out[] = $extra;
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function getServerPartCharSaveMap(): array
+    {
+        $map = [];
+        foreach (self::getServerExtraFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            $part = (string) ($field['part'] ?? '');
+            $char = (string) ($field['char'] ?? '');
+            if ($name === '' || $part === '' || $char === '') {
+                continue;
+            }
+            $map[$name] = [$part, $char];
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function getServerCharDisplayLabels(): array
+    {
+        $labels = [];
+        foreach (self::getServerExtraFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            $labels[$name] = (string) ($field['label'] ?? $name);
+        }
+
+        return $labels;
+    }
+
+    public static function isMiscType(?string $equipmentType): bool
+    {
+        return trim((string) $equipmentType) === 'Прочее';
+    }
+
+    /**
+     * Поля конфигурации типа «Прочее».
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getMiscFormFieldDefinitions(): array
+    {
+        return [
+            [
+                'name' => 'misc_description',
+                'label' => 'Комментарий к технике',
+                'part' => 'Прочее',
+                'char' => 'Описание',
+                'widget' => 'textarea',
+            ],
+            [
+                'name' => 'misc_ip',
+                'label' => 'IP-адрес',
+                'part' => 'Прочее',
+                'char' => 'IP адрес',
+                'widget' => 'ip-datalist',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function getMiscPartCharSaveMap(): array
+    {
+        $map = [];
+        foreach (self::getMiscFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            $part = (string) ($field['part'] ?? '');
+            $char = (string) ($field['char'] ?? '');
+            if ($name === '' || $part === '' || $char === '') {
+                continue;
+            }
+            $map[$name] = [$part, $char];
+        }
+
+        return $map;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function getMiscPartCharKeyByCharName(): array
+    {
+        $out = [];
+        foreach (self::getMiscFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            $char = (string) ($field['char'] ?? '');
+            if ($name !== '' && $char !== '') {
+                $out[$char] = $name;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function getMiscCharDisplayLabels(): array
+    {
+        $labels = [];
+        foreach (self::getMiscFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            $labels[$name] = (string) ($field['label'] ?? $name);
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Шаблоны полей «Конфигурация» (учёт ТС и строки поставки).
+     *
+     * @param array<int, array<string, mixed>> $orgTechFields поля принтера/МФУ (с блоком OrgTech при необходимости)
+     * @param bool $forDelivery без имени ПК и IP (строка поставки)
+     * @return array{templates: array<string, array<int, array<string, mixed>>>, placeholders: array<string, string>}
+     */
+    public static function buildFormFieldTemplates(array $orgTechFields, bool $forDelivery = false): array
+    {
+        static $builder = null;
+        if ($builder === null) {
+            $builder = require Yii::getAlias('@app/views/arm/_form_field_templates_builder.php');
+        }
+
+        return $builder($orgTechFields, $forDelivery);
+    }
+
+    /**
+     * Варианты «Максимальный размер бумаги» (принтер, МФУ, сканер).
+     *
+     * @return array<int, array{value: string, label: string}>
+     */
+    public static function getPaperSizeMaxChoiceOptions(): array
+    {
+        return [
+            ['value' => '', 'label' => '— не указано —'],
+            ['value' => 'A4', 'label' => 'A4'],
+            ['value' => 'A3', 'label' => 'A3'],
+            ['value' => 'A2', 'label' => 'A2'],
+            ['value' => 'A1', 'label' => 'A1'],
+            ['value' => 'A0', 'label' => 'A0'],
+        ];
     }
 
     /**
@@ -611,16 +852,7 @@ class EquipmentCharCatalog
                 'char' => 'IP адрес',
                 'widget' => 'ip-datalist',
             ],
-            $choice('paper_size_max', 'Максимальный размер бумаги', 'Максимальный размер бумаги', [
-                $notSpecified,
-                ['value' => 'A6', 'label' => 'A6'],
-                ['value' => 'A5', 'label' => 'A5'],
-                ['value' => 'A4', 'label' => 'A4'],
-                ['value' => 'A3', 'label' => 'A3'],
-                ['value' => 'A2', 'label' => 'A2'],
-                ['value' => 'A1', 'label' => 'A1'],
-                ['value' => 'A0', 'label' => 'A0'],
-            ]),
+            $choice('paper_size_max', 'Максимальный размер бумаги', 'Максимальный размер бумаги', self::getPaperSizeMaxChoiceOptions()),
             $choice('print_technology', 'Технология печати', 'Технология печати', [
                 $notSpecified,
                 ['value' => 'Лазерный', 'label' => 'Лазерный'],
@@ -640,7 +872,56 @@ class EquipmentCharCatalog
                 $notSpecified,
                 ['value' => 'Да', 'label' => 'Есть'],
                 ['value' => 'Нет', 'label' => 'Нет'],
+                ['value' => 'Отключен', 'label' => 'Отключен'],
             ]),
+            [
+                'name' => 'printer_login',
+                'label' => 'Логин',
+                'part' => 'Принтер',
+                'char' => 'Логин',
+            ],
+            [
+                'name' => 'printer_password',
+                'label' => 'Пароль',
+                'part' => 'Принтер',
+                'char' => 'Пароль',
+            ],
+        ];
+    }
+
+    /**
+     * Поля конфигурации сканера (форма создания и редактирования).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getScannerFormFieldDefinitions(): array
+    {
+        $choice = static function (string $name, string $label, string $charName, array $options): array {
+            return [
+                'name' => $name,
+                'label' => $label,
+                'part' => 'Сканер',
+                'char' => $charName,
+                'widget' => 'choice-select',
+                'options' => $options,
+            ];
+        };
+
+        $notSpecified = ['value' => '', 'label' => '— не указано —'];
+
+        return [
+            $choice('scanner_type', 'Тип сканера', 'Тип сканера', [
+                $notSpecified,
+                ['value' => 'Многопоточный', 'label' => 'Многопоточный'],
+                ['value' => 'Планшетный', 'label' => 'Планшетный'],
+                ['value' => 'Комбинированный', 'label' => 'Комбинированный'],
+            ]),
+            $choice(
+                'paper_size_max',
+                'Максимальный размер бумаги',
+                'Максимальный размер бумаги',
+                self::getPaperSizeMaxChoiceOptions()
+            ),
         ];
     }
 
@@ -704,24 +985,58 @@ class EquipmentCharCatalog
     }
 
     /**
-     * @return string[]
+     * @return array<string, array{0: string, 1: string}>
      */
-    private static function splitDescriptionParts(?string $description): array
+    public static function getScannerPartCharSaveMap(): array
     {
-        $description = trim((string) $description);
-        if ($description === '') {
-            return [];
+        $map = [];
+        foreach (self::getScannerFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            $part = (string) ($field['part'] ?? '');
+            $char = (string) ($field['char'] ?? '');
+            if ($name === '' || $part === '' || $char === '') {
+                continue;
+            }
+            $map[$name] = [$part, $char];
         }
-        $parts = preg_split('/\s*[;\n]\s*/u', $description) ?: [];
+
+        return $map;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function getScannerPartCharKeyByCharName(): array
+    {
         $out = [];
-        foreach ($parts as $part) {
-            $part = trim((string) $part);
-            if ($part !== '' && !in_array($part, $out, true)) {
-                $out[] = $part;
+        foreach (self::getScannerFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            $char = (string) ($field['char'] ?? '');
+            if ($name !== '' && $char !== '') {
+                $out[$char] = $name;
             }
         }
 
         return $out;
+    }
+
+    /**
+     * Подписи характеристик сканера в карточке просмотра.
+     *
+     * @return array<string, string>
+     */
+    public static function getScannerCharDisplayLabels(): array
+    {
+        $labels = [];
+        foreach (self::getScannerFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            $labels[$name] = (string) ($field['label'] ?? $name);
+        }
+
+        return $labels;
     }
 
     private static function isCartridgeAccountedPart(string $part): bool
@@ -844,6 +1159,9 @@ class EquipmentCharCatalog
         if (str_contains($t, 'сканер')) {
             return 'fa-file-lines';
         }
+        if ($t === 'прочее') {
+            return 'fa-box';
+        }
         if (str_contains($t, 'ибп') || str_contains($t, 'ups')) {
             return 'fa-battery-full';
         }
@@ -884,5 +1202,185 @@ class EquipmentCharCatalog
         }
 
         return 'fa-desktop';
+    }
+
+    /**
+     * Маппинг поля грида → [часть, характеристика] для фильтрации и сортировки.
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function getArmGridPartCharFilterMap(): array
+    {
+        $map = [
+            'cpu' => ['ЦП', 'Модель'],
+            'ram' => ['ОЗУ', 'Объём'],
+            'disk' => ['Накопитель', 'Объём'],
+            'monitor' => ['Монитор', 'Модель'],
+            'screen_diagonal' => ['Монитор', 'Диагональ экрана'],
+            'hostname' => ['ПК', 'Имя ПК'],
+            'ip' => ['ПК', 'IP адрес'],
+            'os' => ['ПК', 'ОС'],
+            'monitor_inv' => ['Монитор', '№ монитора'],
+            'ups_battery' => ['ИБП', 'Модель аккумулятора'],
+            'ups_battery_replaced_at' => ['ИБП', 'Дата замены аккумулятора'],
+            'ups_battery_service_life' => ['ИБП', 'Срок службы аккумулятора'],
+        ];
+
+        foreach (self::getServerPartCharSaveMap() as $name => $pair) {
+            $map[$name] = $pair;
+        }
+        foreach (self::getPrinterMfuPartCharSaveMap() as $name => $pair) {
+            $map[$name] = $pair;
+        }
+        foreach (self::getScannerPartCharSaveMap() as $name => $pair) {
+            $map[$name] = $pair;
+        }
+
+        return $map;
+    }
+
+    /**
+     * Дополнительные поля part_char в строке грида (кроме базовых cpu/ram/…).
+     *
+     * @return string[]
+     */
+    public static function getArmGridExtraPartCharFields(): array
+    {
+        $skip = [
+            'cpu', 'ram', 'disk', 'monitor', 'hostname', 'ip', 'os', 'screen_diagonal',
+            'misc_description', 'misc_ip',
+        ];
+        $fields = [];
+
+        $append = static function (array $definitions) use (&$fields, $skip): void {
+            foreach ($definitions as $field) {
+                $name = (string) ($field['name'] ?? '');
+                if ($name === '' || in_array($name, $skip, true)) {
+                    continue;
+                }
+                if (!in_array($name, $fields, true)) {
+                    $fields[] = $name;
+                }
+            }
+        };
+
+        $append(self::getServerExtraFormFieldDefinitions());
+        $append(self::getPrinterMfuFormFieldDefinitions());
+        $append(self::getScannerFormFieldDefinitions());
+
+        foreach (['monitor_inv', 'ups_battery', 'ups_battery_replaced_at', 'ups_battery_service_life'] as $name) {
+            if (!in_array($name, $fields, true)) {
+                $fields[] = $name;
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Каталог настраиваемых столбцов грида «Учёт ТС» (группы и подписи).
+     *
+     * @return array{groups: array<int, array{id: string, title: string, icon: string, columns: string[]}>, labels: array<string, string>}
+     */
+    public static function getArmGridColumnCatalog(): array
+    {
+        $labels = [
+            'user_name' => 'Пользователь',
+            'location_name' => 'Помещение',
+            'status_name' => 'Статус',
+            'system_block' => 'Тип/Название техники',
+            'inventory_number' => 'Инв. №',
+            'purchase_date' => 'Дата закупки',
+            'cpu' => 'ЦП',
+            'ram' => 'ОЗУ',
+            'disk' => 'Диск',
+            'screen_diagonal' => 'Диагональ экрана',
+            'monitor' => 'Монитор',
+            'monitor_inv' => '№ монитора',
+            'ups' => 'ИБП',
+            'ups_battery' => 'Модель аккумулятора ИБП',
+            'ups_battery_replaced_at' => 'Дата замены аккумулятора',
+            'ups_battery_service_life' => 'Срок службы аккумулятора',
+            'hostname' => 'Имя ПК',
+            'ip' => 'IP адрес',
+            'os' => 'ОС',
+            'cartridge_procurement' => 'Закупка картриджей',
+            'other_tech' => 'Комментарий',
+        ];
+
+        foreach (self::getServerCharDisplayLabels() as $name => $label) {
+            $labels[$name] = $label;
+        }
+        foreach (self::getPrinterMfuCharDisplayLabels() as $name => $label) {
+            $labels[$name] = $label;
+        }
+        foreach (self::getScannerCharDisplayLabels() as $name => $label) {
+            $labels[$name] = $label;
+        }
+
+        $printerCols = [];
+        foreach (self::getPrinterMfuFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name === '' || $name === 'ip') {
+                continue;
+            }
+            $printerCols[] = $name;
+        }
+
+        $scannerCols = [];
+        foreach (self::getScannerFormFieldDefinitions() as $field) {
+            $name = (string) ($field['name'] ?? '');
+            if ($name === '' || $name === 'paper_size_max') {
+                continue;
+            }
+            $scannerCols[] = $name;
+        }
+
+        $groups = [
+            [
+                'id' => 'base',
+                'title' => 'Основное',
+                'icon' => 'fa-id-card',
+                'columns' => ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+            ],
+            [
+                'id' => 'config',
+                'title' => 'Конфигурация',
+                'icon' => 'fa-microchip',
+                'columns' => ['cpu', 'cpu_count', 'ram', 'disk', 'screen_diagonal'],
+            ],
+            [
+                'id' => 'periphery',
+                'title' => 'Периферия',
+                'icon' => 'fa-plug',
+                'columns' => ['monitor', 'monitor_inv', 'ups', 'ups_battery', 'ups_battery_replaced_at', 'ups_battery_service_life'],
+            ],
+            [
+                'id' => 'network',
+                'title' => 'Сеть и ПО',
+                'icon' => 'fa-network-wired',
+                'columns' => ['hostname', 'ip', 'os'],
+            ],
+            [
+                'id' => 'printer',
+                'title' => 'Принтер / МФУ',
+                'icon' => 'fa-print',
+                'columns' => $printerCols,
+            ],
+            [
+                'id' => 'scanner',
+                'title' => 'Сканер',
+                'icon' => 'fa-barcode',
+                'columns' => $scannerCols,
+            ],
+            [
+                'id' => 'extra',
+                'title' => 'Дополнительно',
+                'icon' => 'fa-comment-dots',
+                'columns' => ['cartridge_procurement', 'other_tech'],
+            ],
+        ];
+
+        return ['groups' => $groups, 'labels' => $labels];
     }
 }

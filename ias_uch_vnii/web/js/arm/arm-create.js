@@ -350,6 +350,9 @@
         if (!$form || !$form.length) {
             return;
         }
+        if ($form.data('armCreateSaving') || $form.data('armCreateValidating')) {
+            return;
+        }
 
         var formEl = $form[0];
         if (formEl && typeof formEl.checkValidity === 'function' && !formEl.checkValidity()) {
@@ -360,10 +363,12 @@
         }
 
         if ($form.data('yiiActiveForm')) {
+            $form.data('armCreateValidating', true);
             $form
                 .off('afterValidate.armCreateSave')
                 .on('afterValidate.armCreateSave', function(event, messages, errorAttributes) {
                     $form.off('afterValidate.armCreateSave');
+                    $form.data('armCreateValidating', false);
                     if (errorAttributes && errorAttributes.length) {
                         applyValidationHighlight($form);
                         scrollToFirstError($form);

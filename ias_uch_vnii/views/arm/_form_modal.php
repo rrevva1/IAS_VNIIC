@@ -1,5 +1,6 @@
 <?php
 
+use app\components\EquipmentCharCatalog;
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
 
@@ -43,6 +44,7 @@ $isPrinterOrMfu = !empty($isPrinterOrMfu);
 $descriptionPlaceholder = $descriptionPlaceholder ?? $formPlaceholders['description'];
 $descriptionSectionTitle = $descriptionSectionTitle ?? 'Примечание';
 $currentEquipmentType = trim((string) ($model->resolveEquipmentTypeName() ?? ''));
+$isMiscEquipment = EquipmentCharCatalog::isMiscType($currentEquipmentType);
 $initialConfigFields = $armFormFieldTemplates[$currentEquipmentType] ?? [];
 if ($initialConfigFields === [] && $currentEquipmentType !== '') {
     foreach ($armFormFieldTemplates as $typeName => $typeFields) {
@@ -258,7 +260,7 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                     'canEditPhotos' => $canEditPhotos ?? false,
                 ]) ?>
 
-                <section id="arm-form-description-section" class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-note">
+                <section id="arm-form-description-section" class="arm-view-card arm-form-create__card<?= $isMiscEquipment ? ' d-none' : '' ?>" aria-labelledby="arm-create-section-note">
                     <h2 id="arm-create-section-note" class="arm-view-card__title"><?= Html::encode($descriptionSectionTitle) ?></h2>
                     <div class="arm-view-card__body arm-form-create__card-fields">
                         <?= $form->field($model, 'description', ['options' => ['class' => 'arm-form-create__field mb-0']])

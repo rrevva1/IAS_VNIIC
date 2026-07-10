@@ -237,7 +237,7 @@ class ArmController extends Controller
                 );
                 $statusName = $model->equipmentStatus ? (string) $model->equipmentStatus->status_name : '';
                 $statusCode = $model->equipmentStatus ? (string) $model->equipmentStatus->status_code : '';
-                $data[] = [
+                $row = [
                     'id' => $model->id,
                     'user_name' => $model->responsibleUser ? $model->responsibleUser->getDisplayName() : '',
                     'location_name' => $model->location ? $model->location->name : '',
@@ -264,12 +264,16 @@ class ArmController extends Controller
                     'ups' => EquipmentCharCatalog::formatMonitorColumnValue('', $linked['ups']),
                     'ups_list' => $linked['ups'],
                     'hostname' => $chars['hostname'] ?? '',
-                    'ip' => $chars['ip'] ?? '',
+                    'ip' => $this->formatIpForGrid($model, $chars),
                     'os' => $chars['os'] ?? '',
                     'screen_diagonal' => $chars['screen_diagonal'] ?? '',
                     'cartridge_procurement' => $this->formatCartridgeProcurementForGrid($model),
-                    'other_tech' => $this->formatOtherTechForGrid($model),
+                    'other_tech' => $this->formatOtherTechForGrid($model, $chars),
                 ];
+                foreach (EquipmentCharCatalog::getArmGridExtraPartCharFields() as $extraField) {
+                    $row[$extraField] = $chars[$extraField] ?? '';
+                }
+                $data[] = $row;
             }
             return ['success' => true, 'data' => $data, 'total' => $total, 'offset' => $offset, 'limit' => $limit];
         } catch (\Exception $e) {
@@ -334,6 +338,8 @@ class ArmController extends Controller
                     "OR LOWER(sp.name) LIKE '%пк%' " .
                     "OR LOWER(sp.name) LIKE '%компьют%' " .
                     "OR sp.name = 'Принтер' " .
+                    "OR sp.name = 'Сканер' " .
+                    "OR sp.name = 'Прочее' " .
                     "OR sp.name = 'ИБП' " .
                     "OR LOWER(sp.name) LIKE '%ибп%' " .
                     "OR LOWER(sp.name) LIKE '%ups%'" .
@@ -360,6 +366,10 @@ class ArmController extends Controller
             // Быстрый путь под текущие справочники БД (tech_accounting)
             if ($part === 'ЦП' && $char === 'Модель') {
                 $out[$id]['cpu'] = $val;
+                continue;
+            }
+            if ($part === 'ЦП' && $char === 'Количество процессоров') {
+                $out[$id]['cpu_count'] = $val;
                 continue;
             }
             if ($part === 'ОЗУ' && $char === 'Объём') {
@@ -400,6 +410,20 @@ class ArmController extends Controller
                     $out[$id]['ip'] = $val;
                     continue;
                 }
+            }
+            if ($part === 'Сканер') {
+                $scannerKeys = EquipmentCharCatalog::getScannerPartCharKeyByCharName();
+                if (isset($scannerKeys[$char])) {
+                    $out[$id][$scannerKeys[$char]] = $val;
+                }
+                continue;
+            }
+            if ($part === 'Прочее') {
+                $miscKeys = EquipmentCharCatalog::getMiscPartCharKeyByCharName();
+                if (isset($miscKeys[$char])) {
+                    $out[$id][$miscKeys[$char]] = $val;
+                }
+                continue;
             }
             if ($part === 'ПК' && $char === 'ОС') {
                 $out[$id]['os'] = $val;
@@ -878,6 +902,8 @@ class ArmController extends Controller
         }
 
         $this->applyOrgTechDescriptionFromPost($model);
+        $partChar = is_array($post['PartChar'] ?? null) ? $post['PartChar'] : [];
+        $this->syncMiscEquipmentDescriptionOnSave($model, $partChar);
         if (!$model->save()) {
             $firstErrors = $model->getFirstErrors();
 
@@ -889,7 +915,7 @@ class ArmController extends Controller
             ];
         }
 
-        $this->savePartCharValuesFromPost($model->id, $post['PartChar'] ?? []);
+        $this->savePartCharValuesFromPost($model->id, $partChar);
         EquipHistory::log($model->id, 'create', null, [
             'inventory_number' => $model->inventory_number,
             'name' => $model->name,
@@ -913,6 +939,7 @@ class ArmController extends Controller
         if (!$model->isNewRecord) {
             $loaded = $this->loadPartCharValuesByEquipment([$model->id]);
             $chars = $loaded[$model->id] ?? [];
+            $this->hydrateMiscCharsFromEquipment($model, $chars);
         }
 
         return [
@@ -963,6 +990,8 @@ class ArmController extends Controller
         }
 
         $this->applyOrgTechDescriptionFromPost($model);
+        $partChar = is_array($post['PartChar'] ?? null) ? $post['PartChar'] : [];
+        $this->syncMiscEquipmentDescriptionOnSave($model, $partChar);
         $oldStatus = $model->getOldAttribute('status_id');
         $oldLocation = $model->getOldAttribute('location_id');
         $oldResponsible = $model->getOldAttribute('responsible_user_id');
@@ -978,7 +1007,7 @@ class ArmController extends Controller
             ];
         }
 
-        $this->savePartCharValuesFromPost($model->id, $post['PartChar'] ?? []);
+        $this->savePartCharValuesFromPost($model->id, $partChar);
 
         if (!EquipHistory::idsEqual($oldLocation, $model->location_id)) {
             EquipHistory::log($model->id, 'move', ['location_id' => $oldLocation], ['location_id' => $model->location_id]);
@@ -1229,7 +1258,9 @@ class ArmController extends Controller
         }
 
         $equipment = Equipment::findOne($equipmentId);
-        $isOrgTech = $equipment && EquipmentCharCatalog::isPrinterOrMfuType($equipment->resolveEquipmentTypeName());
+        $typeName = $equipment ? $equipment->resolveEquipmentTypeName() : '';
+        $isOrgTech = $equipment && EquipmentCharCatalog::isPrinterOrMfuType($typeName);
+        $isScanner = $equipment && EquipmentCharCatalog::isScannerType($typeName);
 
         $map = [
             'cpu' => ['ЦП', 'Модель'],
@@ -1244,13 +1275,26 @@ class ArmController extends Controller
             'ups_battery' => ['ИБП', 'Модель аккумулятора'],
             'ups_battery_replaced_at' => ['ИБП', 'Дата замены аккумулятора'],
             'ups_battery_service_life' => ['ИБП', 'Срок службы аккумулятора'],
+            'cpu_count' => ['ЦП', 'Количество процессоров'],
+            'misc_description' => ['Прочее', 'Описание'],
+            'misc_ip' => ['Прочее', 'IP адрес'],
         ];
         if ($isOrgTech) {
             $map = array_merge($map, EquipmentCharCatalog::getPrinterMfuPartCharSaveMap());
         }
+        if ($isScanner) {
+            $map = array_merge($map, EquipmentCharCatalog::getScannerPartCharSaveMap());
+        }
         foreach ($partChar as $key => $value) {
-            $value = is_string($value) ? trim($value) : '';
-            if ($value === '') continue;
+            if (!is_string($value)) {
+                continue;
+            }
+            $value = in_array($key, EquipmentCharCatalog::getMultilinePartCharFieldNames(), true)
+                ? EquipmentCharCatalog::normalizeEquipmentComment($value)
+                : trim($value);
+            if ($value === '') {
+                continue;
+            }
             $m = $map[$key] ?? null;
             if (!$m) continue;
             $part = SprParts::find()->where(['name' => $m[0]])->one();
@@ -1726,6 +1770,9 @@ class ArmController extends Controller
     {
         $type = trim((string) ($equipment->resolveEquipmentTypeName() ?? ''));
         $name = trim((string) ($equipment->name ?? ''));
+        if (EquipmentCharCatalog::isMiscType($type)) {
+            return $name !== '' ? $name : $type;
+        }
         if ($type !== '' && $name !== '') {
             return $type . ' · ' . $name;
         }
@@ -1753,19 +1800,106 @@ class ArmController extends Controller
     }
 
     /**
-     * Столбец «Комментарий» — «Другая техника» у ПК; у принтера/МФУ — примечание без строки про картриджи.
+     * Столбец «Описание» для типа «Прочее» — из part_char с запасным вариантом из equipment.description.
+     *
+     * @param array<string, string> $chars
      */
-    private function formatOtherTechForGrid(Equipment $equipment): string
+    private function formatMiscDescriptionForGrid(Equipment $equipment, array $chars): string
+    {
+        $fromChars = EquipmentCharCatalog::normalizeEquipmentComment($chars['misc_description'] ?? '');
+        if ($fromChars !== '') {
+            return $fromChars;
+        }
+
+        if (!EquipmentCharCatalog::isMiscType($equipment->resolveEquipmentTypeName())) {
+            return '';
+        }
+
+        return EquipmentCharCatalog::normalizeEquipmentComment($equipment->description);
+    }
+
+    /**
+     * При открытии формы «Прочее» подставляет комментарий из equipment.description, если в part_char пусто.
+     *
+     * @param array<string, string> $chars
+     */
+    private function hydrateMiscCharsFromEquipment(Equipment $model, array &$chars): void
+    {
+        if (!EquipmentCharCatalog::isMiscType($model->resolveEquipmentTypeName())) {
+            return;
+        }
+
+        if (EquipmentCharCatalog::normalizeEquipmentComment($chars['misc_description'] ?? '') !== '') {
+            return;
+        }
+
+        $desc = EquipmentCharCatalog::normalizeEquipmentComment($model->description);
+        if ($desc !== '') {
+            $chars['misc_description'] = $desc;
+        }
+    }
+
+    /**
+     * Сохраняет комментарий «Прочее» только в part_char (без дублирования в equipment.description).
+     *
+     * @param array<string, mixed> $partChar
+     */
+    private function syncMiscEquipmentDescriptionOnSave(Equipment $model, array &$partChar): void
+    {
+        if (!EquipmentCharCatalog::isMiscType($model->resolveEquipmentTypeName())) {
+            return;
+        }
+
+        $comment = EquipmentCharCatalog::normalizeEquipmentComment($partChar['misc_description'] ?? '');
+        if ($comment === '') {
+            $comment = EquipmentCharCatalog::normalizeEquipmentComment($model->description);
+        }
+
+        if ($comment === '') {
+            $partChar['misc_description'] = '';
+            $model->description = null;
+
+            return;
+        }
+
+        $partChar['misc_description'] = $comment;
+        $model->description = null;
+    }
+
+    /**
+     * Столбец «IP адрес» — ПК, принтер/МФУ, тип «Прочее».
+     *
+     * @param array<string, string> $chars
+     */
+    private function formatIpForGrid(Equipment $equipment, array $chars): string
+    {
+        if (EquipmentCharCatalog::isMiscType($equipment->resolveEquipmentTypeName())) {
+            return trim((string) ($chars['misc_ip'] ?? ''));
+        }
+
+        return trim((string) ($chars['ip'] ?? ''));
+    }
+
+    /**
+     * Столбец «Комментарий» — «Другая техника» у ПК; у принтера/МФУ — примечание без строки про картриджи;
+     * у типа «Прочее» — из part_char.
+     *
+     * @param array<string, string> $chars
+     */
+    private function formatOtherTechForGrid(Equipment $equipment, array $chars = []): string
     {
         $type = $equipment->resolveEquipmentTypeName();
         if (EquipmentCharCatalog::isPrinterOrMfuType($type)) {
             return EquipmentCharCatalog::formatPrinterComment($equipment->description);
         }
+        if (EquipmentCharCatalog::isMiscType($type)) {
+            return $this->formatMiscDescriptionForGrid($equipment, $chars);
+        }
         if (!$this->isHostEquipment($equipment)) {
             return '';
         }
 
-        return trim((string) ($equipment->description ?? ''));
+        return EquipmentCharCatalog::normalizeEquipmentComment($equipment->description);
     }
 
     /**
@@ -2101,12 +2235,21 @@ class ArmController extends Controller
                 $links['ups'] ?? []
             )],
             'hostname' => ['Имя ПК', static fn($m, $chars, $links) => $chars['hostname'] ?? ''],
-            'ip' => ['IP адрес', static fn($m, $chars, $links) => $chars['ip'] ?? ''],
+            'ip' => ['IP адрес', fn($m, $chars, $links) => $this->formatIpForGrid($m, $chars)],
             'os' => ['ОС', static fn($m, $chars, $links) => $chars['os'] ?? ''],
             'screen_diagonal' => ['Диагональ экрана', static fn($m, $chars, $links) => $chars['screen_diagonal'] ?? ''],
             'cartridge_procurement' => ['Закупка картриджей', fn($m, $chars, $links) => $this->formatCartridgeProcurementForGrid($m)],
-            'other_tech' => ['Комментарий', fn($m, $chars, $links) => $this->formatOtherTechForGrid($m)],
+            'other_tech' => ['Комментарий', fn($m, $chars, $links) => $this->formatOtherTechForGrid($m, $chars)],
         ];
+
+        $catalog = EquipmentCharCatalog::getArmGridColumnCatalog();
+        foreach (EquipmentCharCatalog::getArmGridExtraPartCharFields() as $field) {
+            if (isset($columnMap[$field])) {
+                continue;
+            }
+            $header = $catalog['labels'][$field] ?? $field;
+            $columnMap[$field] = [$header, static fn($m, $chars, $links) => $chars[$field] ?? ''];
+        }
 
         $defaultCols = ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'ups', 'hostname', 'ip', 'os', 'other_tech'];
         if ($this->id === 'warehouse') {

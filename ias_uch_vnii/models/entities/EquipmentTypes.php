@@ -19,6 +19,11 @@ class EquipmentTypes
         'АРМ',
     ];
 
+    /** Типы без отдельной вкладки на странице «Учёт ТС» (видны на «Вся техника»). */
+    private const EXCLUDED_TAB_TYPE_NAMES = [
+        'Прочее',
+    ];
+
     /**
      * Типы для формы создания/редактирования (всегда в списке, даже если в БД ещё нет строк).
      * @var string[]
@@ -33,6 +38,7 @@ class EquipmentTypes
         'ИБП',
         'Сканер',
         'Сервер',
+        'Прочее',
     ];
 
     /** Подписи вкладок «Учёт ТС» (множественное число); ключ — значение equipment_type в БД. */
@@ -47,6 +53,7 @@ class EquipmentTypes
         'Принтер' => 'Принтеры',
         'Сканер' => 'Сканеры',
         'Сервер' => 'Серверы',
+        'Прочее' => 'Прочее',
     ];
 
     /** Порядок вкладок на странице «Учёт ТС». */
@@ -112,6 +119,11 @@ class EquipmentTypes
         return in_array(trim($name), self::EXCLUDED_TYPE_NAMES, true);
     }
 
+    public static function isExcludedTabTypeName(string $name): bool
+    {
+        return in_array(trim($name), self::EXCLUDED_TAB_TYPE_NAMES, true);
+    }
+
     /**
      * Базовый набор типов, если справочник/данные ещё пусты.
      * @return string[]
@@ -167,7 +179,7 @@ class EquipmentTypes
         $ordered = [];
 
         foreach (self::PREFERRED_TAB_TYPES as $name) {
-            if (self::isExcludedTypeName($name)) {
+            if (self::isExcludedTypeName($name) || self::isExcludedTabTypeName($name)) {
                 continue;
             }
             $inDb = in_array($name, $fromDb, true);
@@ -182,7 +194,7 @@ class EquipmentTypes
         }
 
         foreach ($fromDb as $name) {
-            if (self::isExcludedTypeName($name)) {
+            if (self::isExcludedTypeName($name) || self::isExcludedTabTypeName($name)) {
                 continue;
             }
             if (!isset($seen[$name])) {

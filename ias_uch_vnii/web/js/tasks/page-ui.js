@@ -110,6 +110,10 @@
 
             window.tasksStatusFilter = code;
 
+            if (window.tasksRealtimePoll && typeof window.tasksRealtimePoll.resetVersion === 'function') {
+                window.tasksRealtimePoll.resetVersion();
+            }
+
             tabList.querySelectorAll('.tasks-status-tab').forEach(function(t) {
                 t.classList.remove('active');
                 t.setAttribute('aria-selected', 'false');

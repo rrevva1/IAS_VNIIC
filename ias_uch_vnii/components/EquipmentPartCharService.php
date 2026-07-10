@@ -58,6 +58,7 @@ class EquipmentPartCharService
         $equipment = Equipment::findOne($equipmentId);
         $typeName = $equipmentTypeName ?? ($equipment ? $equipment->resolveEquipmentTypeName() : '');
         $isOrgTech = EquipmentCharCatalog::isPrinterOrMfuType($typeName);
+        $isScanner = EquipmentCharCatalog::isScannerType($typeName);
 
         $map = [
             'cpu' => ['ЦП', 'Модель'],
@@ -72,13 +73,24 @@ class EquipmentPartCharService
             'ups_battery' => ['ИБП', 'Модель аккумулятора'],
             'ups_battery_replaced_at' => ['ИБП', 'Дата замены аккумулятора'],
             'ups_battery_service_life' => ['ИБП', 'Срок службы аккумулятора'],
+            'cpu_count' => ['ЦП', 'Количество процессоров'],
+            'misc_description' => ['Прочее', 'Описание'],
+            'misc_ip' => ['Прочее', 'IP адрес'],
         ];
         if ($isOrgTech) {
             $map = array_merge($map, EquipmentCharCatalog::getPrinterMfuPartCharSaveMap());
         }
+        if ($isScanner) {
+            $map = array_merge($map, EquipmentCharCatalog::getScannerPartCharSaveMap());
+        }
 
         foreach ($partChar as $key => $value) {
-            $value = is_string($value) ? trim($value) : '';
+            if (!is_string($value)) {
+                continue;
+            }
+            $value = in_array($key, EquipmentCharCatalog::getMultilinePartCharFieldNames(), true)
+                ? EquipmentCharCatalog::normalizeEquipmentComment($value)
+                : trim($value);
             if ($value === '') {
                 continue;
             }

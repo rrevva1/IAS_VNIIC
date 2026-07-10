@@ -54,7 +54,7 @@ use yii\helpers\Html;
                 </div>
                 <div id="delivery-line-dynamic-block" class="arm-form-create__config d-none mt-3">
                     <h6 class="arm-form-create__config-title">Характеристики (как при учёте ТС)</h6>
-                    <div id="delivery-line-dynamic-content" class="arm-form-create__config-fields row g-2"></div>
+                    <div id="delivery-line-dynamic-content" class="arm-form-create__config-fields"></div>
                 </div>
             </form>
             <div class="modal-footer">

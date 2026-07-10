@@ -532,6 +532,7 @@ class WorkTaskService
         }
 
         if ($executorChanged || $statusChanged || $request->isAttributeChanged('closed_at')) {
+            $request->updated_at = new \yii\db\Expression('CURRENT_TIMESTAMP');
             $request->save(false);
         }
     }
