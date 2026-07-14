@@ -1050,8 +1050,10 @@ class TasksController extends Controller
      */
     public function actionMovementHistory()
     {
-        $dateFrom = $this->request->get('date_from');
-        $dateTo = $this->request->get('date_to');
+        [$dateFrom, $dateTo] = $this->resolveMovementHistoryPeriod(
+            $this->request->get('date_from'),
+            $this->request->get('date_to')
+        );
         $report = (new TaskStatisticsService($dateFrom, $dateTo))->buildMovementHistoryReport();
 
         return $this->render('movement-history', [
@@ -1068,10 +1070,11 @@ class TasksController extends Controller
     {
         Yii::$app->response->format = Response::FORMAT_JSON;
 
-        $report = (new TaskStatisticsService(
+        [$dateFrom, $dateTo] = $this->resolveMovementHistoryPeriod(
             $this->request->get('date_from'),
             $this->request->get('date_to')
-        ))->buildMovementHistoryReport();
+        );
+        $report = (new TaskStatisticsService($dateFrom, $dateTo))->buildMovementHistoryReport();
         $data = $report['movements'] ?? [];
 
         return ['success' => true, 'data' => $data, 'total' => count($data)];
@@ -1676,6 +1679,24 @@ class TasksController extends Controller
         }
 
         return [];
+    }
+
+    /**
+     * Период истории перемещений: по умолчанию последние 30 дней, если обе даты не заданы.
+     *
+     * @return array{0: string|null, 1: string|null}
+     */
+    private function resolveMovementHistoryPeriod($dateFrom, $dateTo): array
+    {
+        $from = is_string($dateFrom) ? trim($dateFrom) : '';
+        $to = is_string($dateTo) ? trim($dateTo) : '';
+
+        if ($from === '' && $to === '') {
+            $to = date('Y-m-d');
+            $from = date('Y-m-d', strtotime('-30 days'));
+        }
+
+        return [$from !== '' ? $from : null, $to !== '' ? $to : null];
     }
 
     private function ensureLinkedWorkTask(Tasks $request): void

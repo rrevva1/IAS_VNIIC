@@ -166,9 +166,7 @@
             defaultColDef: (window.AgGridWrap && window.AgGridWrap.mergeDefaultColDef)
                 ? window.AgGridWrap.mergeDefaultColDef({ sortable: true, filter: true, resizable: true }, true)
                 : { sortable: true, filter: true, resizable: true },
-            pagination: true,
-            paginationPageSize: 50,
-            paginationPageSizeSelector: [20, 50, 100, 500, 9999],
+            pagination: false,
             domLayout: 'normal',
             getRowHeight: function() { return 36; },
             localeText: localeTextRu,

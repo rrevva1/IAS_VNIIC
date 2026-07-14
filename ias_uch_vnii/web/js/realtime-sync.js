@@ -395,15 +395,7 @@
                 }
 
                 applyTasksGridData(api, result.data);
-
-                if (window.TasksView && typeof window.TasksView.getTaskId === 'function') {
-                    var openId = window.TasksView.getTaskId();
-                    if (openId && window.TasksView.isOpen && window.TasksView.isOpen()
-                        && result.data.some(function(row) { return row && String(row.id) === String(openId); })
-                        && typeof window.TasksView.reload === 'function') {
-                        window.TasksView.reload();
-                    }
-                }
+                maybeRefreshOpenTasksModal(result);
             },
         });
 
@@ -447,29 +439,7 @@
                 }
 
                 applyWorkTasksBoardSync(result);
-
-                if (!window.WorkTasksView || typeof window.WorkTasksView.getTaskId !== 'function') {
-                    return;
-                }
-                var openId = window.WorkTasksView.getTaskId();
-                if (!openId || !window.WorkTasksView.isOpen || !window.WorkTasksView.isOpen()) {
-                    return;
-                }
-                if (!result.changed) {
-                    return;
-                }
-                var touched = false;
-                if (Array.isArray(result.tasks)) {
-                    touched = result.tasks.some(function(task) {
-                        return task && String(task.id) === String(openId);
-                    });
-                }
-                if (!touched && result.structure_changed) {
-                    touched = true;
-                }
-                if (touched && typeof window.WorkTasksView.reload === 'function') {
-                    window.WorkTasksView.reload();
-                }
+                maybeRefreshOpenWorkTaskModal();
             },
         });
 
@@ -479,6 +449,68 @@
 
     function dragStateActive() {
         return !!document.querySelector('.work-task-card--kanban.is-dragging, .work-task-card--kanban.is-saving');
+    }
+
+    function maybeRefreshOpenWorkTaskModal() {
+        var view = window.WorkTasksView;
+        if (!view || typeof view.isOpen !== 'function' || !view.isOpen()) {
+            return;
+        }
+        if (typeof view.isEditing === 'function' && view.isEditing()) {
+            return;
+        }
+
+        var openId = view.getTaskId();
+        if (!openId) {
+            return;
+        }
+
+        var card = document.querySelector('.work-task-card[data-task-id="' + openId + '"]');
+        if (!card) {
+            if (typeof view.reload === 'function') {
+                view.reload({ silent: true });
+            }
+            return;
+        }
+
+        var boardStatus = card.getAttribute('data-status-code') || '';
+        var modalStatus = typeof view.getKnownStatusCode === 'function' ? (view.getKnownStatusCode() || '') : '';
+        if (modalStatus !== boardStatus && typeof view.reload === 'function') {
+            view.reload({ silent: true });
+        }
+    }
+
+    function maybeRefreshOpenTasksModal(result) {
+        var view = window.TasksView;
+        if (!view || typeof view.isOpen !== 'function' || !view.isOpen()) {
+            return;
+        }
+        if (typeof view.isEditing === 'function' && view.isEditing()) {
+            return;
+        }
+
+        var openId = view.getTaskId();
+        if (!openId || !result || !Array.isArray(result.data)) {
+            return;
+        }
+
+        var row = null;
+        result.data.some(function(item) {
+            if (item && String(item.id) === String(openId)) {
+                row = item;
+                return true;
+            }
+            return false;
+        });
+        if (!row) {
+            return;
+        }
+
+        var modalStatus = typeof view.getKnownStatusCode === 'function' ? (view.getKnownStatusCode() || '') : '';
+        var rowStatus = row.status_code != null ? String(row.status_code) : '';
+        if (modalStatus !== rowStatus && typeof view.reload === 'function') {
+            view.reload({ silent: true });
+        }
     }
 
     document.addEventListener('visibilitychange', function() {

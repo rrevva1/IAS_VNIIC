@@ -88,6 +88,7 @@ $isAdmin = !Yii::$app->user->isGuest
 <div class="tasks-view<?= $isModal ? ' tasks-view--modal' : '' ?>"
      id="tasksViewRoot"
      data-task-id="<?= (int) $model->id ?>"
+     data-status-code="<?= Html::encode($model->status ? (string) $model->status->status_code : '') ?>"
      data-executor-change-url="<?= Html::encode(Url::to(['assign-executor', 'id' => $model->id])) ?>">
 
     <?php if ($isModal): ?>

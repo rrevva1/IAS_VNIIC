@@ -66,7 +66,7 @@ $fmtDate = static function ($value): string {
 };
 ?>
 
-<div class="work-task-view" data-work-task-id="<?= (int) $model->id ?>">
+<div class="work-task-view" data-work-task-id="<?= (int) $model->id ?>" data-status-code="<?= Html::encode($currentCode) ?>">
     <div id="workTaskViewHeaderSlot" class="work-task-view__header-slot">
         <div class="work-task-view__header-row">
             <h2 class="work-task-view__title"><?= Html::encode($model->title) ?></h2>

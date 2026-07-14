@@ -48,7 +48,10 @@ class DicEquipmentStatus extends ActiveRecord
     public static function getList(): array
     {
         return \yii\helpers\ArrayHelper::map(
-            self::find()->orderBy(['sort_order' => SORT_ASC])->all(),
+            self::find()
+                ->where(['not', ['status_code' => 'archived']])
+                ->orderBy(['sort_order' => SORT_ASC])
+                ->all(),
             'id',
             'status_name'
         );

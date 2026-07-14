@@ -9,8 +9,7 @@
     let gridApi;
     let armQuickSearchText = '';
     let armQuickFilterTimer = null;
-    let currentPageSize = Number(window.agGridArmDefaultLimit || 20) || 20;
-    const ARM_CLIENT_DATA_LIMIT = 5000;
+    const ARM_CLIENT_DATA_LIMIT = 50000;
     const ARM_COLUMNS_STORAGE_PREFIX = 'arm-columns:v7:';
     let armFitColumnsTimer = null;
     /** Не сбрасывать ширину после ручного изменения столбца мышью. */
@@ -86,13 +85,13 @@
         monoblock: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'hostname', 'ip', 'os'],
         /** Прочие хосты (сервер и т.п.) */
         host: ['user_name', 'location_name', 'status_name', 'cpu', 'ram', 'disk', 'system_block', 'inventory_number', 'purchase_date', 'monitor', 'hostname', 'ip', 'os'],
-        monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal'],
-        upsType: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+        monitor: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'screen_diagonal', 'other_tech'],
+        upsType: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'other_tech'],
         print: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'cartridge_procurement', 'ip', 'printer_login', 'printer_password', 'other_tech'],
         /** Сканеры — без «Закупка картриджей» */
         scanner: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'ip', 'other_tech'],
         /** Остальные вкладки — без колонки «ИБП» */
-        generic: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+        generic: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'other_tech'],
         /** Прочая техника */
         misc: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date', 'ip', 'other_tech'],
     };
@@ -834,11 +833,6 @@
         try {
             gridApi.deselectAll();
         } catch (e) {}
-        if (resetToFirstPage) {
-            try {
-                gridApi.paginationGoToFirstPage();
-            } catch (e) {}
-        }
         fetch(getDataUrl(ARM_CLIENT_DATA_LIMIT, 0, {}, []))
             .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
             .then(function(result) {
@@ -1421,9 +1415,7 @@
                 headerTooltip: 'Выбор строк для перемещения и переназначения',
             },
             suppressCellFocus: true,
-            pagination: true,
-            paginationPageSize: currentPageSize,
-            paginationPageSizeSelector: [10, 20, 50, 100, 200],
+            pagination: false,
             domLayout: 'normal',
             getRowId: function(params) {
                 if (!params || !params.data || params.data.id == null) {
@@ -1450,14 +1442,6 @@
                 initColumnSettings();
                 initQuickFilter();
                 syncSelectionChrome();
-            },
-            onPaginationChanged: function() {
-                if (!gridApi) return;
-                var pageSize = gridApi.paginationGetPageSize ? gridApi.paginationGetPageSize() : currentPageSize;
-                if (pageSize !== currentPageSize) {
-                    currentPageSize = pageSize;
-                    gridApi.setGridOption('paginationPageSize', currentPageSize);
-                }
             },
             onSelectionChanged: function() {
                 syncSelectionChrome();
@@ -1494,6 +1478,25 @@
     window.refreshArmGrid = function() {
         console.log('refreshArmGrid вызван');
         loadGridData(true);
+    };
+
+    window.getArmSelectedHostId = function() {
+        if (!gridApi || typeof gridApi.getSelectedRows !== 'function') {
+            return null;
+        }
+        var rows = gridApi.getSelectedRows() || [];
+        if (rows.length === 0) {
+            return null;
+        }
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i] && rows[i].is_host && rows[i].id != null) {
+                return parseInt(rows[i].id, 10);
+            }
+        }
+        if (rows.length === 1 && rows[0] && rows[0].id != null) {
+            return parseInt(rows[0].id, 10);
+        }
+        return null;
     };
 
     if (document.readyState === 'loading') {

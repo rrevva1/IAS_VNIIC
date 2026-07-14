@@ -62,7 +62,7 @@ class UserEquipmentCardsController extends Controller
 
         try {
             $q = trim($q);
-            $limit = max(1, min(5000, $limit));
+            $limit = max(1, min(50000, $limit));
             $offset = max(0, $offset);
 
             $query = $this->buildCardsQuery($tab, $q, $sortModel);

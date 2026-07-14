@@ -219,9 +219,7 @@ function initializeAgGrid() {
             suppressHeaderMenuButton: true,
             headerTooltip: 'Выбор заявок для удаления',
         } : undefined,
-        pagination: true,
-        paginationPageSize: 20,
-        paginationPageSizeSelector: [10, 20, 50, 100],
+        pagination: false,
         domLayout: 'normal',
         suppressCellFocus: true,
         enableCellTextSelection: false,
@@ -256,9 +254,10 @@ function initializeAgGrid() {
             }
             cleanupExecutorSelect2InGrid();
         },
-        onModelUpdated: cleanupExecutorSelect2InGrid,
-        // Добавляем обработчик изменения размера страницы для автоматической подстройки высоты
-        onPaginationChanged: onPaginationChanged,
+        onModelUpdated: function() {
+            cleanupExecutorSelect2InGrid();
+            adjustGridHeight();
+        },
         onDisplayedColumnsChanged: function() {
             if (gridApi && typeof gridApi.resetRowHeights === 'function') {
                 gridApi.resetRowHeights();
@@ -819,65 +818,33 @@ function onGridReady(params) {
 }
 
 /**
- * Обработчик изменения пагинации (смена количества строк на странице)
- * Автоматически подстраивает высоту таблицы под выбранное количество строк
+ * Динамически изменяет высоту контейнера AG Grid под число отображаемых строк.
  */
-function onPaginationChanged(params) {
-    // Проверяем, что изменился именно размер страницы
-    const pageSize = gridApi.paginationGetPageSize();
-    adjustGridHeight(pageSize);
-}
-
-/**
- * Динамически изменяет высоту контейнера AG Grid в зависимости от размера страницы
- * @param {number} pageSize - количество строк на странице (если не указано, берется из API)
- */
-function adjustGridHeight(pageSize) {
+function adjustGridHeight() {
     if (!gridApi) return;
+
+    const rowCount = Math.max(1, gridApi.getDisplayedRowCount ? gridApi.getDisplayedRowCount() : 1);
     
-    // Получаем текущий размер страницы, если не передан
-    if (!pageSize) {
-        pageSize = gridApi.paginationGetPageSize();
-    }
+    const ROW_HEIGHT = 55;
+    const HEADER_HEIGHT = 55;
+    const EXTRA_PADDING = 20;
+    const FLOATING_FILTER_HEIGHT = isAdmin ? 40 : 0;
     
-    // Константы для расчета высоты
-    const ROW_HEIGHT = 55; // высота одной строки (определена в CSS переменных)
-    const HEADER_HEIGHT = 55; // высота заголовка таблицы
-    const PAGINATION_HEIGHT = 60; // высота панели пагинации
-    const EXTRA_PADDING = 20; // дополнительные отступы и границы
-    const FLOATING_FILTER_HEIGHT = isAdmin ? 40 : 0; // высота floating фильтров (только для админов)
-    
-    // Рассчитываем оптимальную высоту контейнера
-    const calculatedHeight = 
-        (ROW_HEIGHT * pageSize) + 
-        HEADER_HEIGHT + 
-        PAGINATION_HEIGHT + 
-        EXTRA_PADDING + 
+    const calculatedHeight =
+        (ROW_HEIGHT * rowCount) +
+        HEADER_HEIGHT +
+        EXTRA_PADDING +
         FLOATING_FILTER_HEIGHT;
     
-    // Получаем высоту окна для ограничения максимальной высоты
     const windowHeight = window.innerHeight;
-    const maxHeight = windowHeight - 250; // оставляем место для заголовка страницы и панели инструментов
-    
-    // Применяем высоту с ограничением по максимуму
+    const maxHeight = windowHeight - 250;
     const finalHeight = Math.min(calculatedHeight, maxHeight);
-    
-    // Устанавливаем минимальную высоту
     const minHeight = 500;
     const resultHeight = Math.max(finalHeight, minHeight);
     
-    // Применяем высоту к контейнеру
     const gridDiv = document.querySelector('#agGridTasksContainer');
     if (gridDiv) {
         gridDiv.style.height = resultHeight + 'px';
-        
-        // Логируем для отладки (можно удалить в продакшене)
-        console.log('AG Grid: Автоподстройка высоты', {
-            pageSize: pageSize,
-            calculatedHeight: calculatedHeight,
-            maxHeight: maxHeight,
-            resultHeight: resultHeight
-        });
     }
 }
 
@@ -918,6 +885,7 @@ function loadGridData() {
                         gridApi.resetRowHeights();
                     }
                     cleanupExecutorSelect2InGrid();
+                    adjustGridHeight();
                 }, 0);
                 if (window.IasRealtimeSync && typeof window.IasRealtimeSync.ensureTasksPolling === 'function') {
                     window.IasRealtimeSync.ensureTasksPolling();

@@ -12,6 +12,7 @@
  */
 
 use app\assets\UsersAsset;
+use yii\helpers\Url;
 
 UsersAsset::register($this);
 
@@ -36,3 +37,11 @@ echo $this->render('_view_content', [
     'taskStats' => $taskStats ?? ['total' => 0, 'open' => 0],
     'isModal' => false,
 ]);
+
+if ($isOwnProfile) {
+    echo $this->render('_profile_edit_modal');
+    $this->registerJs(
+        'window.profileEditModalUrl = ' . json_encode(Url::to(['users/profile-modal'])) . ';',
+        \yii\web\View::POS_HEAD
+    );
+}

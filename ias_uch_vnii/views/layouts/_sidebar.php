@@ -181,9 +181,6 @@ $showAdminSection = $isAdmin;
                     <?= $renderLink('fas fa-key', 'Лицензии ПО', ['/software/index'], ['software']) ?>
                 </li>
                 <li class="sidebar-nav__item">
-                    <?= $renderLink('fas fa-file-import', 'Импорт ОУ', ['/import/index'], ['import']) ?>
-                </li>
-                <li class="sidebar-nav__item">
                     <?= $renderLink('fas fa-clock-rotate-left', 'Журнал аудита', ['/audit/index'], ['audit']) ?>
                 </li>
             <?php endif; ?>
@@ -191,9 +188,6 @@ $showAdminSection = $isAdmin;
             <?= $renderSection('Справка') ?>
             <li class="sidebar-nav__item">
                 <?= $renderLink('fas fa-envelope', 'Контакты', ['/site/contact'], ['site/contact']) ?>
-            </li>
-            <li class="sidebar-nav__item">
-                <?= $renderLink('fas fa-circle-info', 'О проекте', ['/site/about'], ['site/about']) ?>
             </li>
         </ul>
     </div>

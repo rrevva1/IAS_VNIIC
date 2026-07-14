@@ -5,7 +5,6 @@
     'use strict';
 
     var gridApi;
-    var currentPageSize = Number(window.userEquipmentCardsDefaultLimit || 20) || 20;
 
     function escapeHtml(str) {
         var div = document.createElement('div');
@@ -80,14 +79,11 @@
         ];
     }
 
-    function loadGridData(resetPage) {
+    function loadGridData() {
         if (!gridApi) {
             return;
         }
-        if (resetPage && typeof gridApi.paginationGoToFirstPage === 'function') {
-            gridApi.paginationGoToFirstPage();
-        }
-        fetch(buildDataUrl(5000, 0, []))
+        fetch(buildDataUrl(50000, 0, []))
             .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
             .then(function(result) {
                 if (!result || !result.success || !Array.isArray(result.data)) {
@@ -223,9 +219,7 @@
             defaultColDef: { sortable: true, filter: true, resizable: true },
             animateRows: true,
             rowData: [],
-            pagination: true,
-            paginationPageSize: currentPageSize,
-            paginationPageSizeSelector: [10, 20, 50, 100, 200],
+            pagination: false,
             getRowHeight: function() { return 42; },
             getRowId: function(params) {
                 if (!params || !params.data || params.data.id == null) {
@@ -244,16 +238,6 @@
                 loadGridData(true);
                 bindActions(container);
                 bindCommandBar();
-            },
-            onPaginationChanged: function() {
-                if (!gridApi) {
-                    return;
-                }
-                var pageSize = gridApi.paginationGetPageSize ? gridApi.paginationGetPageSize() : currentPageSize;
-                if (pageSize !== currentPageSize) {
-                    currentPageSize = pageSize;
-                    gridApi.setGridOption('paginationPageSize', currentPageSize);
-                }
             },
         };
 

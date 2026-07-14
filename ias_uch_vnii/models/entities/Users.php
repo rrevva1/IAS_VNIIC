@@ -24,6 +24,9 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
     /** @var string Виртуальное поле для ввода пароля */
     public $password_plain;
 
+    /** @var string Подтверждение пароля (форма профиля) */
+    public $password_confirm;
+
     /** @var int|null ID роли для формы (одна роль) */
     public $role_id;
 
@@ -46,6 +49,10 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
             [['is_active', 'is_locked', 'is_deleted'], 'boolean'],
             [['password_plain'], 'required', 'on' => 'create'],
             [['password_plain'], 'string', 'min' => 6, 'max' => 255, 'skipOnEmpty' => true],
+            [['password_plain'], 'string', 'min' => 8, 'max' => 255, 'skipOnEmpty' => true, 'on' => 'ownProfile'],
+            [['password_plain'], 'validatePasswordStrength', 'on' => 'ownProfile', 'skipOnEmpty' => true],
+            [['password_confirm'], 'string', 'max' => 255, 'on' => 'ownProfile'],
+            [['password_confirm'], 'validatePasswordConfirm', 'on' => 'ownProfile'],
             [['role_id'], 'integer'],
             [['role_id'], 'exist', 'skipOnEmpty' => true, 'targetClass' => Roles::class, 'targetAttribute' => ['role_id' => 'id']],
             [['full_name', 'email', 'password_plain'], 'filter', 'filter' => 'trim'],
@@ -61,11 +68,63 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
             'email' => 'Электронная почта',
             'password_hash' => 'Пароль (хэш)',
             'password_plain' => 'Новый пароль',
+            'password_confirm' => 'Подтверждение пароля',
             'role_id' => 'Роль',
             'position' => 'Должность',
             'department' => 'Отдел',
-            'phone' => 'Телефон',
+            'phone' => 'Внутренний телефон',
         ];
+    }
+
+    /**
+     * Проверка сложности пароля (сценарий ownProfile).
+     */
+    public function validatePasswordStrength(string $attribute): void
+    {
+        $password = (string) $this->$attribute;
+        if ($password === '') {
+            return;
+        }
+
+        if (mb_strlen($password) < 8) {
+            $this->addError($attribute, 'Пароль должен содержать не менее 8 символов.');
+
+            return;
+        }
+
+        $hasLower = (bool) preg_match('/[a-zа-яё]/u', $password);
+        $hasUpper = (bool) preg_match('/[A-ZА-ЯЁ]/u', $password);
+        $hasDigit = (bool) preg_match('/\d/u', $password);
+
+        if (!$hasLower || !$hasUpper || !$hasDigit) {
+            $this->addError(
+                $attribute,
+                'Пароль должен содержать строчные и прописные буквы, а также цифры.'
+            );
+        }
+    }
+
+    /**
+     * Совпадение пароля и подтверждения (сценарий ownProfile).
+     */
+    public function validatePasswordConfirm(string $attribute): void
+    {
+        $password = trim((string) $this->password_plain);
+        $confirm = trim((string) $this->$attribute);
+
+        if ($password === '') {
+            return;
+        }
+
+        if ($confirm === '') {
+            $this->addError($attribute, 'Подтвердите новый пароль.');
+
+            return;
+        }
+
+        if ($password !== $confirm) {
+            $this->addError($attribute, 'Пароли не совпадают.');
+        }
     }
 
     public function getRole()
@@ -230,6 +289,7 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
         $s = parent::scenarios();
         $s['create'] = ['full_name', 'username', 'email', 'password_plain', 'role_id', 'position', 'department', 'phone'];
         $s['update'] = ['full_name', 'username', 'email', 'password_plain', 'role_id', 'position', 'department', 'phone'];
+        $s['ownProfile'] = ['phone', 'password_plain', 'password_confirm'];
         return $s;
     }
 

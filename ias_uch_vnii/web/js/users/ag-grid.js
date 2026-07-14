@@ -243,9 +243,7 @@
                     sortModel: [{ colId: 'full_name', sort: 'asc' }],
                 },
             },
-            pagination: true,
-            paginationPageSize: 20,
-            paginationPageSizeSelector: [10, 20, 50, 100],
+            pagination: false,
             domLayout: 'normal',
             localeText: {
                 page: 'Страница',

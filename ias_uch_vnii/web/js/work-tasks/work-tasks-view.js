@@ -14,6 +14,7 @@
     var config = window.workTasksViewConfig || {};
     var modalInstance = null;
     var currentTaskId = null;
+    var currentStatusCode = null;
     var loadingHtml = bodyEl.innerHTML;
     var defaultHeaderHtml = headerEl ? headerEl.innerHTML : '';
 
@@ -101,10 +102,37 @@
         footerSlot.classList.remove('d-none');
     }
 
-    function loadTask(taskId) {
+    function readStatusCodeFromRoot(root) {
+        if (!root) {
+            return null;
+        }
+        return root.getAttribute('data-status-code') || null;
+    }
+
+    function isEditing() {
+        if (!isOpen()) {
+            return false;
+        }
+        var active = document.activeElement;
+        if (active && modalEl.contains(active)) {
+            if (active.matches('input:not([type="hidden"]), textarea, select, button[type="submit"]')) {
+                return true;
+            }
+            if (active.closest('.select2-container, .select2-selection')) {
+                return true;
+            }
+        }
+        return !!bodyEl.querySelector('input:focus, textarea:focus, select:focus');
+    }
+
+    function loadTask(taskId, options) {
+        options = options || {};
+        var silent = !!options.silent;
         currentTaskId = taskId;
-        setLoading();
-        setTitle('Задача #' + taskId);
+        if (!silent) {
+            setLoading();
+            setTitle('Задача #' + taskId);
+        }
 
         return fetch(viewUrl(taskId), {
             headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' },
@@ -127,6 +155,7 @@
                 }
                 bodyEl.innerHTML = html;
                 var root = bodyEl.querySelector('.work-task-view');
+                currentStatusCode = readStatusCodeFromRoot(root);
                 mountHeader(root);
                 mountFooter(root);
                 var commentList = bodyEl.querySelector('.work-task-comment-list');
@@ -163,11 +192,12 @@
         loadTask(id);
     }
 
-    function reload(transitionRes) {
+    function reload(options) {
         if (!currentTaskId) {
             return Promise.resolve();
         }
-        return loadTask(currentTaskId).then(function() {
+        return loadTask(currentTaskId, options).then(function() {
+            var transitionRes = options && options.transitionRes;
             if (transitionRes && typeof window.workTasksBoardUpdateCard === 'function') {
                 window.workTasksBoardUpdateCard(currentTaskId, transitionRes);
             }
@@ -186,7 +216,11 @@
         open: open,
         reload: reload,
         isOpen: isOpen,
+        isEditing: isEditing,
         getTaskId: getTaskId,
+        getKnownStatusCode: function() {
+            return currentStatusCode;
+        },
         load: loadTask,
     };
 
@@ -215,6 +249,7 @@
 
     modalEl.addEventListener('hidden.bs.modal', function() {
         currentTaskId = null;
+        currentStatusCode = null;
         setTitle('Задача');
         setSubtitle('');
         setLoading();

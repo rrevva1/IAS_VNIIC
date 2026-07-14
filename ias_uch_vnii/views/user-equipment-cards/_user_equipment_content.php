@@ -17,9 +17,9 @@ $resolveStatusTone = static function (?string $statusCode, string $statusName): 
     $byCode = [
         'in_use' => 'green',
         'in_repair' => 'yellow',
+        'faulty' => 'red',
         'writeoff' => 'red',
         'in_stock' => 'gray',
-        'archived' => 'gray',
     ];
     if ($code !== '' && isset($byCode[$code])) {
         return $byCode[$code];
@@ -32,7 +32,7 @@ $resolveStatusTone = static function (?string $statusCode, string $statusName): 
     if (str_contains($name, 'ремонт')) {
         return 'yellow';
     }
-    if (str_contains($name, 'списан')) {
+    if (str_contains($name, 'неисправ') || str_contains($name, 'списан')) {
         return 'red';
     }
     if (str_contains($name, 'склад') || str_contains($name, 'резерв')) {

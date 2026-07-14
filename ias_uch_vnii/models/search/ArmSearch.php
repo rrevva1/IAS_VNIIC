@@ -80,7 +80,7 @@ class ArmSearch extends Model
 
         $dataProvider = new ActiveDataProvider([
             'query' => $query,
-            'pagination' => ['pageSize' => 20],
+            'pagination' => false,
             'sort' => [
                 'defaultOrder' => ['id' => SORT_ASC],
                 'attributes' => [

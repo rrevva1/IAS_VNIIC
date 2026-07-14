@@ -59,6 +59,7 @@ $initialConfigFields = array_values(array_filter(
     static fn(array $field): bool => (string) ($field['name'] ?? '') !== 'cartridge_procurement'
 ));
 $showConfigSection = $initialConfigFields !== [];
+$isCreate = $model->isNewRecord;
 $cartridgeField = [
     'name' => 'cartridge_procurement',
     'label' => 'Закупка картриджей',
@@ -112,7 +113,7 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
     ]) ?>
 
     <div class="row g-3 arm-form-create__primary-row">
-        <div class="col-md-6 arm-form-create__primary-col">
+        <div class="col-md-6<?= $isCreate ? '' : ' col-lg-12' ?> arm-form-create__primary-col">
             <section class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-main">
                 <h2 id="arm-create-section-main" class="arm-view-card__title">Основные сведения</h2>
                 <div class="arm-view-card__body arm-form-create__card-fields">
@@ -144,7 +145,7 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                                     'placeholder' => $formPlaceholders['serial_number'],
                                 ]) ?>
                         </div>
-                        <div class="col-12">
+                        <div class="col-sm-6">
                             <?= $form->field($model, 'equipment_type', [
                                 'options' => ['class' => 'arm-form-create__field mb-0'],
                                 'inputOptions' => ['class' => 'form-select'],
@@ -154,11 +155,21 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                                 'required' => true,
                             ]) ?>
                         </div>
+                        <div class="col-sm-6">
+                            <?= $form->field($model, 'status_id', [
+                                'options' => ['class' => 'arm-form-create__field mb-0'],
+                                'inputOptions' => ['class' => 'form-select js-user-select-search'],
+                            ])->dropDownList($statuses ?? [], [
+                                'prompt' => $formPlaceholders['status'],
+                                'data-placeholder' => $formPlaceholders['status'],
+                            ]) ?>
+                        </div>
                     </div>
                 </div>
             </section>
         </div>
 
+        <?php if ($isCreate): ?>
         <div class="col-md-6 arm-form-create__primary-col">
             <section class="arm-view-card arm-form-create__card" aria-labelledby="arm-create-section-assignment">
                 <h2 id="arm-create-section-assignment" class="arm-view-card__title">Закрепление</h2>
@@ -171,7 +182,7 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                         'data-placeholder' => $formPlaceholders['responsible_user'],
                     ]) ?>
                     <?= $form->field($model, 'location_name', [
-                        'options' => ['class' => 'arm-form-create__field'],
+                        'options' => ['class' => 'arm-form-create__field mb-0'],
                     ])->textInput([
                         'maxlength' => true,
                         'list' => 'arm-location-datalist',
@@ -180,16 +191,10 @@ $selectFieldOptions['inputOptions'] = ['class' => 'form-select'];
                         'class' => 'form-control js-location-datalist',
                         'placeholder' => $formPlaceholders['location_name'],
                     ]) ?>
-                    <?= $form->field($model, 'status_id', [
-                        'options' => ['class' => 'arm-form-create__field mb-0'],
-                        'inputOptions' => ['class' => 'form-select js-user-select-search'],
-                    ])->dropDownList($statuses ?? [], [
-                        'prompt' => $formPlaceholders['status'],
-                        'data-placeholder' => $formPlaceholders['status'],
-                    ]) ?>
                 </div>
             </section>
         </div>
+        <?php endif; ?>
     </div>
 
     <div class="row g-3 arm-form-create__details-row">

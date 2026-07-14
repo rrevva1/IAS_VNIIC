@@ -50,7 +50,7 @@
         var taskId = window.WorkTasksView && window.WorkTasksView.getTaskId();
         updateBoardCard(res, taskId);
         if (window.WorkTasksView && window.WorkTasksView.isOpen() && typeof window.WorkTasksView.reload === 'function') {
-            window.WorkTasksView.reload(res);
+            window.WorkTasksView.reload({ transitionRes: res });
         }
         showToast(res.message || 'Готово', false);
     }

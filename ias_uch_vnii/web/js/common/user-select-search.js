@@ -71,13 +71,15 @@
     }
 
     function buildOptions($select) {
+        var isMultiple = !!$select.prop('multiple');
         var hasEmpty = $select.find('option[value=""]').length > 0;
         var opts = {
             language: RU,
             width: '100%',
             minimumResultsForSearch: 0,
             placeholder: resolvePlaceholder($select),
-            allowClear: hasEmpty,
+            allowClear: !isMultiple && hasEmpty,
+            closeOnSelect: !isMultiple,
             dropdownParent: resolveDropdownParent($select),
             dropdownAutoWidth: false,
         };
@@ -85,7 +87,7 @@
             opts.dropdownCssClass = 'ias-user-select-dropdown--executor';
             opts.selectionCssClass = 'ias-user-select-selection--executor';
         }
-        if ($select.closest('#createArmModal, #reassignArmModal').length) {
+        if ($select.closest('#createArmModal, #reassignArmModal, #issueKitModal').length) {
             opts.dropdownCssClass = (opts.dropdownCssClass ? opts.dropdownCssClass + ' ' : '') +
                 'arm-modal-select2-dropdown';
             opts.selectionCssClass = (opts.selectionCssClass ? opts.selectionCssClass + ' ' : '') +
@@ -108,11 +110,11 @@
     }
 
     function bindSelect2Events($select) {
-        $select.off('select2:opening.iasUserSelect select2:select.iasUserSelect select2:clear.iasUserSelect');
+        $select.off('select2:opening.iasUserSelect select2:select.iasUserSelect select2:unselect.iasUserSelect select2:clear.iasUserSelect');
         $select.on('select2:opening.iasUserSelect', function () {
             closeOtherUserSelects(this);
         });
-        $select.on('select2:select.iasUserSelect select2:clear.iasUserSelect', function () {
+        $select.on('select2:select.iasUserSelect select2:unselect.iasUserSelect select2:clear.iasUserSelect', function () {
             var el = this;
             setTimeout(function () {
                 dispatchNativeChange(el);

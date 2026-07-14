@@ -15,6 +15,7 @@
 
     var modalInstance = null;
     var currentTaskId = null;
+    var currentStatusCode = null;
     var loadingHtml = bodyEl.innerHTML;
     var defaultHeaderHtml = headerEl ? headerEl.innerHTML : '';
 
@@ -113,10 +114,37 @@
         }
     }
 
-    function loadTask(taskId) {
+    function readStatusCodeFromRoot(root) {
+        if (!root) {
+            return null;
+        }
+        return root.getAttribute('data-status-code') || null;
+    }
+
+    function isEditing() {
+        if (!modalEl.classList.contains('show')) {
+            return false;
+        }
+        var active = document.activeElement;
+        if (active && modalEl.contains(active)) {
+            if (active.matches('input:not([type="hidden"]), textarea, select, button[type="submit"]')) {
+                return true;
+            }
+            if (active.closest('.select2-container, .select2-selection')) {
+                return true;
+            }
+        }
+        return !!bodyEl.querySelector('input:focus, textarea:focus, select:focus');
+    }
+
+    function loadTask(taskId, options) {
+        options = options || {};
+        var silent = !!options.silent;
         currentTaskId = taskId;
-        setLoading();
-        setTitle('Заявка #' + taskId);
+        if (!silent) {
+            setLoading();
+            setTitle('Заявка #' + taskId);
+        }
 
         return fetch(getViewModalUrl(taskId), {
             headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'text/html' },
@@ -138,6 +166,7 @@
                 }
                 bodyEl.innerHTML = html;
                 var root = bodyEl.querySelector('.tasks-view');
+                currentStatusCode = readStatusCodeFromRoot(root) || readStatusCodeFromRoot(bodyEl.querySelector('#tasksViewRoot'));
                 mountHeader(root);
                 mountFooter(root);
                 initLoadedContent();
@@ -173,17 +202,21 @@
 
     window.TasksView = {
         open: open,
-        reload: function() {
+        reload: function(options) {
             if (currentTaskId) {
-                return loadTask(currentTaskId);
+                return loadTask(currentTaskId, options || {});
             }
             return Promise.resolve();
         },
         isOpen: function() {
             return modalEl.classList.contains('show');
         },
+        isEditing: isEditing,
         getTaskId: function() {
             return currentTaskId;
+        },
+        getKnownStatusCode: function() {
+            return currentStatusCode;
         },
     };
 
@@ -198,6 +231,7 @@
 
     modalEl.addEventListener('hidden.bs.modal', function() {
         currentTaskId = null;
+        currentStatusCode = null;
         setLoading();
         if (window.IasUserSelect && typeof window.IasUserSelect.destroy === 'function') {
             window.IasUserSelect.destroy(modalEl);

@@ -47,7 +47,7 @@ class UsersController extends Controller
                             },
                         ],
                         [
-                            'actions' => ['index', 'create', 'create-modal', 'view-modal', 'update-modal', 'update', 'delete', 'arm-create', 'get-grid-data'],
+                            'actions' => ['index', 'create', 'create-modal', 'view-modal', 'update-modal', 'profile-modal', 'update', 'delete', 'arm-create', 'get-grid-data'],
                             'allow' => true,
                             'roles' => ['@'],
                         ],
@@ -297,6 +297,47 @@ class UsersController extends Controller
     }
 
     /**
+     * Форма редактирования собственного профиля (GET — HTML, POST — JSON).
+     */
+    public function actionProfileModal()
+    {
+        $model = $this->findModel((int) Yii::$app->user->id);
+        $model->setScenario('ownProfile');
+
+        if ($this->request->isPost) {
+            Yii::$app->response->format = Response::FORMAT_JSON;
+
+            if (!$model->load($this->request->post())) {
+                return [
+                    'success' => false,
+                    'message' => 'Не удалось принять данные формы. Обновите окно и повторите попытку.',
+                ];
+            }
+
+            if ($model->save()) {
+                return [
+                    'success' => true,
+                    'message' => 'Профиль успешно обновлён.',
+                    'phone' => $model->phone,
+                ];
+            }
+
+            $errors = $model->getFirstErrors();
+
+            return [
+                'success' => false,
+                'errors' => $model->errors,
+                'message' => 'Не удалось сохранить изменения'
+                    . ($errors ? ': ' . implode(' ', $errors) : ''),
+            ];
+        }
+
+        return $this->renderAjax('_profile_form_modal', [
+            'model' => $model,
+        ]);
+    }
+
+    /**
      * Обновляет существующего пользователя.
      * В случае успеха браузер будет перенаправлен на страницу 'view'.
      * @param int $id ID
@@ -313,7 +354,12 @@ class UsersController extends Controller
         $model = $this->findModel($id);
         $model->setScenario('update');
 
-        if (Yii::$app->user->identity->isAdmin() && (int) $id !== (int) Yii::$app->user->id && !$this->request->isAjax) {
+        $isOwnProfile = (int) Yii::$app->user->id === (int) $model->id;
+        if ($isOwnProfile && !$this->request->isAjax) {
+            return $this->redirect(['view', 'id' => $model->id, 'editProfile' => 1]);
+        }
+
+        if (Yii::$app->user->identity->isAdmin() && !$isOwnProfile && !$this->request->isAjax) {
             return $this->redirect(['index', 'edit' => $model->id]);
         }
 

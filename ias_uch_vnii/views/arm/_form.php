@@ -178,6 +178,11 @@ $formId = 'arm-equipment-form';
                     'id' => 'equipment-type-select',
                     'required' => true,
                 ]) ?>
+                <?= $form->field($model, 'status_id')->dropDownList($statuses ?? [], [
+                    'prompt' => $formPlaceholders['status'],
+                    'class' => 'form-select js-user-select-search',
+                    'data-placeholder' => $formPlaceholders['status'],
+                ]) ?>
             </section>
 
             <?= $this->render('_form_datalists', [
@@ -204,8 +209,9 @@ $formId = 'arm-equipment-form';
                 <div id="dynamic-fields-content" class="arm-form-dynamic-fields"></div>
             </section>
 
+            <?php if ($model->isNewRecord): ?>
             <section class="arm-form-section">
-                <h2 class="arm-form-section__title h6 text-uppercase text-muted">Закрепление и статус</h2>
+                <h2 class="arm-form-section__title h6 text-uppercase text-muted">Закрепление</h2>
                 <?= $form->field($model, 'responsible_user_id')->dropDownList($users, [
                     'prompt' => 'Не закреплять',
                     'class' => 'form-select js-user-select-search',
@@ -219,12 +225,8 @@ $formId = 'arm-equipment-form';
                     'class' => 'form-control js-location-datalist',
                     'placeholder' => $formPlaceholders['location_name'],
                 ]) ?>
-                <?= $form->field($model, 'status_id')->dropDownList($statuses ?? [], [
-                    'prompt' => $formPlaceholders['status'],
-                    'class' => 'form-select js-user-select-search',
-                    'data-placeholder' => $formPlaceholders['status'],
-                ]) ?>
             </section>
+            <?php endif; ?>
 
             <section class="arm-form-section">
                 <h2 class="arm-form-section__title h6 text-uppercase text-muted">Закупка и гарантия</h2>

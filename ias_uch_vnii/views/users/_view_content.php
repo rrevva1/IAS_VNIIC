@@ -40,7 +40,6 @@ $auditActionLabels = [
     'equipment.create' => 'Добавлено оборудование',
     'equipment.update' => 'Изменено оборудование',
     'equipment.reassign' => 'Перезакреплено оборудование',
-    'equipment.archive' => 'Оборудование в архиве',
     'user.create' => 'Создан пользователь',
     'user.password_reset' => 'Сброшен пароль',
     'software.create' => 'Добавлено ПО',
@@ -87,8 +86,10 @@ $equipmentCount = count($equipment);
 $heroActions = '';
 if ($isOwnProfile) {
     $heroActions = Html::tag('div', ''
-        . Html::a('<i class="fas fa-pen" aria-hidden="true"></i> Редактировать профиль', ['update', 'id' => $model->id], [
+        . Html::button('<i class="fas fa-pen" aria-hidden="true"></i> Редактировать профиль', [
             'class' => 'profile-hero__action profile-hero__action--primary',
+            'type' => 'button',
+            'data-profile-edit-open' => '1',
         ]),
         [
             'class' => 'profile-hero__actions',
@@ -258,8 +259,8 @@ $renderEquipmentList = static function () use ($equipment, $canOpenArm): string 
                             </dd>
                         </div>
                         <div class="profile-dl__row">
-                            <dt class="profile-dl__label">Телефон</dt>
-                            <dd class="profile-dl__value"><?= Html::encode($model->phone ?: 'Не указан') ?></dd>
+                            <dt class="profile-dl__label">Внутренний телефон</dt>
+                            <dd class="profile-dl__value" data-profile-phone-value><?= Html::encode($model->phone ?: 'Не указан') ?></dd>
                         </div>
                         <div class="profile-dl__row">
                             <dt class="profile-dl__label">Логин</dt>

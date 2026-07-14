@@ -70,7 +70,7 @@ $passwordRequired = !$isUpdate;
             <div class="users-create-form__section mb-0">
                 <label class="users-create-form__label" for="users-phone">
                     <i class="fas fa-phone" aria-hidden="true"></i>
-                    Телефон
+                    Внутренний телефон
                 </label>
                 <?= $form->field($model, 'phone', ['options' => ['class' => 'mb-0']])->textInput([
                     'id' => 'users-phone',

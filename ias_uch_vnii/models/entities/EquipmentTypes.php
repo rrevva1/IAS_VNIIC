@@ -67,12 +67,18 @@ class EquipmentTypes
         'МФУ',
         'Сканер',
         'Сервер',
+        'Прочее',
     ];
 
     /** Вкладки, которые показываются всегда (отдельная таблица по типу). */
     private const ALWAYS_VISIBLE_TAB_TYPES = [
         'Ноутбук',
         'Моноблок',
+    ];
+
+    /** На складе «Прочее» всегда в вкладках (там нет «Вся техника»). */
+    private const WAREHOUSE_ALWAYS_VISIBLE_TAB_TYPES = [
+        'Прочее',
     ];
 
     /**
@@ -170,20 +176,33 @@ class EquipmentTypes
 
     /**
      * Список для вкладок: id — тип в БД, name — подпись во множественном числе.
+     *
+     * @param string|null $locationScope exclude_warehouse|warehouse_only|null
      * @return array<int, array{id: string, name: string}>
      */
-    public static function getListForTabs(): array
+    public static function getListForTabs(?string $locationScope = null): array
     {
         $fromDb = self::getNames();
         $seen = [];
         $ordered = [];
+        $isWarehouse = $locationScope === 'warehouse_only';
+        $alwaysVisible = self::ALWAYS_VISIBLE_TAB_TYPES;
+        if ($isWarehouse) {
+            $alwaysVisible = array_values(array_unique(array_merge(
+                $alwaysVisible,
+                self::WAREHOUSE_ALWAYS_VISIBLE_TAB_TYPES
+            )));
+        }
 
         foreach (self::PREFERRED_TAB_TYPES as $name) {
-            if (self::isExcludedTypeName($name) || self::isExcludedTabTypeName($name)) {
+            if (self::isExcludedTypeName($name)) {
+                continue;
+            }
+            if (self::isExcludedTabTypeName($name) && !($isWarehouse && $name === 'Прочее')) {
                 continue;
             }
             $inDb = in_array($name, $fromDb, true);
-            $forced = in_array($name, self::ALWAYS_VISIBLE_TAB_TYPES, true);
+            $forced = in_array($name, $alwaysVisible, true);
             if (!$inDb && !$forced) {
                 continue;
             }
@@ -194,7 +213,10 @@ class EquipmentTypes
         }
 
         foreach ($fromDb as $name) {
-            if (self::isExcludedTypeName($name) || self::isExcludedTabTypeName($name)) {
+            if (self::isExcludedTypeName($name)) {
+                continue;
+            }
+            if (self::isExcludedTabTypeName($name) && !($isWarehouse && $name === 'Прочее')) {
                 continue;
             }
             if (!isset($seen[$name])) {

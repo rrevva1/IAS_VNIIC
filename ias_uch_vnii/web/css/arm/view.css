@@ -27,6 +27,7 @@
 .arm-view-modal__header {
     align-items: flex-start;
     gap: 0.75rem;
+    overflow: visible;
 }
 
 .arm-view-modal__header-body {
@@ -112,9 +113,24 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
     gap: 0.5rem 0.75rem;
     margin-bottom: 0.35rem;
+}
+
+.arm-view__title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+
+.arm-view__title-row .arm-view__title {
+    margin: 0;
+}
+
+.arm-view__title-row .arm-view__badges {
+    margin-left: 0;
+    justify-content: flex-start;
 }
 
 .arm-view__type {
@@ -602,6 +618,12 @@
     color: #475569;
 }
 
+.arm-view-status--faulty {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
 .arm-view-status--archived {
     background: #f1f5f9;
     border-color: #94a3b8;
@@ -625,7 +647,7 @@
         gap: 0.75rem;
     }
 
-    .arm-view__header-top {
+    .arm-view__title-row {
         flex-direction: column;
         align-items: flex-start;
     }

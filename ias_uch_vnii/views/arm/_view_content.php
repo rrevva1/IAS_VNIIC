@@ -34,8 +34,8 @@ $statusBadgeMap = [
     'in_use' => 'arm-view-status--in-use',
     'in_stock' => 'arm-view-status--stock',
     'in_repair' => 'arm-view-status--repair',
+    'faulty' => 'arm-view-status--faulty',
     'writeoff' => 'arm-view-status--writeoff',
-    'archived' => 'arm-view-status--archived',
 ];
 $statusBadgeClass = $statusBadgeMap[$statusCode] ?? 'arm-view-status--stock';
 
@@ -173,14 +173,15 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
             <div class="arm-view__header-content">
                 <div class="arm-view__header-top">
                     <span class="arm-view__type"><?= Html::encode($equipmentTypeName) ?></span>
+                </div>
+                <div class="arm-view__title-row">
+                    <h1 class="arm-view__title"><?= Html::encode($displayTitle) ?></h1>
+                    <?php if ($status || $cartridgeStatus !== ''): ?>
                     <div class="arm-view__badges">
                         <?php if ($status): ?>
                             <span class="arm-view-badge-status <?= Html::encode($statusBadgeClass) ?>">
                                 <?= Html::encode($status->status_name) ?>
                             </span>
-                        <?php endif; ?>
-                        <?php if ($model->is_archived): ?>
-                            <span class="arm-view-badge-status arm-view-status--archived">В архиве</span>
                         <?php endif; ?>
                         <?php if ($cartridgeStatus === EquipmentCharCatalog::CARTRIDGE_ACCOUNTED_LABEL): ?>
                             <span class="arm-view-badge-status arm-view-badge--cartridge-ok"><?= Html::encode($cartridgeStatus) ?></span>
@@ -188,8 +189,8 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
                             <span class="arm-view-badge-status arm-view-badge--cartridge-no"><?= Html::encode($cartridgeStatus) ?></span>
                         <?php endif; ?>
                     </div>
+                    <?php endif; ?>
                 </div>
-                <h1 class="arm-view__title"><?= Html::encode($displayTitle) ?></h1>
                 <?php if (trim((string) $model->inventory_number) !== '' || trim((string) $model->serial_number) !== ''): ?>
                 <ul class="arm-view__meta" role="list">
                     <?php if (trim((string) $model->inventory_number) !== ''): ?>
@@ -218,12 +219,6 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
                 'type' => 'button',
                 'data-arm-edit' => (int) $model->id,
             ]) ?>
-            <?php if (!$model->is_archived && $isAdmin): ?>
-                <?= Html::a('<i class="fas fa-box-archive" aria-hidden="true"></i> Архивировать', ['archive', 'id' => $model->id], [
-                    'class' => 'btn arm-tool-btn arm-view-btn arm-view-btn--archive',
-                    'data' => ['method' => 'post', 'confirm' => 'Переместить эту единицу техники в архив?'],
-                ]) ?>
-            <?php endif; ?>
         <?php endif; ?>
         <?php if ($isModal): ?>
             <?= Html::button('<i class="fas fa-xmark" aria-hidden="true"></i> Закрыть', [
@@ -237,19 +232,6 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
             ]) ?>
         <?php endif; ?>
     </div>
-
-    <?php if ($model->is_archived): ?>
-        <div class="alert alert-warning arm-view__alert-archive" role="alert">
-            <strong>Единица в архиве.</strong>
-            <?php if (trim((string) $model->archive_reason) !== ''): ?>
-                <?= Html::encode($model->archive_reason) ?>
-            <?php endif; ?>
-            <?php $archivedAt = $formatDate($model->archived_at); ?>
-            <?php if ($archivedAt !== ''): ?>
-                <span class="text-muted"> (<?= Html::encode($archivedAt) ?>)</span>
-            <?php endif; ?>
-        </div>
-    <?php endif; ?>
 
     <div class="arm-view__grid">
         <section class="arm-view-card" aria-labelledby="arm-view-section-assignment">

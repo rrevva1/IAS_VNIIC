@@ -18,6 +18,9 @@ use app\models\search\ArmSearch;
 use app\components\AuditLog;
 use app\components\EquipmentAttachmentService;
 use app\components\EquipmentCharCatalog;
+use app\components\EquipmentKitHelper;
+use app\components\EquipmentPartCharService;
+use app\components\EquipmentReplacementService;
 use app\components\UserEquipmentCardService;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -54,7 +57,7 @@ class ArmController extends Controller
                 'class' => AccessControl::class,
                 'rules' => [
                     [
-                        'actions' => ['create', 'create-modal', 'delete', 'archive', 'reassign', 'get-selected-info', 'system-blocks', 'user-primary-location', 'link-components', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
+                        'actions' => ['create', 'create-modal', 'delete', 'reassign', 'get-selected-info', 'system-blocks', 'user-primary-location', 'link-components', 'issue-kit', 'issue-kit-options', 'replace-options', 'export-xlsx', 'import-template-xlsx', 'import-preview', 'import-apply'],
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function () {
@@ -79,10 +82,12 @@ class ArmController extends Controller
                     'delete' => ['POST'],
                     'update' => ['GET', 'POST'],
                     'update-modal' => ['GET', 'POST'],
-                    'archive' => ['POST'],
                     'reassign' => ['POST'],
                     'get-selected-info' => ['POST'],
                     'link-components' => ['POST'],
+                    'issue-kit' => ['POST'],
+                    'issue-kit-options' => ['GET'],
+                    'replace-options' => ['GET'],
                     'import-preview' => ['POST'],
                     'import-apply' => ['POST'],
                     'upload-photo' => ['POST'],
@@ -110,7 +115,7 @@ class ArmController extends Controller
         array $gridDataRoute,
         array $exportRoute
     ): string {
-        $equipmentTypes = $this->getEquipmentTypesForTabs();
+        $equipmentTypes = EquipmentTypes::getListForTabs($locationScope);
         $users = ArrayHelper::map(
             Users::find()->orderBy(['full_name' => SORT_ASC])->all(),
             'id',
@@ -152,10 +157,12 @@ class ArmController extends Controller
     /**
      * Список типов техники для вкладок (из уникальных equipment.equipment_type, как в дампе).
      * Возвращает [['id' => тип, 'name' => тип], ...]
+     *
+     * @deprecated use EquipmentTypes::getListForTabs($locationScope)
      */
-    private function getEquipmentTypesForTabs(): array
+    private function getEquipmentTypesForTabs(?string $locationScope = null): array
     {
-        return EquipmentTypes::getListForTabs();
+        return EquipmentTypes::getListForTabs($locationScope);
     }
 
     /**
@@ -203,16 +210,9 @@ class ArmController extends Controller
                 $params['ArmSearch']['quick_search'] = $quickSearch;
             }
 
-            $limit = max(1, min(500, (int)($params['limit'] ?? 20)));
-            $offset = max(0, (int)($params['offset'] ?? 0));
-            $page = (int) floor($offset / $limit);
-
             $searchModel = new ArmSearch();
             $dataProvider = $searchModel->search($params);
-            if ($dataProvider->pagination !== false) {
-                $dataProvider->pagination->pageSize = $limit;
-                $dataProvider->pagination->page = $page;
-            }
+            $dataProvider->pagination = false;
 
             $showTypeWithNameInGrid = trim((string) $searchModel->equipment_type) === '';
 
@@ -239,6 +239,7 @@ class ArmController extends Controller
                 $statusCode = $model->equipmentStatus ? (string) $model->equipmentStatus->status_code : '';
                 $row = [
                     'id' => $model->id,
+                    'is_host' => EquipmentKitHelper::isHostEquipment($model),
                     'user_name' => $model->responsibleUser ? $model->responsibleUser->getDisplayName() : '',
                     'location_name' => $model->location ? $model->location->name : '',
                     'status_id' => (int) $model->status_id,
@@ -275,7 +276,7 @@ class ArmController extends Controller
                 }
                 $data[] = $row;
             }
-            return ['success' => true, 'data' => $data, 'total' => $total, 'offset' => $offset, 'limit' => $limit];
+            return ['success' => true, 'data' => $data, 'total' => $total];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => $e->getMessage(), 'data' => [], 'total' => 0];
         }
@@ -480,9 +481,9 @@ class ArmController extends Controller
         $byCode = [
             'in_use' => 'green',
             'in_repair' => 'yellow',
+            'faulty' => 'red',
             'writeoff' => 'red',
             'in_stock' => 'gray',
-            'archived' => 'gray',
         ];
         if ($code !== '' && isset($byCode[$code])) {
             return $byCode[$code];
@@ -495,7 +496,7 @@ class ArmController extends Controller
         if (strpos($s, 'ремонт') !== false) {
             return 'yellow';
         }
-        if (strpos($s, 'списан') !== false) {
+        if (strpos($s, 'неисправ') !== false || strpos($s, 'списан') !== false) {
             return 'red';
         }
         if (strpos($s, 'склад') !== false || strpos($s, 'резерв') !== false) {
@@ -785,6 +786,7 @@ class ArmController extends Controller
                     'e.id AS child_id',
                     'e.name AS child_name',
                     'e.inventory_number AS child_inventory_number',
+                    'e.description AS child_description',
                 ])
                 ->leftJoin(['e' => Equipment::tableName()], 'e.id = l.child_equipment_id')
                 ->where(['l.parent_equipment_id' => $parentIds])
@@ -805,6 +807,7 @@ class ArmController extends Controller
                 'id' => (int) $row['child_id'],
                 'name' => (string) ($row['child_name'] ?? ''),
                 'inventory_number' => (string) ($row['child_inventory_number'] ?? ''),
+                'description' => (string) ($row['child_description'] ?? ''),
             ];
         }
         return $result;
@@ -981,6 +984,9 @@ class ArmController extends Controller
      */
     private function persistUpdatedEquipment(Equipment $model, array $post): array
     {
+        $preservedResponsible = $model->responsible_user_id;
+        $preservedLocationId = $model->location_id;
+
         if (!$model->load($post)) {
             return [
                 'success' => false,
@@ -988,6 +994,10 @@ class ArmController extends Controller
                 'errors' => $model->errors,
             ];
         }
+
+        $model->responsible_user_id = $preservedResponsible;
+        $model->location_id = $preservedLocationId;
+        $model->location_name = null;
 
         $this->applyOrgTechDescriptionFromPost($model);
         $partChar = is_array($post['PartChar'] ?? null) ? $post['PartChar'] : [];
@@ -1400,6 +1410,7 @@ class ArmController extends Controller
             }
         }
         $linksByParent = $this->loadLinkedComponents($hostIds);
+        $charsByEquipment = $this->loadPartCharValuesByEquipment($ids);
 
         $data = [];
         $responsibleUsers = [];
@@ -1408,6 +1419,17 @@ class ArmController extends Controller
 
         foreach ($equipment as $eq) {
             $isHost = $this->isHostEquipment($eq);
+            $isOnWarehouse = $this->isEquipmentOnWarehouse($eq);
+            $replaceKind = null;
+            if (!$isOnWarehouse) {
+                if ($isHost) {
+                    $replaceKind = EquipmentReplacementService::KIND_HOST;
+                } elseif (EquipmentKitHelper::isMonitorEquipment($eq)) {
+                    $replaceKind = EquipmentReplacementService::KIND_MONITOR;
+                } elseif (EquipmentKitHelper::isUpsEquipment($eq)) {
+                    $replaceKind = EquipmentReplacementService::KIND_UPS;
+                }
+            }
             $item = [
                 'id' => $eq->id,
                 'inventory_number' => $eq->inventory_number,
@@ -1419,12 +1441,20 @@ class ArmController extends Controller
                 'location_name' => $eq->location ? $eq->location->name : null,
                 'status_id' => $eq->status_id,
                 'status_name' => $eq->equipmentStatus ? $eq->equipmentStatus->status_name : null,
+                'description' => (string) ($eq->description ?? ''),
                 'is_host' => $isHost,
                 'is_component' => !$isHost && $this->isLinkableComponentEquipment($eq),
+                'is_on_warehouse' => $isOnWarehouse,
+                'replace_kind' => $replaceKind,
                 'linked_components' => $isHost
                     ? ($linksByParent[(int) $eq->id] ?? ['monitor' => [], 'disk' => [], 'ups' => []])
                     : ['monitor' => [], 'disk' => [], 'ups' => []],
             ];
+            if ($isHost) {
+                $chars = $charsByEquipment[(int) $eq->id] ?? [];
+                $item['hostname'] = $chars['hostname'] ?? '';
+                $item['ip'] = $chars['ip'] ?? '';
+            }
             $data[] = $item;
 
             if ($eq->responsible_user_id) {
@@ -1473,28 +1503,64 @@ class ArmController extends Controller
 
         $operationMode = (string) Yii::$app->request->post('operation_mode', 'reassign');
         if ($operationMode === 'move_component') {
+            if (empty($ids)) {
+                return [
+                    'success' => false,
+                    'message' => 'Для переноса выберите один или несколько мониторов/ИБП.',
+                ];
+            }
+            foreach ($ids as $moveId) {
+                $moveEquipment = Equipment::findOne((int) $moveId);
+                if (!$moveEquipment) {
+                    return ['success' => false, 'message' => 'Оборудование для переноса не найдено (id=' . (int) $moveId . ').'];
+                }
+                if ($this->isHostEquipment($moveEquipment)) {
+                    return [
+                        'success' => false,
+                        'message' => 'При переносе с ПК укажите в форме, какой монитор или ИБП переносится.',
+                    ];
+                }
+                if (!$this->isLinkableComponentEquipment($moveEquipment)) {
+                    return [
+                        'success' => false,
+                        'message' => 'Перенос компонента доступен только для мониторов и ИБП.',
+                    ];
+                }
+            }
+        } elseif ($operationMode === 'replace_from_warehouse') {
             if (count($ids) !== 1) {
                 return [
                     'success' => false,
-                    'message' => 'Для переноса компонента выберите один монитор, ИБП или системный блок в таблице.',
+                    'message' => 'Для замены со склада выберите одну единицу техники в таблице.',
                 ];
             }
-            $moveEquipment = Equipment::findOne((int) $ids[0]);
-            if (!$moveEquipment) {
-                return ['success' => false, 'message' => 'Оборудование для переноса не найдено.'];
-            }
-            if ($this->isHostEquipment($moveEquipment)) {
-                return [
-                    'success' => false,
-                    'message' => 'При переносе с ПК укажите в форме, какой монитор или ИБП переносится.',
-                ];
-            }
-            if (!$this->isLinkableComponentEquipment($moveEquipment)) {
-                return [
-                    'success' => false,
-                    'message' => 'Перенос компонента доступен только для мониторов и ИБП.',
-                ];
-            }
+            $replacementId = (int) Yii::$app->request->post('replacement_equipment_id', 0);
+            $replacedStatusId = (int) Yii::$app->request->post('replaced_status_id', 0);
+            $oldWarehouseLocationId = (int) Yii::$app->request->post('location_id', 0);
+            $changeDescription = Yii::$app->request->post('replaced_description_changed') === '1';
+            $replacedDescription = $changeDescription
+                ? (string) Yii::$app->request->post('replaced_description', '')
+                : null;
+            $applyNetworkProfile = Yii::$app->request->post('network_profile_changed') === '1';
+            $hostname = $applyNetworkProfile
+                ? trim((string) Yii::$app->request->post('hostname', ''))
+                : null;
+            $ipAddress = $applyNetworkProfile
+                ? trim((string) Yii::$app->request->post('ip', ''))
+                : null;
+            $service = new EquipmentReplacementService();
+
+            return $service->replace(
+                (int) $ids[0],
+                $replacementId,
+                $replacedStatusId,
+                $oldWarehouseLocationId > 0 ? $oldWarehouseLocationId : null,
+                $changeDescription,
+                $replacedDescription,
+                $applyNetworkProfile,
+                $hostname,
+                $ipAddress
+            );
         } elseif ($operationMode === 'move_to_warehouse') {
             if (empty($ids)) {
                 return ['success' => false, 'message' => 'Не выбрано оборудование для перемещения на склад.'];
@@ -1513,6 +1579,20 @@ class ArmController extends Controller
         $responsibleUserId = Yii::$app->request->post('responsible_user_id');
         $locationId = Yii::$app->request->post('location_id');
         $statusId = Yii::$app->request->post('status_id');
+        $responsibleUsersById = $this->parseResponsibleUsersPost(Yii::$app->request->post('responsible_users', []));
+        $responsibleUsersChanged = Yii::$app->request->post('responsible_users_changed') === '1';
+        if ($responsibleUsersChanged && $responsibleUsersById !== []) {
+            $responsibleUsersById = $this->expandResponsibleUsersWithLinkedComponents($responsibleUsersById);
+        }
+        $locationsById = $this->parseLocationsPost(Yii::$app->request->post('locations', []));
+        $locationsChanged = Yii::$app->request->post('locations_changed') === '1';
+        if ($locationsChanged && $locationsById !== []) {
+            $locationsById = $this->expandLocationsWithLinkedComponents($locationsById);
+        }
+        // Обычное переназначение: смена статуса не поддерживается
+        if ($operationMode === 'reassign') {
+            $statusId = null;
+        }
         $dismissalTargetUserId = Yii::$app->request->post('dismissal_target_user_id');
         $sendToWarehouse = (bool) Yii::$app->request->post('dismissal_to_warehouse', false);
         $targetSystemBlockId = Yii::$app->request->post('target_system_block_id');
@@ -1526,7 +1606,23 @@ class ArmController extends Controller
         $responsibleUserChanged = 0;
         $locationChanged = 0;
         $statusChanged = 0;
+        $networkProfileChanged = 0;
         $errors = [];
+        $networkProfiles = Yii::$app->request->post('network_profiles', []);
+        if (!is_array($networkProfiles)) {
+            $networkProfiles = [];
+        }
+        $networkProfileSubmitted = Yii::$app->request->post('network_profile_changed') === '1';
+        // Совместимость со старым одиночным форматом
+        if ($networkProfiles === [] && $networkProfileSubmitted) {
+            $legacyHostId = (int) Yii::$app->request->post('network_host_id', 0);
+            if ($legacyHostId > 0) {
+                $networkProfiles[$legacyHostId] = [
+                    'hostname' => trim((string) Yii::$app->request->post('hostname', '')),
+                    'ip' => trim((string) Yii::$app->request->post('ip', '')),
+                ];
+            }
+        }
 
         $transaction = Yii::$app->db->beginTransaction();
         try {
@@ -1571,7 +1667,16 @@ class ArmController extends Controller
                         }
                     }
                 } else {
-                    if ($responsibleUserId !== null && $responsibleUserId !== '') {
+                    $equipmentId = (int) $model->id;
+                    if ($responsibleUsersChanged && array_key_exists($equipmentId, $responsibleUsersById)) {
+                        $newUser = $responsibleUsersById[$equipmentId];
+                        if (!EquipHistory::idsEqual($model->responsible_user_id, $newUser)) {
+                            $model->responsible_user_id = $newUser;
+                            EquipHistory::log($model->id, $model->responsible_user_id ? 'assign' : 'unassign', ['responsible_user_id' => $oldResponsible], ['responsible_user_id' => $model->responsible_user_id]);
+                            $changed = true;
+                            $responsibleUserChanged++;
+                        }
+                    } elseif (!$responsibleUsersChanged && $responsibleUserId !== null && $responsibleUserId !== '') {
                         $newUser = ($responsibleUserId === '' || $responsibleUserId === '0') ? null : (int) $responsibleUserId;
                         if (!EquipHistory::idsEqual($model->responsible_user_id, $newUser)) {
                             $model->responsible_user_id = $newUser;
@@ -1580,7 +1685,16 @@ class ArmController extends Controller
                             $responsibleUserChanged++;
                         }
                     }
-                    if ($locationId !== null && $locationId !== '') {
+                    if ($locationsChanged && array_key_exists($equipmentId, $locationsById)) {
+                        $newLoc = $locationsById[$equipmentId];
+                        if ($newLoc !== null && !EquipHistory::idsEqual($model->location_id, $newLoc)) {
+                            $oldLoc = $model->location_id;
+                            $model->location_id = $newLoc;
+                            EquipHistory::log($model->id, 'move', ['location_id' => $oldLoc], ['location_id' => $model->location_id]);
+                            $changed = true;
+                            $locationChanged++;
+                        }
+                    } elseif (!$locationsChanged && $locationId !== null && $locationId !== '') {
                         $newLoc = (int) $locationId;
                         if (!EquipHistory::idsEqual($model->location_id, $newLoc)) {
                             $oldLoc = $model->location_id;
@@ -1590,7 +1704,7 @@ class ArmController extends Controller
                             $locationChanged++;
                         }
                     }
-                    if ($statusId !== null && $statusId !== '') {
+                    if ($operationMode !== 'reassign' && $statusId !== null && $statusId !== '') {
                         $newStatus = (int) $statusId;
                         if (!EquipHistory::idsEqual($model->status_id, $newStatus)) {
                             $oldStatus = $model->status_id;
@@ -1626,11 +1740,32 @@ class ArmController extends Controller
                 );
             }
 
+            if ($operationMode === 'reassign' && $networkProfileSubmitted && $networkProfiles !== []) {
+                foreach ($networkProfiles as $rawHostId => $profile) {
+                    if (!is_array($profile)) {
+                        continue;
+                    }
+                    $hostId = (int) $rawHostId;
+                    $hostname = trim((string) ($profile['hostname'] ?? ''));
+                    $ipAddress = trim((string) ($profile['ip'] ?? ''));
+                    if ($hostId <= 0 || ($hostname === '' && $ipAddress === '')) {
+                        continue;
+                    }
+                    $networkProfileChanged += $this->applyReassignHostNetworkProfile(
+                        $hostId,
+                        $hostname,
+                        $ipAddress
+                    );
+                }
+            }
+
             $transaction->commit();
         } catch (\Throwable $e) {
             $transaction->rollBack();
             return ['success' => false, 'message' => 'Ошибка операции переназначения: ' . $e->getMessage()];
         }
+
+        $updated += $networkProfileChanged;
 
         return [
             'success' => true,
@@ -1640,9 +1775,226 @@ class ArmController extends Controller
                 'responsible_user_changed' => $responsibleUserChanged,
                 'location_changed' => $locationChanged,
                 'status_changed' => $statusChanged,
+                'network_profile_changed' => $networkProfileChanged,
                 'errors' => $errors,
             ],
         ];
+    }
+
+    private function applyReassignHostNetworkProfile(int $hostId, string $hostname, string $ipAddress): int
+    {
+        $host = Equipment::findOne($hostId);
+        if ($host === null || $host->is_deleted || $host->is_archived || !$this->isHostEquipment($host)) {
+            return 0;
+        }
+
+        $partChar = [];
+        if ($hostname !== '') {
+            $partChar['hostname'] = $hostname;
+        }
+        if ($ipAddress !== '') {
+            $partChar['ip'] = $ipAddress;
+        }
+        if ($partChar === []) {
+            return 0;
+        }
+
+        (new EquipmentPartCharService())->savePartCharValues(
+            $hostId,
+            $partChar,
+            $host->resolveEquipmentTypeName()
+        );
+        AuditLog::log('equipment.reassign', 'equipment', $hostId, 'success', [
+            'mode' => 'reassign',
+            'network_profile' => true,
+        ]);
+
+        return 1;
+    }
+
+    /**
+     * @param mixed $raw
+     * @return array<int, int>
+     */
+    private function parseLocationsPost($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $equipmentId => $locationValue) {
+            $id = (int) $equipmentId;
+            if ($id <= 0) {
+                continue;
+            }
+            $value = is_scalar($locationValue) ? trim((string) $locationValue) : '';
+            if ($value === '' || $value === '0') {
+                continue;
+            }
+            $out[$id] = (int) $value;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Для переназначения ПК распространяет помещение на привязанные мониторы и ИБП.
+     *
+     * @param array<int, int> $locationsById
+     * @return array<int, int>
+     */
+    private function expandLocationsWithLinkedComponents(array $locationsById): array
+    {
+        if ($locationsById === [] || Yii::$app->db->getTableSchema('equipment_links', true) === null) {
+            return $locationsById;
+        }
+
+        $hostIds = [];
+        foreach (array_keys($locationsById) as $equipmentId) {
+            $equipment = Equipment::findOne((int) $equipmentId);
+            if ($equipment !== null && $this->isHostEquipment($equipment)) {
+                $hostIds[] = (int) $equipmentId;
+            }
+        }
+        if ($hostIds === []) {
+            return $locationsById;
+        }
+
+        $links = EquipmentLink::find()
+            ->select(['parent_equipment_id', 'child_equipment_id'])
+            ->where(['parent_equipment_id' => $hostIds])
+            ->asArray()
+            ->all();
+        if ($links === []) {
+            return $locationsById;
+        }
+
+        $childIds = array_values(array_unique(array_map(static fn(array $row): int => (int) $row['child_equipment_id'], $links)));
+        $activeChildIds = Equipment::find()
+            ->select('id')
+            ->where(['id' => $childIds, 'is_deleted' => false, 'is_archived' => false])
+            ->column();
+        $activeChildIds = array_map('intval', $activeChildIds);
+        if ($activeChildIds === []) {
+            return $locationsById;
+        }
+
+        $activeChildSet = array_fill_keys($activeChildIds, true);
+        foreach ($links as $link) {
+            $parentId = (int) $link['parent_equipment_id'];
+            $childId = (int) $link['child_equipment_id'];
+            if (!isset($activeChildSet[$childId]) || !array_key_exists($parentId, $locationsById)) {
+                continue;
+            }
+            if (!array_key_exists($childId, $locationsById)) {
+                $locationsById[$childId] = $locationsById[$parentId];
+            }
+        }
+
+        return $locationsById;
+    }
+
+    /**
+     * @param mixed $raw
+     * @return array<int, int|null>
+     */
+    private function parseResponsibleUsersPost($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $equipmentId => $userValue) {
+            $id = (int) $equipmentId;
+            if ($id <= 0) {
+                continue;
+            }
+            $value = is_scalar($userValue) ? trim((string) $userValue) : '';
+            if ($value === '') {
+                continue;
+            }
+            $out[$id] = ($value === '0') ? null : (int) $value;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Для переназначения ПК распространяет ответственного на привязанные мониторы и ИБП.
+     *
+     * @param array<int, int|null> $responsibleUsersById
+     * @return array<int, int|null>
+     */
+    private function expandResponsibleUsersWithLinkedComponents(array $responsibleUsersById): array
+    {
+        if ($responsibleUsersById === [] || Yii::$app->db->getTableSchema('equipment_links', true) === null) {
+            return $responsibleUsersById;
+        }
+
+        $hostIds = [];
+        foreach (array_keys($responsibleUsersById) as $equipmentId) {
+            $equipment = Equipment::findOne((int) $equipmentId);
+            if ($equipment !== null && $this->isHostEquipment($equipment)) {
+                $hostIds[] = (int) $equipmentId;
+            }
+        }
+        if ($hostIds === []) {
+            return $responsibleUsersById;
+        }
+
+        $links = EquipmentLink::find()
+            ->select(['parent_equipment_id', 'child_equipment_id'])
+            ->where(['parent_equipment_id' => $hostIds])
+            ->asArray()
+            ->all();
+        if ($links === []) {
+            return $responsibleUsersById;
+        }
+
+        $childIds = array_values(array_unique(array_map(static fn(array $row): int => (int) $row['child_equipment_id'], $links)));
+        $activeChildIds = Equipment::find()
+            ->select('id')
+            ->where(['id' => $childIds, 'is_deleted' => false, 'is_archived' => false])
+            ->column();
+        $activeChildIds = array_map('intval', $activeChildIds);
+        if ($activeChildIds === []) {
+            return $responsibleUsersById;
+        }
+
+        $activeChildSet = array_fill_keys($activeChildIds, true);
+        foreach ($links as $link) {
+            $parentId = (int) $link['parent_equipment_id'];
+            $childId = (int) $link['child_equipment_id'];
+            if (!isset($activeChildSet[$childId]) || !array_key_exists($parentId, $responsibleUsersById)) {
+                continue;
+            }
+            if (!array_key_exists($childId, $responsibleUsersById)) {
+                $responsibleUsersById[$childId] = $responsibleUsersById[$parentId];
+            }
+        }
+
+        return $responsibleUsersById;
+    }
+
+    /**
+     * Список техники на складе для замены (СБ / монитор / ИБП).
+     * GET: kind=host|monitor|ups, warehouse_location_id?, match_equipment_id?
+     */
+    public function actionReplaceOptions()
+    {
+        Yii::$app->response->format = Response::FORMAT_JSON;
+        $kind = (string) Yii::$app->request->get('kind', '');
+        $warehouseLocationId = (int) Yii::$app->request->get('warehouse_location_id', 0);
+        $matchEquipmentId = (int) Yii::$app->request->get('match_equipment_id', 0);
+        $service = new EquipmentReplacementService();
+
+        return $service->getWarehouseOptions(
+            $kind,
+            $warehouseLocationId > 0 ? $warehouseLocationId : null,
+            $matchEquipmentId > 0 ? $matchEquipmentId : null
+        );
     }
 
     public function actionSystemBlocks()
@@ -1882,7 +2234,7 @@ class ArmController extends Controller
 
     /**
      * Столбец «Комментарий» — «Другая техника» у ПК; у принтера/МФУ — примечание без строки про картриджи;
-     * у типа «Прочее» — из part_char.
+     * у типа «Прочее» — из part_char; у монитора/ИБП и пр. — equipment.description.
      *
      * @param array<string, string> $chars
      */
@@ -1894,9 +2246,6 @@ class ArmController extends Controller
         }
         if (EquipmentCharCatalog::isMiscType($type)) {
             return $this->formatMiscDescriptionForGrid($equipment, $chars);
-        }
-        if (!$this->isHostEquipment($equipment)) {
-            return '';
         }
 
         return EquipmentCharCatalog::normalizeEquipmentComment($equipment->description);
@@ -2408,27 +2757,6 @@ class ArmController extends Controller
             $transaction->rollBack();
             return ['success' => false, 'message' => $e->getMessage()];
         }
-    }
-
-    /**
-     * Архивирование актива (вывод из актуального учета).
-     */
-    public function actionArchive($id)
-    {
-        $model = $this->findModel((int) $id);
-        $this->ensureCanAccessEquipment($model);
-        $reason = Yii::$app->request->post('archive_reason', '');
-        $model->is_archived = true;
-        $model->archived_at = date('Y-m-d H:i:s');
-        $model->archive_reason = $reason;
-        if ($model->save(false)) {
-            EquipHistory::log($model->id, 'archive', ['is_archived' => false], ['is_archived' => true], $reason);
-            AuditLog::log('equipment.archive', 'equipment', $model->id, 'success', ['archive_reason' => $reason]);
-            Yii::$app->session->setFlash('success', 'Актив архивирован.');
-        } else {
-            Yii::$app->session->setFlash('error', 'Ошибка при архивировании.');
-        }
-        return $this->redirect(['view', 'id' => $model->id]);
     }
 
     private function ensureCanAccessEquipment(Equipment $model): void
