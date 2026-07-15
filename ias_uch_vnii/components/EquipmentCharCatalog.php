@@ -1286,6 +1286,7 @@ class EquipmentCharCatalog
     {
         $labels = [
             'user_name' => 'Пользователь',
+            'previous_user_name' => 'Предыдущий пользователь',
             'location_name' => 'Помещение',
             'status_name' => 'Статус',
             'system_block' => 'Тип/Название техники',
@@ -1341,7 +1342,7 @@ class EquipmentCharCatalog
                 'id' => 'base',
                 'title' => 'Основное',
                 'icon' => 'fa-id-card',
-                'columns' => ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+                'columns' => ['user_name', 'previous_user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
             ],
             [
                 'id' => 'config',

@@ -34,6 +34,8 @@ class EquipHistory extends ActiveRecord
         'move_to_warehouse_detach_kit' => 'Перемещение на склад: разрыв связи комплекта',
         'delivery_post' => 'Проведение поставки',
         'delivery_sync' => 'Синхронизация с поставкой',
+        'issue_kit' => 'Выдача комплекта со склада',
+        'issue_from_warehouse' => 'Выдача со склада к системному блоку',
     ];
 
     public static function tableName()
@@ -139,6 +141,174 @@ class EquipHistory extends ActiveRecord
         }
 
         return self::COMMENT_LABELS[$key] ?? $key;
+    }
+
+    /**
+     * История прикрепления техники к ответственным пользователям (по событиям assign/unassign).
+     *
+     * @return list<array{
+     *   user_id: int|null,
+     *   user_name: string,
+     *   from: string|null,
+     *   to: string|null,
+     *   is_current: bool
+     * }>
+     */
+    public static function buildResponsiblePeriods(
+        int $equipmentId,
+        ?int $currentUserId = null,
+        ?string $currentUserName = null,
+        ?string $fallbackFrom = null
+    ): array {
+        $events = self::find()
+            ->where([
+                'equipment_id' => $equipmentId,
+                'event_type' => ['assign', 'unassign'],
+            ])
+            ->orderBy(['changed_at' => SORT_ASC, 'id' => SORT_ASC])
+            ->all();
+
+        $periods = [];
+        /** @var array{user_id: int|null, user_name: string, from: string|null, to: string|null, is_current: bool}|null $open */
+        $open = null;
+
+        foreach ($events as $event) {
+            if (!$event instanceof self) {
+                continue;
+            }
+            $old = self::decodeValue($event->old_value);
+            $new = self::decodeValue($event->new_value);
+            $oldId = self::normalizeId(is_array($old) ? ($old['responsible_user_id'] ?? null) : null);
+            $newId = self::normalizeId(is_array($new) ? ($new['responsible_user_id'] ?? null) : null);
+            $oldName = self::pickLabel($old, 'responsible_user_name', 'responsible_user_id', 'не назначен');
+            $newName = self::pickLabel($new, 'responsible_user_name', 'responsible_user_id', 'не назначен');
+            $at = (string) $event->changed_at;
+
+            if ($event->event_type === 'assign') {
+                if ($open !== null) {
+                    $open['to'] = $at;
+                    $open['is_current'] = false;
+                    $periods[] = $open;
+                    $open = null;
+                } elseif ($oldId !== null) {
+                    $periods[] = [
+                        'user_id' => $oldId,
+                        'user_name' => $oldName,
+                        'from' => $fallbackFrom,
+                        'to' => $at,
+                        'is_current' => false,
+                    ];
+                }
+                if ($newId !== null) {
+                    $open = [
+                        'user_id' => $newId,
+                        'user_name' => $newName,
+                        'from' => $at,
+                        'to' => null,
+                        'is_current' => true,
+                    ];
+                }
+                continue;
+            }
+
+            // unassign
+            if ($open !== null) {
+                $open['to'] = $at;
+                $open['is_current'] = false;
+                $periods[] = $open;
+                $open = null;
+            } elseif ($oldId !== null) {
+                $periods[] = [
+                    'user_id' => $oldId,
+                    'user_name' => $oldName,
+                    'from' => $fallbackFrom,
+                    'to' => $at,
+                    'is_current' => false,
+                ];
+            }
+        }
+
+        if ($open !== null) {
+            $periods[] = $open;
+        } elseif ($currentUserId !== null && $currentUserId > 0) {
+            $covered = false;
+            foreach ($periods as $period) {
+                if (!empty($period['is_current']) && (int) ($period['user_id'] ?? 0) === $currentUserId) {
+                    $covered = true;
+                    break;
+                }
+            }
+            if (!$covered) {
+                $name = trim((string) $currentUserName);
+                $periods[] = [
+                    'user_id' => $currentUserId,
+                    'user_name' => $name !== '' ? $name : self::resolveUserName($currentUserId),
+                    'from' => $fallbackFrom,
+                    'to' => null,
+                    'is_current' => true,
+                ];
+            }
+        }
+
+        return array_reverse($periods);
+    }
+
+    /**
+     * Имена последних ответственных до текущего состояния (для склада — «кто был до возврата»).
+     *
+     * @param int[] $equipmentIds
+     * @return array<int, string> equipment_id => user name
+     */
+    public static function loadPreviousResponsibleNames(array $equipmentIds): array
+    {
+        $ids = [];
+        foreach ($equipmentIds as $id) {
+            $id = (int) $id;
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+        $ids = array_keys($ids);
+        if ($ids === []) {
+            return [];
+        }
+
+        $events = self::find()
+            ->where([
+                'equipment_id' => $ids,
+                'event_type' => ['assign', 'unassign'],
+            ])
+            ->orderBy([
+                'equipment_id' => SORT_ASC,
+                'changed_at' => SORT_DESC,
+                'id' => SORT_DESC,
+            ])
+            ->all();
+
+        $result = [];
+        $resolved = [];
+
+        foreach ($events as $event) {
+            if (!$event instanceof self) {
+                continue;
+            }
+            $equipmentId = (int) $event->equipment_id;
+            if (isset($resolved[$equipmentId])) {
+                continue;
+            }
+
+            $old = self::decodeValue($event->old_value);
+            $oldId = self::normalizeId(is_array($old) ? ($old['responsible_user_id'] ?? null) : null);
+            if ($oldId === null) {
+                continue;
+            }
+
+            // Последнее событие с прежним ответственным: unassign или смена assign A→B.
+            $result[$equipmentId] = self::pickLabel($old, 'responsible_user_name', 'responsible_user_id', 'не назначен');
+            $resolved[$equipmentId] = true;
+        }
+
+        return $result;
     }
 
     /**

@@ -269,7 +269,7 @@ $this->title = $pageTitle;
                                 role="radio"
                                 aria-checked="true">
                             <i class="fas fa-user-pen" aria-hidden="true"></i>
-                            <span>Обычное переназначение</span>
+                            <span>Сменить пользователя или помещение</span>
                         </button>
                         <button type="button"
                                 class="arm-reassign-mode-btn"
@@ -278,7 +278,7 @@ $this->title = $pageTitle;
                                 role="radio"
                                 aria-checked="false">
                             <i class="fas fa-link" aria-hidden="true"></i>
-                            <span>Привязка к системному блоку</span>
+                            <span>Прикрепить монитор или ИБП к другому системному блоку</span>
                         </button>
                         <button type="button"
                                 class="arm-reassign-mode-btn"
@@ -286,7 +286,7 @@ $this->title = $pageTitle;
                                 role="radio"
                                 aria-checked="false">
                             <i class="fas fa-warehouse" aria-hidden="true"></i>
-                            <span>Перемещение на склад</span>
+                            <span>Переместить на склад</span>
                         </button>
                         <button type="button"
                                 class="arm-reassign-mode-btn"
@@ -295,7 +295,16 @@ $this->title = $pageTitle;
                                 role="radio"
                                 aria-checked="false">
                             <i class="fas fa-right-left" aria-hidden="true"></i>
-                            <span>Замена со склада</span>
+                            <span>Заменить монитор или ИБП со склада</span>
+                        </button>
+                        <button type="button"
+                                class="arm-reassign-mode-btn"
+                                data-mode="issue_from_warehouse"
+                                id="reassignModeBtnIssue"
+                                role="radio"
+                                aria-checked="false">
+                            <i class="fas fa-box-open" aria-hidden="true"></i>
+                            <span>Прикрепить технику со склада</span>
                         </button>
                     </div>
                     <p class="arm-reassign-mode-hint" id="reassignModeHint" role="note"></p>
@@ -314,9 +323,9 @@ $this->title = $pageTitle;
                                     <i class="fas fa-link"></i>
                                 </span>
                                 <div class="arm-reassign-params-bulk__head-text">
-                                    <div class="arm-reassign-params-bulk__title">Привязка к системному блоку</div>
+                                    <div class="arm-reassign-params-bulk__title">Прикрепить монитор или ИБП к другому системному блоку</div>
                                     <div class="arm-reassign-params-bulk__hint" id="moveComponentHint">
-                                        Выберите компонент и укажите, к какому ПК его привязать
+                                        Отметьте мониторы и ИБП в списке и укажите системный блок, к которому их нужно прикрепить
                                     </div>
                                 </div>
                             </div>
@@ -324,47 +333,34 @@ $this->title = $pageTitle;
                             <div class="arm-reassign-move-step" id="moveComponentSourceStep">
                                 <div class="arm-reassign-move-step__label">
                                     <span class="arm-reassign-move-step__num">1</span>
-                                    Что привязать
+                                    Что прикрепить
                                 </div>
                                 <div id="moveComponentSourceCard" class="arm-reassign-move-source"></div>
-                                <div id="componentLinkTypeWrap" class="arm-reassign-move-type">
-                                    <span class="arm-reassign-params-bulk__label">Тип компонента</span>
-                                    <div class="arm-reassign-move-type__switch" role="radiogroup" aria-label="Тип компонента">
-                                        <button type="button" class="arm-reassign-move-type__btn is-active" data-link-type="monitor" role="radio" aria-checked="true">
-                                            <i class="fas fa-desktop" aria-hidden="true"></i>
-                                            Монитор
-                                        </button>
-                                        <button type="button" class="arm-reassign-move-type__btn" data-link-type="ups" role="radio" aria-checked="false">
-                                            <i class="fas fa-bolt" aria-hidden="true"></i>
-                                            ИБП
-                                        </button>
-                                    </div>
-                                    <select id="componentLinkType" class="d-none" aria-hidden="true" tabindex="-1">
-                                        <option value="monitor" selected>Монитор</option>
-                                        <option value="ups">ИБП</option>
-                                    </select>
-                                </div>
                                 <div id="moveComponentChildWrap" class="arm-reassign-move-child" style="display:none;">
-                                    <span class="arm-reassign-params-bulk__label" id="moveComponentChildLabel">Какие мониторы перенести</span>
-                                    <div id="moveComponentChildList" class="arm-reassign-move-child__list" role="group" aria-labelledby="moveComponentChildLabel"></div>
-                                    <select id="moveComponentChildId" class="d-none" multiple aria-hidden="true" tabindex="-1"></select>
                                     <small class="arm-reassign-params-bulk__hint" id="moveComponentChildHint">
-                                        У выбранного ПК несколько мониторов — отметьте один или несколько для переноса.
+                                        Отметьте мониторы и ИБП, которые нужно прикрепить к другому системному блоку.
                                     </small>
+                                    <div id="moveComponentChildList" class="arm-reassign-move-child__list" role="group" aria-label="Мониторы и ИБП для прикрепления"></div>
+                                    <select id="moveComponentChildId" class="d-none" multiple aria-hidden="true" tabindex="-1"></select>
                                     <div class="arm-reassign-params-alert" id="moveComponentChildEmpty" style="display:none;">
-                                        Нет привязанных мониторов у выбранного ПК. Выберите строку монитора в таблице или другой тип компонента.
+                                        У выбранной техники нет мониторов или ИБП для прикрепления.
                                     </div>
                                 </div>
+                                <select id="componentLinkType" class="d-none" aria-hidden="true" tabindex="-1">
+                                    <option value="" selected></option>
+                                    <option value="monitor">Монитор</option>
+                                    <option value="ups">ИБП</option>
+                                </select>
                             </div>
 
                             <div class="arm-reassign-move-step" id="moveComponentAttachWrap">
                                 <div class="arm-reassign-move-step__label">
                                     <span class="arm-reassign-move-step__num">2</span>
-                                    Куда привязать
+                                    К какому системному блоку
                                 </div>
                                 <div class="arm-reassign-params-bulk__fields">
                                     <div class="arm-reassign-params-bulk__field js-user-select-field">
-                                        <label class="arm-reassign-params-bulk__label" for="targetSystemBlockUserId">Владелец целевого ПК</label>
+                                        <label class="arm-reassign-params-bulk__label" for="targetSystemBlockUserId">Ответственный целевого блока</label>
                                         <select id="targetSystemBlockUserId" class="form-select form-select-sm js-user-select-search" data-placeholder="Выберите пользователя">
                                             <option value="">— выберите пользователя —</option>
                                             <?php foreach ($users ?? [] as $uid => $uname): ?>
@@ -384,37 +380,68 @@ $this->title = $pageTitle;
                     </div>
 
                     <div class="arm-reassign-params" id="warehouseMoveWrap" style="display:none;">
-                        <div class="arm-reassign-params-bulk arm-reassign-warehouse-head">
-                            <div class="arm-reassign-params-bulk__head">
-                                <span class="arm-reassign-params-bulk__icon" aria-hidden="true">
-                                    <i class="fas fa-warehouse"></i>
-                                </span>
-                                <div class="arm-reassign-params-bulk__head-text">
-                                    <div class="arm-reassign-params-bulk__title">Складское помещение</div>
-                                    <div class="arm-reassign-params-bulk__hint">Ответственный будет снят. Статус техники не меняется.</div>
+                        <div class="arm-reassign-params-scroll arm-warehouse-params-scroll" id="warehouseParamsScroll">
+                            <div class="arm-reassign-params-bulk arm-warehouse-params-bulk" id="warehouseParamsBulkBar">
+                                <div class="arm-reassign-params-bulk__head">
+                                    <span class="arm-reassign-params-bulk__icon" aria-hidden="true">
+                                        <i class="fas fa-warehouse"></i>
+                                    </span>
+                                    <div class="arm-reassign-params-bulk__head-text">
+                                        <div class="arm-reassign-params-bulk__title">Переместить на склад</div>
+                                        <div class="arm-reassign-params-bulk__hint">Укажите склад у нужных единиц — остальные не переместятся. Ответственный будет снят.</div>
+                                    </div>
+                                </div>
+                                <div class="arm-reassign-params-bulk__fields">
+                                    <div class="arm-reassign-params-bulk__field js-user-select-field">
+                                        <label class="arm-reassign-params-bulk__label" for="warehouseBulkLocationId">Склад для всех строк</label>
+                                        <div class="arm-reassign-params-bulk__control">
+                                            <select id="warehouseBulkLocationId" class="form-select form-select-sm js-user-select-search" data-placeholder="Выберите склад">
+                                                <option value="">— выберите склад —</option>
+                                                <?php foreach ($warehouseLocations ?? [] as $wlid => $wlname): ?>
+                                                <option value="<?= (int) $wlid ?>"><?= Html::encode($wlname) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <button type="button" class="btn btn-sm arm-reassign-params-bulk__btn" id="warehouseBulkLocationApply" disabled title="Применить ко всем строкам">
+                                                <i class="fas fa-check" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="arm-reassign-params-bulk__field">
+                                        <label class="arm-reassign-params-bulk__label" for="warehouseBulkStatusId">Статус для всех строк</label>
+                                        <div class="arm-reassign-params-bulk__control">
+                                            <select id="warehouseBulkStatusId" class="form-select form-select-sm">
+                                                <option value="">— не менять —</option>
+                                                <?php foreach ($statuses ?? [] as $sid => $sname): ?>
+                                                <option value="<?= (int) $sid ?>"><?= Html::encode($sname) ?></option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                            <button type="button" class="btn btn-sm arm-reassign-params-bulk__btn" id="warehouseBulkStatusApply" disabled title="Применить ко всем строкам">
+                                                <i class="fas fa-check" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="arm-reassign-params-bulk__fields arm-reassign-params-bulk__fields--single">
-                                <div class="arm-reassign-params-bulk__field js-user-select-field">
-                                    <label class="arm-reassign-params-bulk__label" for="warehouseLocationId">Куда переместить <span class="text-danger">*</span></label>
-                                    <select id="warehouseLocationId" class="form-select form-select-sm js-user-select-search" data-placeholder="Выберите склад">
-                                        <option value="">— выберите склад —</option>
-                                        <?php foreach ($warehouseLocations ?? [] as $wlid => $wlname): ?>
-                                        <option value="<?= (int) $wlid ?>"><?= Html::encode($wlname) ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                    <?php if (empty($warehouseLocations)): ?>
-                                    <p class="form-text text-warning mb-0">В справочнике нет помещений с типом «склад». Добавьте склад в разделе справочников.</p>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="warehouseKitWrap" class="arm-reassign-warehouse-kit" style="display:none;">
-                            <div class="arm-reassign-warehouse-kit__head">
-                                <div class="arm-reassign-warehouse-kit__title">Что переместить на склад</div>
-                                <div class="arm-reassign-warehouse-kit__hint">Отметьте системный блок, мониторы и ИБП комплекта</div>
-                            </div>
-                            <div id="warehouseKitList" class="arm-warehouse-kit-list"></div>
+                            <?php if (empty($warehouseLocations)): ?>
+                            <p class="form-text text-warning mb-2 px-2">В справочнике нет помещений с типом «склад». Добавьте склад в разделе справочников.</p>
+                            <?php endif; ?>
+                            <table class="arm-reassign-params-table arm-warehouse-params-table" id="warehouseParamsTable">
+                                <colgroup>
+                                    <col class="arm-reassign-params-col arm-reassign-params-col--equip">
+                                    <col class="arm-reassign-params-col arm-warehouse-params-col--warehouse">
+                                    <col class="arm-reassign-params-col arm-warehouse-params-col--status">
+                                    <col class="arm-reassign-params-col arm-warehouse-params-col--comment">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th class="arm-reassign-params-table__th arm-reassign-params-table__th--equip">Техника</th>
+                                        <th class="arm-reassign-params-table__th">Склад</th>
+                                        <th class="arm-reassign-params-table__th">Статус</th>
+                                        <th class="arm-reassign-params-table__th">Комментарий</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="warehouseParamsList"></tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -425,9 +452,9 @@ $this->title = $pageTitle;
                                     <i class="fas fa-right-left"></i>
                                 </span>
                                 <div class="arm-reassign-params-bulk__head-text">
-                                    <div class="arm-reassign-params-bulk__title">Замена со склада</div>
+                                    <div class="arm-reassign-params-bulk__title">Заменить монитор или ИБП со склада</div>
                                     <div class="arm-reassign-params-bulk__hint">
-                                        Новая единица встаёт на место старой. Старая уходит на склад с выбранным статусом.
+                                        Выберите монитор или ИБП для замены и единицу того же типа со склада. Новая займёт место в комплекте, снятая переместится на склад.
                                     </div>
                                 </div>
                             </div>
@@ -435,36 +462,36 @@ $this->title = $pageTitle;
                             <div class="arm-reassign-move-step">
                                 <div class="arm-reassign-move-step__label">
                                     <span class="arm-reassign-move-step__num">1</span>
-                                    Что заменяем
+                                    Что заменить
                                 </div>
                                 <div id="replaceSourceCard" class="arm-reassign-move-source"></div>
-                                <div id="replaceTargetList" class="arm-reassign-move-child__list" role="radiogroup" aria-label="Выберите заменяемую единицу"></div>
+                                <div id="replaceTargetList" class="arm-reassign-move-child__list" role="radiogroup" aria-label="Выберите монитор или ИБП для замены"></div>
                                 <input type="hidden" id="replaceTargetEquipmentId" value="">
                                 <small class="arm-reassign-params-bulk__hint" id="replaceTargetHint" style="display:none;">
-                                    В комплекте несколько единиц — выберите, что именно заменить со склада.
+                                    В комплекте несколько единиц — выберите монитор или ИБП, который нужно заменить.
                                 </small>
                             </div>
 
                             <div class="arm-reassign-move-step">
                                 <div class="arm-reassign-move-step__label">
                                     <span class="arm-reassign-move-step__num">2</span>
-                                    Статус заменяемой техники
+                                    Статус снимаемой техники
                                 </div>
                                 <div class="arm-reassign-params-bulk__fields arm-reassign-params-bulk__fields--single">
                                     <div class="arm-reassign-params-bulk__field">
-                                        <label class="arm-reassign-params-bulk__label" for="replacedStatusId">Новый статус</label>
+                                        <label class="arm-reassign-params-bulk__label" for="replacedStatusId">Статус на складе</label>
                                         <select id="replacedStatusId" class="form-select form-select-sm">
                                             <option value="">— не менять —</option>
                                             <?php foreach ($statuses ?? [] as $sid => $sname): ?>
                                             <option value="<?= (int) $sid ?>"><?= Html::encode($sname) ?></option>
                                             <?php endforeach; ?>
                                         </select>
-                                        <small class="arm-reassign-params-bulk__hint">Укажите, только если нужно сменить статус (например, если техника вышла из строя).</small>
+                                        <small class="arm-reassign-params-bulk__hint">Укажите статус, если снимаемая техника неисправна или требует особой отметки.</small>
                                     </div>
                                     <div class="arm-reassign-params-bulk__field">
-                                        <label class="arm-reassign-params-bulk__label" for="replacedDescription">Комментарий</label>
-                                        <textarea id="replacedDescription" class="form-control form-control-sm" rows="5" placeholder="Текст комментария"></textarea>
-                                        <small class="arm-reassign-params-bulk__hint">Текущий комментарий подставляется автоматически. Измените текст, если нужно обновить примечание.</small>
+                                        <label class="arm-reassign-params-bulk__label" for="replacedDescription">Комментарий к снимаемой технике</label>
+                                        <textarea id="replacedDescription" class="form-control form-control-sm" rows="5" placeholder="Причина замены, состояние техники…"></textarea>
+                                        <small class="arm-reassign-params-bulk__hint">Текущий комментарий подставляется автоматически. Измените текст при необходимости.</small>
                                     </div>
                                 </div>
                                 <div id="replaceNetworkWrap" class="arm-reassign-params-bulk__fields" style="display:none;">
@@ -476,18 +503,18 @@ $this->title = $pageTitle;
                                         <label class="arm-reassign-params-bulk__label" for="replaceIpAddress">IP-адрес</label>
                                         <input type="text" id="replaceIpAddress" class="form-control form-control-sm" maxlength="100" placeholder="IP-адрес" autocomplete="off">
                                     </div>
-                                    <small class="arm-reassign-params-bulk__hint">Подставляются с заменяемого системного блока и будут записаны на новую технику со склада.</small>
+                                    <small class="arm-reassign-params-bulk__hint">Копируются с заменяемого системного блока и будут записаны на новую технику со склада.</small>
                                 </div>
                             </div>
 
                             <div class="arm-reassign-move-step">
                                 <div class="arm-reassign-move-step__label">
                                     <span class="arm-reassign-move-step__num">3</span>
-                                    Чем заменить
+                                    Замена со склада
                                 </div>
                                 <div class="arm-reassign-params-bulk__fields">
                                     <div class="arm-reassign-params-bulk__field js-user-select-field">
-                                        <label class="arm-reassign-params-bulk__label" for="replaceWarehouseLocationId">Склад</label>
+                                        <label class="arm-reassign-params-bulk__label" for="replaceWarehouseLocationId">Склад-источник</label>
                                         <select id="replaceWarehouseLocationId" class="form-select form-select-sm js-user-select-search" data-placeholder="Все склады">
                                             <option value="">— все склады —</option>
                                             <?php foreach ($warehouseLocations ?? [] as $wlid => $wlname): ?>
@@ -496,9 +523,73 @@ $this->title = $pageTitle;
                                         </select>
                                     </div>
                                     <div class="arm-reassign-params-bulk__field js-user-select-field">
-                                        <label class="arm-reassign-params-bulk__label" for="replacementEquipmentId">Техника со склада <span class="text-danger">*</span></label>
-                                        <select id="replacementEquipmentId" class="form-select form-select-sm js-user-select-search" data-placeholder="Выберите замену">
-                                            <option value="">— выберите замену —</option>
+                                        <label class="arm-reassign-params-bulk__label" for="replacementEquipmentId">Монитор или ИБП со склада <span class="text-danger">*</span></label>
+                                        <select id="replacementEquipmentId" class="form-select form-select-sm js-user-select-search" data-placeholder="Выберите технику со склада">
+                                            <option value="">— выберите технику —</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="arm-reassign-params" id="issueFromWarehouseWrap" style="display:none;">
+                        <div class="arm-reassign-move-component">
+                            <div class="arm-reassign-params-bulk__head">
+                                <span class="arm-reassign-params-bulk__icon" aria-hidden="true">
+                                    <i class="fas fa-box-open"></i>
+                                </span>
+                                <div class="arm-reassign-params-bulk__head-text">
+                                    <div class="arm-reassign-params-bulk__title">Прикрепить технику со склада</div>
+                                    <div class="arm-reassign-params-bulk__hint">
+                                        Выберите монитор или ИБП со склада — он будет прикреплён к выбранному системному блоку и получит его помещение и ответственного.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="arm-reassign-move-step">
+                                <div class="arm-reassign-move-step__label">
+                                    <span class="arm-reassign-move-step__num">1</span>
+                                    Что прикрепить
+                                </div>
+                                <div class="arm-reassign-move-type">
+                                    <span class="arm-reassign-params-bulk__label">Тип техники</span>
+                                    <div class="arm-reassign-move-type__switch" id="issueKindSwitch" role="radiogroup" aria-label="Тип прикрепляемой техники">
+                                        <button type="button" class="arm-reassign-move-type__btn is-active" data-issue-kind="monitor" role="radio" aria-checked="true">
+                                            <i class="fas fa-desktop" aria-hidden="true"></i>
+                                            Монитор
+                                        </button>
+                                        <button type="button" class="arm-reassign-move-type__btn" data-issue-kind="ups" role="radio" aria-checked="false">
+                                            <i class="fas fa-bolt" aria-hidden="true"></i>
+                                            ИБП
+                                        </button>
+                                    </div>
+                                    <select id="issueKind" class="d-none" aria-hidden="true" tabindex="-1">
+                                        <option value="monitor" selected>Монитор</option>
+                                        <option value="ups">ИБП</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="arm-reassign-move-step">
+                                <div class="arm-reassign-move-step__label">
+                                    <span class="arm-reassign-move-step__num">2</span>
+                                    Выбор со склада
+                                </div>
+                                <div class="arm-reassign-params-bulk__fields">
+                                    <div class="arm-reassign-params-bulk__field js-user-select-field">
+                                        <label class="arm-reassign-params-bulk__label" for="issueWarehouseLocationId">Склад-источник</label>
+                                        <select id="issueWarehouseLocationId" class="form-select form-select-sm js-user-select-search" data-placeholder="Все склады">
+                                            <option value="">— все склады —</option>
+                                            <?php foreach ($warehouseLocations ?? [] as $wlid => $wlname): ?>
+                                            <option value="<?= (int) $wlid ?>"><?= Html::encode($wlname) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="arm-reassign-params-bulk__field js-user-select-field">
+                                        <label class="arm-reassign-params-bulk__label" for="issueWarehouseEquipmentId">Монитор или ИБП <span class="text-danger">*</span></label>
+                                        <select id="issueWarehouseEquipmentId" class="form-select form-select-sm js-user-select-search" data-placeholder="Выберите технику со склада">
+                                            <option value="">— выберите технику —</option>
                                         </select>
                                     </div>
                                 </div>
@@ -509,42 +600,44 @@ $this->title = $pageTitle;
                     <div class="arm-reassign-panel arm-reassign-fields-stack" id="reassignCommonFieldsWrap">
                         <div id="reassignMultiEquipmentWrap" class="arm-reassign-params" style="display:none;">
                             <div class="arm-reassign-params-scroll" id="reassignParamsScroll">
-                                <div class="arm-reassign-params-bulk" id="reassignParamsBulkBar">
+                                <div class="arm-reassign-params-bulk arm-reassign-reassign-bulk">
                                     <div class="arm-reassign-params-bulk__head">
                                         <span class="arm-reassign-params-bulk__icon" aria-hidden="true">
-                                            <i class="fas fa-layer-group"></i>
+                                            <i class="fas fa-user-pen"></i>
                                         </span>
                                         <div class="arm-reassign-params-bulk__head-text">
-                                            <div class="arm-reassign-params-bulk__title">Применить к всей технике</div>
-                                            <div class="arm-reassign-params-bulk__hint">Выберите значение и нажмите ✓ — оно проставится во все строки</div>
+                                            <div class="arm-reassign-params-bulk__title">Сменить пользователя или помещение</div>
+                                            <div class="arm-reassign-params-bulk__hint">
+                                                Задайте ответственного, помещение и при необходимости имя ПК и IP-адрес для каждой единицы.
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="arm-reassign-params-bulk__fields">
+                                    <div class="arm-reassign-params-bulk__fields arm-reassign-params-bulk__fields--toolbar" id="reassignParamsBulkFields" style="display:none;">
                                         <div class="arm-reassign-params-bulk__field js-user-select-field">
-                                            <label class="arm-reassign-params-bulk__label" for="reassignBulkUserId">Ответственный</label>
+                                            <label class="arm-reassign-params-bulk__label" for="reassignBulkUserId">Ответственный для всех</label>
                                             <div class="arm-reassign-params-bulk__control">
-                                                <select id="reassignBulkUserId" class="form-select form-select-sm js-user-select-search" data-placeholder="Выберите значение">
-                                                    <option value="">— не менять —</option>
+                                                <select id="reassignBulkUserId" class="form-select form-select-sm js-user-select-search" data-placeholder="Ответственный…">
+                                                    <option value="">Ответственный…</option>
                                                     <option value="0">— снять назначение —</option>
                                                     <?php foreach ($users ?? [] as $uid => $uname): ?>
                                                     <option value="<?= (int)$uid ?>"><?= Html::encode($uname) ?></option>
                                                     <?php endforeach; ?>
                                                 </select>
-                                                <button type="button" class="btn btn-sm arm-reassign-params-bulk__btn" id="reassignBulkUserApply" disabled title="Применить ко всей технике">
+                                                <button type="button" class="btn btn-sm arm-reassign-params-bulk__btn" id="reassignBulkUserApply" disabled title="Применить ответственного ко всем строкам">
                                                     <i class="fas fa-check" aria-hidden="true"></i>
                                                 </button>
                                             </div>
                                         </div>
                                         <div class="arm-reassign-params-bulk__field js-user-select-field">
-                                            <label class="arm-reassign-params-bulk__label" for="reassignBulkLocationId">Помещение</label>
+                                            <label class="arm-reassign-params-bulk__label" for="reassignBulkLocationId">Помещение для всех</label>
                                             <div class="arm-reassign-params-bulk__control">
-                                                <select id="reassignBulkLocationId" class="form-select form-select-sm js-user-select-search" data-placeholder="Выберите значение">
-                                                    <option value="">— не менять —</option>
+                                                <select id="reassignBulkLocationId" class="form-select form-select-sm js-user-select-search" data-placeholder="Помещение…">
+                                                    <option value="">Помещение…</option>
                                                     <?php foreach ($locations ?? [] as $lid => $lname): ?>
                                                     <option value="<?= (int)$lid ?>"><?= Html::encode($lname) ?></option>
                                                     <?php endforeach; ?>
                                                 </select>
-                                                <button type="button" class="btn btn-sm arm-reassign-params-bulk__btn" id="reassignBulkLocationApply" disabled title="Применить ко всей технике">
+                                                <button type="button" class="btn btn-sm arm-reassign-params-bulk__btn" id="reassignBulkLocationApply" disabled title="Применить помещение ко всем строкам">
                                                     <i class="fas fa-check" aria-hidden="true"></i>
                                                 </button>
                                             </div>
@@ -626,12 +719,12 @@ $this->registerJs("
 (function(){
     var reassignModal, pendingIds = [], originalSelectionIds = [], equipmentData = [], equipmentSummary = {}, armSystemBlocksCache = {};
     var REASSIGN_MODE_HINTS = {
-        move_to_warehouse: 'Выберите складское помещение. Ответственный будет снят, статус не меняется. Для комплекта ПК отметьте, что уходит на склад; связи между единицами будут сняты, каждая позиция станет независимой.',
-        reassign: 'Измените ответственного, помещение или сетевые параметры ПК. При множественном выборе можно назначить разных ответственных и помещения. При переназначении системного блока связанные монитор и ИБП переназначаются вместе с ним.',
-        move_component: 'Выберите компонент (шаг 1) и укажите владельца с целевым ПК (шаг 2).',
-        replace_from_warehouse: 'Выберите единицу комплекта для замены, статус старой техники и замену со склада того же типа. Новая встанет на её место; старая уйдёт на склад.',
+        reassign: 'Измените ответственного, помещение или сеть в таблице. Для нескольких единиц удобно сначала заполнить строку «Для всех». Связанные монитор и ИБП переносятся вместе с системным блоком.',
+        move_component: 'Прикрепите монитор или ИБП к другому системному блоку: отметьте компоненты в списке и укажите владельца с целевым ПК. Помещение и ответственный компонента станут такими же, как у целевого блока.',
+        move_to_warehouse: 'Укажите склад у единиц, которые нужно отправить. Остальные строки с «Не перемещать» не изменятся. При необходимости задайте статус и комментарий.',
+        replace_from_warehouse: 'Замените монитор или ИБП единицей того же типа со склада. Новая займёт место в комплекте, снятая переместится на склад с указанным статусом.',
+        issue_from_warehouse: 'Прикрепите монитор или ИБП со склада к выбранному системному блоку. Компонент получит помещение и ответственного от этого блока.',
     };
-    var warehouseSelectionIds = [];
 
     function getReassignHostItems() {
         if (!equipmentData || !equipmentData.length) {
@@ -708,26 +801,363 @@ $this->registerJs("
         return window.armUsers && window.armUsers[userId] ? window.armUsers[userId] : String(userId);
     }
 
+    /** Сравнение подписей выпадающих списков (ru, без учёта регистра). */
+    function compareSelectLabels(a, b) {
+        return String(a == null ? '' : a).localeCompare(String(b == null ? '' : b), 'ru', {
+            sensitivity: 'base',
+            numeric: true
+        });
+    }
+
+    /** Пары [id, label] из словаря, отсортированные по подписи. */
+    function sortedDictEntries(dict) {
+        if (!dict) {
+            return [];
+        }
+        return Object.keys(dict).map(function(key) {
+            return [key, dict[key]];
+        }).sort(function(a, b) {
+            return compareSelectLabels(a[1], b[1]);
+        });
+    }
+
     function buildUserSelectOptionsHtml(selectedValue) {
         var html = '<option value=\"\">— не менять —</option><option value=\"0\">— снять назначение —</option>';
-        if (window.armUsers) {
-            Object.keys(window.armUsers).forEach(function(uid) {
-                var selected = String(selectedValue) === String(uid) ? ' selected' : '';
-                html += '<option value=\"' + escapeHtml(uid) + '\"' + selected + '>' + escapeHtml(window.armUsers[uid]) + '</option>';
-            });
-        }
+        sortedDictEntries(window.armUsers).forEach(function(entry) {
+            var uid = entry[0];
+            var selected = String(selectedValue) === String(uid) ? ' selected' : '';
+            html += '<option value=\"' + escapeHtml(uid) + '\"' + selected + '>' + escapeHtml(entry[1]) + '</option>';
+        });
         return html;
     }
 
     function buildLocationSelectOptionsHtml(selectedValue) {
         var html = '<option value=\"\">— не менять —</option>';
-        if (window.armLocations) {
-            Object.keys(window.armLocations).forEach(function(lid) {
-                var selected = String(selectedValue) === String(lid) ? ' selected' : '';
-                html += '<option value=\"' + escapeHtml(lid) + '\"' + selected + '>' + escapeHtml(window.armLocations[lid]) + '</option>';
+        sortedDictEntries(window.armLocations).forEach(function(entry) {
+            var lid = entry[0];
+            var selected = String(selectedValue) === String(lid) ? ' selected' : '';
+            html += '<option value=\"' + escapeHtml(lid) + '\"' + selected + '>' + escapeHtml(entry[1]) + '</option>';
+        });
+        return html;
+    }
+
+    function buildWarehouseSelectOptionsHtml(selectedValue) {
+        var html = '<option value=\"\">— не перемещать —</option>';
+        sortedDictEntries(window.armWarehouseLocations).forEach(function(entry) {
+            var wlid = entry[0];
+            var selected = String(selectedValue) === String(wlid) ? ' selected' : '';
+            html += '<option value=\"' + escapeHtml(wlid) + '\"' + selected + '>' + escapeHtml(entry[1]) + '</option>';
+        });
+        return html;
+    }
+
+    function buildStatusSelectOptionsHtml(selectedValue) {
+        var html = '<option value=\"\">— не менять —</option>';
+        sortedDictEntries(window.armStatuses).forEach(function(entry) {
+            var sid = entry[0];
+            var selected = String(selectedValue) === String(sid) ? ' selected' : '';
+            html += '<option value=\"' + escapeHtml(sid) + '\"' + selected + '>' + escapeHtml(entry[1]) + '</option>';
+        });
+        return html;
+    }
+
+    function resolveWarehouseLocationLabel(locationId) {
+        if (locationId === '' || locationId == null) {
+            return '';
+        }
+        return window.armWarehouseLocations && window.armWarehouseLocations[locationId]
+            ? window.armWarehouseLocations[locationId]
+            : String(locationId);
+    }
+
+    function resolveStatusLabel(statusId) {
+        if (statusId === '' || statusId == null) {
+            return '';
+        }
+        return window.armStatuses && window.armStatuses[statusId]
+            ? window.armStatuses[statusId]
+            : String(statusId);
+    }
+
+    function getWarehouseEquipmentItemById(equipmentId) {
+        var id = parseInt(equipmentId, 10);
+        if (!(id > 0) || !equipmentData || !equipmentData.length) {
+            return null;
+        }
+        var found = null;
+        equipmentData.some(function(item) {
+            if (parseInt(item.id, 10) === id) {
+                found = item;
+                return true;
+            }
+            if (item.linked_components) {
+                ['monitor', 'ups', 'disk'].forEach(function(kind) {
+                    (item.linked_components[kind] || []).forEach(function(component) {
+                        if (parseInt(component.id, 10) === id) {
+                            found = {
+                                id: component.id,
+                                name: component.name || '',
+                                inventory_number: component.inventory_number || '',
+                                equipment_type: component.equipment_type || '',
+                                responsible_user_id: component.responsible_user_id,
+                                responsible_user_name: component.responsible_user_name,
+                                location_id: component.location_id,
+                                location_name: component.location_name,
+                                status_id: component.status_id,
+                                status_name: component.status_name,
+                                description: component.description || '',
+                                is_host: false,
+                                is_component: true,
+                            };
+                        }
+                    });
+                });
+            }
+            return !!found;
+        });
+        return found;
+    }
+
+    function getWarehouseCandidateItems() {
+        var items = [];
+        var seen = {};
+        function pushItem(item, isChildOfHost) {
+            if (!item) {
+                return;
+            }
+            var id = parseInt(item.id, 10);
+            if (!(id > 0) || seen[id]) {
+                return;
+            }
+            seen[id] = true;
+            var copy = Object.assign({}, item);
+            if (isChildOfHost) {
+                copy.is_host = false;
+                copy.is_component = true;
+            }
+            items.push(copy);
+        }
+
+        (equipmentData || []).forEach(function(item) {
+            pushItem(item, false);
+            if (item && item.is_host && item.linked_components) {
+                ['monitor', 'ups'].forEach(function(kind) {
+                    (item.linked_components[kind] || []).forEach(function(component) {
+                        pushItem({
+                            id: component.id,
+                            name: component.name || '',
+                            inventory_number: component.inventory_number || '',
+                            equipment_type: component.equipment_type || (kind === 'ups' ? 'ИБП' : 'Монитор'),
+                            responsible_user_id: component.responsible_user_id,
+                            responsible_user_name: component.responsible_user_name,
+                            location_id: component.location_id,
+                            location_name: component.location_name,
+                            status_id: component.status_id,
+                            status_name: component.status_name,
+                            description: component.description || '',
+                            is_host: false,
+                            is_component: true,
+                        }, true);
+                    });
+                });
+            }
+        });
+        return items;
+    }
+
+    function syncWarehouseMoveCandidates() {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        if (mode !== 'move_to_warehouse') {
+            return;
+        }
+        pendingIds = collectSelectedWarehouseMoveIds();
+        updateWarehouseRowSelectionClasses();
+    }
+
+    function updateWarehouseRowSelectionClasses() {
+        var list = document.getElementById('warehouseParamsList');
+        if (!list) {
+            return;
+        }
+        list.querySelectorAll('[data-warehouse-equipment-id]').forEach(function(rowEl) {
+            var equipmentId = parseInt(rowEl.getAttribute('data-warehouse-equipment-id'), 10);
+            var locationEl = document.getElementById('warehouseLocationId_' + equipmentId);
+            var hasWarehouse = locationEl ? getSelectFieldValue(locationEl) !== '' : false;
+            rowEl.classList.toggle('is-warehouse-selected', hasWarehouse);
+            rowEl.classList.toggle('is-warehouse-skipped', !hasWarehouse);
+        });
+    }
+
+    function collectWarehouseParamRows() {
+        var rows = [];
+        var list = document.getElementById('warehouseParamsList');
+        if (!list) {
+            return rows;
+        }
+        list.querySelectorAll('[data-warehouse-equipment-id]').forEach(function(rowEl) {
+            var equipmentId = parseInt(rowEl.getAttribute('data-warehouse-equipment-id'), 10);
+            if (!(equipmentId > 0)) {
+                return;
+            }
+            var locationEl = document.getElementById('warehouseLocationId_' + equipmentId);
+            var statusEl = document.getElementById('warehouseStatusId_' + equipmentId);
+            var descriptionEl = document.getElementById('warehouseDescription_' + equipmentId);
+            var item = getWarehouseEquipmentItemById(equipmentId);
+            rows.push({
+                id: equipmentId,
+                title: item ? formatEquipmentAssignTitle(item) : ('ТС #' + equipmentId),
+                warehouseLocationId: locationEl ? getSelectFieldValue(locationEl) : '',
+                statusId: statusEl ? (statusEl.value || '') : '',
+                description: descriptionEl ? String(descriptionEl.value || '') : '',
+                originalDescription: descriptionEl ? String(descriptionEl.getAttribute('data-original') || '') : '',
+                originalStatusId: item && item.status_id != null ? String(item.status_id) : '',
+                originalLocationName: item ? (item.location_name || '') : '',
+            });
+        });
+        return rows;
+    }
+
+    function collectSelectedWarehouseMoveRows() {
+        return collectWarehouseParamRows().filter(function(row) {
+            return row.warehouseLocationId !== '';
+        });
+    }
+
+    function collectSelectedWarehouseMoveIds() {
+        return collectSelectedWarehouseMoveRows().map(function(row) {
+            return row.id;
+        });
+    }
+
+    function hasSelectedWarehouseMoves() {
+        return collectSelectedWarehouseMoveIds().length > 0;
+    }
+
+    function syncWarehouseBulkApplyButtons() {
+        var bulkLocation = document.getElementById('warehouseBulkLocationId');
+        var bulkStatus = document.getElementById('warehouseBulkStatusId');
+        var locationApply = document.getElementById('warehouseBulkLocationApply');
+        var statusApply = document.getElementById('warehouseBulkStatusApply');
+        if (locationApply && bulkLocation) {
+            locationApply.disabled = getSelectFieldValue(bulkLocation) === '';
+        }
+        if (statusApply && bulkStatus) {
+            statusApply.disabled = bulkStatus.value === '';
+        }
+    }
+
+    function applyBulkWarehouseLocation() {
+        var bulkSelect = document.getElementById('warehouseBulkLocationId');
+        var list = document.getElementById('warehouseParamsList');
+        if (!bulkSelect || !list) {
+            return;
+        }
+        var value = getSelectFieldValue(bulkSelect);
+        if (value === '') {
+            return;
+        }
+        list.querySelectorAll('.js-warehouse-location').forEach(function(selectEl) {
+            setUserSelectValue(selectEl, value);
+        });
+        syncWarehouseMoveCandidates();
+        scheduleUpdatePreview();
+    }
+
+    function applyBulkWarehouseStatus() {
+        var bulkSelect = document.getElementById('warehouseBulkStatusId');
+        var list = document.getElementById('warehouseParamsList');
+        if (!bulkSelect || !list) {
+            return;
+        }
+        var value = bulkSelect.value || '';
+        if (value === '') {
+            return;
+        }
+        list.querySelectorAll('.js-warehouse-status').forEach(function(selectEl) {
+            selectEl.value = value;
+        });
+        scheduleUpdatePreview();
+    }
+
+    function syncWarehouseParamsTable(force) {
+        var list = document.getElementById('warehouseParamsList');
+        if (!list) {
+            return;
+        }
+        var existingLocations = {};
+        var existingStatuses = {};
+        var existingDescriptions = {};
+        if (!force) {
+            collectWarehouseParamRows().forEach(function(row) {
+                existingLocations[row.id] = row.warehouseLocationId;
+                existingStatuses[row.id] = row.statusId;
+                existingDescriptions[row.id] = row.description;
             });
         }
-        return html;
+        if (window.IasUserSelect) {
+            window.IasUserSelect.destroy(list);
+        }
+
+        var html = '';
+        getWarehouseCandidateItems().forEach(function(item) {
+            var equipmentId = parseInt(item.id, 10);
+            if (!(equipmentId > 0)) {
+                return;
+            }
+            var title = formatEquipmentAssignTitle(item);
+            var meta = formatEquipmentMetaLine(item);
+            var chip = getEquipmentTypeChip(item);
+            var originalStatusId = item.status_id != null && item.status_id !== '' ? String(item.status_id) : '';
+            var originalDescription = item.description != null ? String(item.description) : '';
+            var currentLocationId = existingLocations[equipmentId] !== undefined ? existingLocations[equipmentId] : '';
+            var currentStatusId = existingStatuses[equipmentId] !== undefined ? existingStatuses[equipmentId] : '';
+            var currentDescription = existingDescriptions[equipmentId] !== undefined ? existingDescriptions[equipmentId] : originalDescription;
+            var isSelected = currentLocationId !== '';
+            var rowClass = 'arm-reassign-params-table__row'
+                + (item.is_host ? ' arm-reassign-params-table__row--host' : '')
+                + (isSelected ? ' is-warehouse-selected' : ' is-warehouse-skipped');
+            html += '<tr class=\"' + rowClass + '\" data-warehouse-equipment-id=\"' + equipmentId + '\"';
+            html += ' data-warehouse-equipment-title=\"' + escapeHtml(title) + '\">';
+            html += '<td class=\"arm-reassign-params-table__cell arm-reassign-params-table__cell--equip\">';
+            html += '<div class=\"arm-reassign-params-table__equip\">';
+            html += '<span class=\"arm-reassign-params-table__chip\">' + escapeHtml(chip) + '</span>';
+            html += '<div class=\"arm-reassign-params-table__equip-text\">';
+            html += '<div class=\"arm-reassign-params-table__title\">' + escapeHtml(title) + '</div>';
+            if (meta) {
+                html += '<div class=\"arm-reassign-params-table__meta\">' + escapeHtml(meta) + '</div>';
+            }
+            html += '</div></div></td>';
+            html += '<td class=\"arm-reassign-params-table__cell arm-warehouse-params-table__cell--warehouse js-user-select-field\">';
+            html += '<select id=\"warehouseLocationId_' + equipmentId + '\" class=\"form-select form-select-sm js-user-select-search js-warehouse-location\"';
+            html += ' data-placeholder=\"Не перемещать\" aria-label=\"Склад: ' + escapeHtml(title) + '\">';
+            html += buildWarehouseSelectOptionsHtml(currentLocationId);
+            html += '</select></td>';
+            html += '<td class=\"arm-reassign-params-table__cell arm-warehouse-params-table__cell--status\">';
+            html += '<select id=\"warehouseStatusId_' + equipmentId + '\" class=\"form-select form-select-sm js-warehouse-status\"';
+            html += ' data-original-value=\"' + escapeHtml(originalStatusId) + '\" aria-label=\"Статус: ' + escapeHtml(title) + '\">';
+            html += buildStatusSelectOptionsHtml(currentStatusId);
+            html += '</select></td>';
+            html += '<td class=\"arm-reassign-params-table__cell arm-warehouse-params-table__cell--comment\">';
+            html += '<textarea id=\"warehouseDescription_' + equipmentId + '\" class=\"form-control form-control-sm js-warehouse-description\" rows=\"1\"';
+            html += ' placeholder=\"Комментарий\" data-original=\"' + escapeHtml(originalDescription) + '\"';
+            html += ' aria-label=\"Комментарий: ' + escapeHtml(title) + '\">' + escapeHtml(currentDescription) + '</textarea>';
+            html += '</td></tr>';
+        });
+        list.innerHTML = html;
+        syncWarehouseBulkApplyButtons();
+        pendingIds = collectSelectedWarehouseMoveIds();
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        if (mode === 'move_to_warehouse') {
+            var scroll = document.getElementById('warehouseParamsScroll');
+            var modalEl = document.getElementById('reassignArmModal');
+            if (scroll && modalEl && modalEl.classList.contains('show')) {
+                initReassignModalSelect2(scroll);
+            }
+        }
+    }
+
+    function hasWarehouseParamChanges() {
+        return hasSelectedWarehouseMoves();
     }
 
     function resolveReassignLocationLabel(locationId) {
@@ -1043,10 +1473,14 @@ $this->registerJs("
 
     function syncReassignEquipmentParams(force) {
         var multiWrap = document.getElementById('reassignMultiEquipmentWrap');
+        var bulkBar = document.getElementById('reassignParamsBulkFields');
         var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         var useTable = mode === 'reassign' && usesReassignParamsTable();
         if (multiWrap) {
             multiWrap.style.display = useTable ? 'block' : 'none';
+        }
+        if (bulkBar) {
+            bulkBar.style.display = (useTable && isMultiEquipmentReassign()) ? 'grid' : 'none';
         }
         if (useTable) {
             syncReassignMultiEquipmentCards(force);
@@ -1087,6 +1521,15 @@ $this->registerJs("
     /** Замена со склада: одна полевая единица — хост / монитор / ИБП (в т.ч. из комплекта). */
     function isReplaceFromWarehouseModeAllowed() {
         return getReplaceCandidates().length > 0;
+    }
+
+    /** Выдача со склада: один полевой системный блок. */
+    function isIssueFromWarehouseModeAllowed() {
+        if (!equipmentData || equipmentData.length !== 1) {
+            return false;
+        }
+        var item = equipmentData[0];
+        return !!(item && item.is_host && !item.is_on_warehouse);
     }
 
     function detectReplaceKindForItem(item) {
@@ -1316,7 +1759,7 @@ $this->registerJs("
         }
         var candidates = getReplaceCandidates();
         if (candidates.length === 0) {
-            card.innerHTML = '<div class=\"arm-reassign-move-source__empty\">Выберите полевую технику: СБ, ноутбук, моноблок, монитор или ИБП</div>';
+            card.innerHTML = '<div class=\"arm-reassign-move-source__empty\">Выберите полевой монитор или ИБП, либо системный блок для выбора компонента комплекта</div>';
             if (list) list.innerHTML = '';
             if (hint) hint.style.display = 'none';
             if (hidden) hidden.value = '';
@@ -1341,7 +1784,7 @@ $this->registerJs("
             if (only.meta) {
                 html += '<div class=\"arm-reassign-move-source__meta\">' + escapeHtml(only.meta) + '</div>';
             }
-            html += '<div class=\"arm-reassign-move-source__note\">Будет заменена техникой со склада того же типа</div>';
+            html += '<div class=\"arm-reassign-move-source__note\">Будет заменён монитором или ИБП со склада того же типа</div>';
             html += '</div></div>';
             card.innerHTML = html;
             if (list) {
@@ -1426,8 +1869,12 @@ $this->registerJs("
                 if (!res || !res.success) {
                     throw new Error((res && res.message) || 'Ошибка загрузки');
                 }
-                var items = res.items || [];
-                var html = '<option value=\"\">— выберите замену —</option>';
+                var items = (res.items || []).slice().sort(function(a, b) {
+                    var labelA = a.label || ((a.name || '') + (a.inventory_number ? ' · ' + a.inventory_number : ''));
+                    var labelB = b.label || ((b.name || '') + (b.inventory_number ? ' · ' + b.inventory_number : ''));
+                    return compareSelectLabels(labelA, labelB);
+                });
+                var html = '<option value=\"\">— выберите технику —</option>';
                 if (items.length === 0) {
                     html = '<option value=\"\">— на складе нет техники этого типа —</option>';
                 }
@@ -1464,6 +1911,129 @@ $this->registerJs("
         }
     }
 
+    function getIssueKind() {
+        var el = document.getElementById('issueKind');
+        return el && el.value === 'ups' ? 'ups' : 'monitor';
+    }
+
+    function setIssueKind(kind, fireChange) {
+        var select = document.getElementById('issueKind');
+        var next = kind === 'ups' ? 'ups' : 'monitor';
+        if (select) {
+            select.value = next;
+        }
+        document.querySelectorAll('#issueKindSwitch .arm-reassign-move-type__btn').forEach(function(btn) {
+            var isActive = btn.getAttribute('data-issue-kind') === next;
+            btn.classList.toggle('is-active', isActive);
+            btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
+        });
+        if (fireChange) {
+            fetchIssueWarehouseOptions();
+            scheduleUpdatePreview();
+        }
+    }
+
+    function reinitIssueWarehouseEquipmentSelect() {
+        var select = document.getElementById('issueWarehouseEquipmentId');
+        if (!select || !window.IasUserSelect) {
+            return;
+        }
+        var field = select.closest('.js-user-select-field') || select.parentElement || select;
+        window.IasUserSelect.destroy(field);
+        window.IasUserSelect.init(field, { force: true });
+    }
+
+    function updateIssueEquipmentSelectHtml(html, selectedValue) {
+        var select = document.getElementById('issueWarehouseEquipmentId');
+        if (!select) {
+            return;
+        }
+        var jqSelect = (typeof jQuery !== 'undefined') ? jQuery(select) : null;
+        var keepOpen = false;
+        if (jqSelect && jqSelect.hasClass('select2-hidden-accessible') && typeof jqSelect.select2 === 'function') {
+            try {
+                keepOpen = !!jqSelect.select2('isOpen');
+            } catch (e) {
+                keepOpen = false;
+            }
+        }
+        select.innerHTML = html;
+        if (jqSelect && jqSelect.hasClass('select2-hidden-accessible')) {
+            var nextVal = selectedValue == null ? '' : String(selectedValue);
+            jqSelect.val(nextVal);
+            jqSelect.trigger('change.select2');
+            if (keepOpen) {
+                jqSelect.select2('open');
+            }
+            return;
+        }
+        reinitIssueWarehouseEquipmentSelect();
+        if (selectedValue) {
+            setUserSelectValue(select, selectedValue, true);
+        }
+    }
+
+    function getIssuedEquipmentId() {
+        return getSelectFieldValue(document.getElementById('issueWarehouseEquipmentId'));
+    }
+
+    var issueWarehouseOptionsRequestId = 0;
+
+    function fetchIssueWarehouseOptions() {
+        var select = document.getElementById('issueWarehouseEquipmentId');
+        if (!select || !window.agGridArmReplaceOptionsUrl) {
+            return;
+        }
+        var kind = getIssueKind();
+        var warehouseId = getSelectFieldValue(document.getElementById('issueWarehouseLocationId'));
+        var prev = getIssuedEquipmentId();
+        var requestId = ++issueWarehouseOptionsRequestId;
+        updateIssueEquipmentSelectHtml('<option value=\"\">Загрузка...</option>', '');
+        var base = window.agGridArmReplaceOptionsUrl;
+        var sep = base.indexOf('?') >= 0 ? '&' : '?';
+        var url = base + sep + 'kind=' + encodeURIComponent(kind);
+        if (warehouseId) {
+            url += '&warehouse_location_id=' + encodeURIComponent(warehouseId);
+        }
+        fetch(url)
+            .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)); })
+            .then(function(result) {
+                if (requestId !== issueWarehouseOptionsRequestId) {
+                    return;
+                }
+                if (!result || !result.success) {
+                    throw new Error((result && result.message) || 'Ошибка загрузки');
+                }
+                var items = (Array.isArray(result.items) ? result.items : []).slice().sort(function(a, b) {
+                    return compareSelectLabels(a.label || ('ТС #' + a.id), b.label || ('ТС #' + b.id));
+                });
+                var html = '<option value=\"\">— выберите технику —</option>';
+                items.forEach(function(row) {
+                    html += '<option value=\"' + parseInt(row.id, 10) + '\">' + escapeHtml(row.label || ('ТС #' + row.id)) + '</option>';
+                });
+                var keepPrev = prev && items.some(function(row) { return String(row.id) === prev; });
+                updateIssueEquipmentSelectHtml(html, keepPrev ? prev : '');
+                scheduleUpdatePreview();
+            })
+            .catch(function() {
+                if (requestId !== issueWarehouseOptionsRequestId) {
+                    return;
+                }
+                updateIssueEquipmentSelectHtml('<option value=\"\">— не удалось загрузить —</option>', '');
+            });
+    }
+
+    function syncIssueFromWarehouseUi(forceOptions) {
+        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
+        if (mode !== 'issue_from_warehouse') {
+            return;
+        }
+        setIssueKind(getIssueKind(), false);
+        if (forceOptions) {
+            fetchIssueWarehouseOptions();
+        }
+    }
+
     function syncModeButtonsUi(activeMode) {
         var mode = activeMode || ((document.getElementById('reassignOperationMode') || {}).value || 'reassign');
         document.querySelectorAll('#reassignArmModal .arm-reassign-mode-btn').forEach(function(btn) {
@@ -1496,26 +2066,36 @@ $this->registerJs("
         var modeEl = document.getElementById('reassignOperationMode');
         var linkBtn = document.getElementById('reassignModeBtnMoveComponent');
         var replaceBtn = document.getElementById('reassignModeBtnReplace');
+        var issueBtn = document.getElementById('reassignModeBtnIssue');
         if (!modeEl) {
             return;
         }
         var linkAllowed = isMoveComponentModeAllowed();
         var replaceAllowed = isReplaceFromWarehouseModeAllowed();
+        var issueAllowed = isIssueFromWarehouseModeAllowed();
         if (linkBtn) {
+            linkBtn.hidden = !linkAllowed;
             linkBtn.disabled = !linkAllowed;
             linkBtn.classList.toggle('is-disabled', !linkAllowed);
+            linkBtn.setAttribute('aria-hidden', linkAllowed ? 'false' : 'true');
             linkBtn.setAttribute('aria-disabled', linkAllowed ? 'false' : 'true');
-            linkBtn.title = linkAllowed
-                ? 'Привязка монитора или ИБП к системному блоку'
-                : 'Доступно для одной единицы: ПК, монитор или ИБП';
+            linkBtn.title = 'Прикрепить монитор или ИБП к другому системному блоку';
         }
         if (replaceBtn) {
+            replaceBtn.hidden = !replaceAllowed;
             replaceBtn.disabled = !replaceAllowed;
             replaceBtn.classList.toggle('is-disabled', !replaceAllowed);
+            replaceBtn.setAttribute('aria-hidden', replaceAllowed ? 'false' : 'true');
             replaceBtn.setAttribute('aria-disabled', replaceAllowed ? 'false' : 'true');
-            replaceBtn.title = replaceAllowed
-                ? 'Замена выбранной техники (или компонента комплекта) единицей со склада'
-                : 'Доступно для одной полевой единицы: СБ/ноутбук/моноблок, монитор или ИБП';
+            replaceBtn.title = 'Заменить монитор или ИБП со склада';
+        }
+        if (issueBtn) {
+            issueBtn.hidden = !issueAllowed;
+            issueBtn.disabled = !issueAllowed;
+            issueBtn.classList.toggle('is-disabled', !issueAllowed);
+            issueBtn.setAttribute('aria-hidden', issueAllowed ? 'false' : 'true');
+            issueBtn.setAttribute('aria-disabled', issueAllowed ? 'false' : 'true');
+            issueBtn.title = 'Прикрепить технику со склада к выбранному системному блоку';
         }
         if (!linkAllowed && modeEl.value === 'move_component') {
             setOperationMode('reassign', true);
@@ -1525,31 +2105,11 @@ $this->registerJs("
             setOperationMode('reassign', true);
             return;
         }
-        syncModeButtonsUi(modeEl.value || 'reassign');
-    }
-
-    function syncComponentLinkTypeButtons() {
-        var select = document.getElementById('componentLinkType');
-        var type = select ? (select.value || 'monitor') : 'monitor';
-        document.querySelectorAll('#moveComponentWrap .arm-reassign-move-type__btn').forEach(function(btn) {
-            var isActive = btn.getAttribute('data-link-type') === type;
-            btn.classList.toggle('is-active', isActive);
-            btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
-        });
-    }
-
-    function setComponentLinkType(type, fireChanged) {
-        var select = document.getElementById('componentLinkType');
-        if (!select) {
+        if (!issueAllowed && modeEl.value === 'issue_from_warehouse') {
+            setOperationMode('reassign', true);
             return;
         }
-        var next = type === 'ups' ? 'ups' : 'monitor';
-        var prev = select.value || 'monitor';
-        select.value = next;
-        syncComponentLinkTypeButtons();
-        if (fireChanged && prev !== next) {
-            select.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+        syncModeButtonsUi(modeEl.value || 'reassign');
     }
 
     function syncMoveComponentSourceCard() {
@@ -1567,10 +2127,10 @@ $this->registerJs("
         var isHost = !!item.is_host;
         if (hint) {
             hint.textContent = isHost
-                ? 'Выберите тип компонента у этого ПК и укажите целевой системный блок'
-                : 'Укажите владельца и целевой ПК для привязки выбранного компонента';
+                ? 'Отметьте мониторы и ИБП в списке и укажите системный блок, к которому их нужно прикрепить'
+                : 'Укажите ответственного и системный блок, к которому прикрепить выбранный компонент';
         }
-        // Для выбранного СБ карточку не показываем — техника уже видна слева, достаточно выбора типа.
+        // Для выбранного СБ карточку не показываем — компоненты выбираются списком ниже.
         if (isHost) {
             card.style.display = 'none';
             card.innerHTML = '';
@@ -1587,34 +2147,9 @@ $this->registerJs("
         if (meta) {
             html += '<div class=\"arm-reassign-move-source__meta\">' + escapeHtml(meta) + '</div>';
         }
-        html += '<div class=\"arm-reassign-move-source__note\">Компонент будет привязан к другому системному блоку</div>';
+        html += '<div class=\"arm-reassign-move-source__note\">Будет прикреплён к другому системному блоку</div>';
         html += '</div></div>';
         card.innerHTML = html;
-    }
-
-    function syncComponentLinkTypeField() {
-        var wrap = document.getElementById('componentLinkTypeWrap');
-        var select = document.getElementById('componentLinkType');
-        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
-        if (!wrap || !select) {
-            return;
-        }
-        if (mode !== 'move_component') {
-            wrap.style.display = 'none';
-            return;
-        }
-        if (equipmentData && equipmentData.length === 1) {
-            var item = equipmentData[0];
-            if (item.is_component || isMoveComponentEquipment(item)) {
-                setComponentLinkType(detectComponentLinkType(item), false);
-                wrap.style.display = 'none';
-                syncMoveComponentSourceCard();
-                return;
-            }
-        }
-        wrap.style.display = 'block';
-        syncComponentLinkTypeButtons();
-        syncMoveComponentSourceCard();
     }
 
     function formatSystemBlockOptionLabel(row) {
@@ -1624,37 +2159,41 @@ $this->registerJs("
         var name = String(row.name || '').trim();
         var inv = String(row.inventory_number || '').trim();
         var serial = String(row.serial_number || '').trim();
-        var meta = [];
+        var location = String(row.location_name || '').trim();
+        if (!location && row.location_id != null && window.armLocations) {
+            location = String(window.armLocations[row.location_id] || '').trim();
+        }
+        var parts = [];
+        if (name) {
+            parts.push(name);
+        }
         if (inv) {
-            meta.push('инв. № ' + inv);
+            parts.push(inv);
         }
         if (serial) {
-            meta.push('сер. № ' + serial);
+            parts.push(serial);
         }
-        if (name && meta.length) {
-            return name + ' (' + meta.join(', ') + ')';
+        if (location) {
+            parts.push(location);
         }
-        if (name) {
-            return name;
-        }
-        if (meta.length) {
-            return meta.join(', ');
-        }
-        return '—';
+        return parts.length ? parts.join(' · ') : '—';
     }
 
     function renderSystemBlocks(rows) {
         var sbSelect = document.getElementById('targetSystemBlockId');
         if (!sbSelect) return;
+        var sortedRows = (rows || []).slice().sort(function(a, b) {
+            return compareSelectLabels(formatSystemBlockOptionLabel(a), formatSystemBlockOptionLabel(b));
+        });
         var html = '<option value=\"\">— выберите системный блок —</option>';
-        rows.forEach(function(row) {
+        sortedRows.forEach(function(row) {
             var label = formatSystemBlockOptionLabel(row);
             var locId = row.location_id != null && row.location_id !== '' ? String(row.location_id) : '';
             html += '<option value=\"' + escapeHtml(String(row.id)) + '\"' + (locId ? ' data-location-id=\"' + escapeHtml(locId) + '\"' : '') + '>' + escapeHtml(label) + '</option>';
         });
         sbSelect.innerHTML = html;
-        if (rows.length === 1) {
-            sbSelect.value = String(rows[0].id);
+        if (sortedRows.length === 1) {
+            sbSelect.value = String(sortedRows[0].id);
             applyDefaultLocationFromTargetSystemBlock();
             scheduleUpdatePreview();
         }
@@ -1753,63 +2292,61 @@ $this->registerJs("
     }
 
     function getMoveComponentCandidates() {
-        var linkType = (document.getElementById('componentLinkType') || {}).value || 'monitor';
         var candidates = [];
         var seen = {};
+
+        function pushCandidate(row) {
+            var cid = row && row.id != null ? parseInt(row.id, 10) : 0;
+            if (cid <= 0 || seen[cid]) {
+                return;
+            }
+            seen[cid] = true;
+            candidates.push({
+                id: cid,
+                kind: row.kind || 'monitor',
+                chip: row.chip || (row.kind === 'ups' ? 'ИБП' : 'МОН'),
+                name: row.name || '',
+                inventory_number: row.inventory_number || '',
+                host_label: row.host_label || '',
+            });
+        }
+
         equipmentData.forEach(function(item) {
             if (item.is_host && item.linked_components) {
-                var list = item.linked_components[linkType] || [];
                 var hostLabel = (item.name || item.inventory_number || '').trim();
-                list.forEach(function(c) {
-                    var cid = c && c.id != null ? parseInt(c.id, 10) : 0;
-                    if (cid > 0 && !seen[cid]) {
-                        seen[cid] = true;
-                        candidates.push({
-                            id: cid,
-                            name: c.name || '',
-                            inventory_number: c.inventory_number || '',
-                            host_label: hostLabel,
-                        });
-                    }
+                (item.linked_components.monitor || []).forEach(function(c) {
+                    pushCandidate({
+                        id: c.id,
+                        kind: 'monitor',
+                        chip: 'МОН',
+                        name: c.name || '',
+                        inventory_number: c.inventory_number || '',
+                        host_label: hostLabel,
+                    });
+                });
+                (item.linked_components.ups || []).forEach(function(c) {
+                    pushCandidate({
+                        id: c.id,
+                        kind: 'ups',
+                        chip: 'ИБП',
+                        name: c.name || '',
+                        inventory_number: c.inventory_number || '',
+                        host_label: hostLabel,
+                    });
                 });
             } else if (item.is_component || isMoveComponentEquipment(item)) {
-                if (detectComponentLinkType(item) !== linkType) {
-                    return;
-                }
-                var id = parseInt(item.id, 10);
-                if (id > 0 && !seen[id]) {
-                    seen[id] = true;
-                    candidates.push({
-                        id: id,
-                        name: item.name || '',
-                        inventory_number: item.inventory_number || '',
-                        host_label: '',
-                    });
-                }
+                var kind = detectComponentLinkType(item);
+                pushCandidate({
+                    id: item.id,
+                    kind: kind,
+                    chip: kind === 'ups' ? 'ИБП' : 'МОН',
+                    name: item.name || '',
+                    inventory_number: item.inventory_number || '',
+                    host_label: '',
+                });
             }
         });
         return candidates;
-    }
-
-    function updateMoveComponentChildLabels() {
-        var linkType = (document.getElementById('componentLinkType') || {}).value || 'monitor';
-        var label = document.getElementById('moveComponentChildLabel');
-        var hint = document.getElementById('moveComponentChildHint');
-        var isUps = linkType === 'ups';
-        if (label) {
-            label.textContent = isUps ? 'Какие ИБП перенести' : 'Какие мониторы перенести';
-        }
-        if (hint) {
-            hint.textContent = isUps
-                ? 'У выбранного ПК несколько ИБП — отметьте один или несколько для переноса.'
-                : 'У выбранного ПК несколько мониторов — отметьте один или несколько для переноса.';
-        }
-        var emptyMsg = document.getElementById('moveComponentChildEmpty');
-        if (emptyMsg) {
-            emptyMsg.textContent = isUps
-                ? 'Нет привязанных ИБП у выбранного ПК. Выберите строку ИБП в таблице или другой тип компонента.'
-                : 'Нет привязанных мониторов у выбранного ПК. Выберите строку монитора в таблице или другой тип компонента.';
-        }
     }
 
     function getSelectedMoveComponentIdsFromUi() {
@@ -1851,7 +2388,7 @@ $this->registerJs("
         });
     }
 
-    /** Список переносимых компонентов: при нескольких мониторах/ИБП — множественный выбор. */
+    /** Список мониторов и ИБП для прикрепления — как в «Замене со склада». */
     function syncMoveComponentChildPicker() {
         var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
         var wrap = document.getElementById('moveComponentChildWrap');
@@ -1859,29 +2396,22 @@ $this->registerJs("
         var list = document.getElementById('moveComponentChildList');
         var emptyMsg = document.getElementById('moveComponentChildEmpty');
         var hint = document.getElementById('moveComponentChildHint');
+        var linkTypeSelect = document.getElementById('componentLinkType');
         if (mode !== 'move_component' || !wrap || !select) {
             if (wrap) wrap.style.display = 'none';
             return;
         }
-        updateMoveComponentChildLabels();
         syncMoveComponentSourceCard();
         var candidates = getMoveComponentCandidates();
+        var item = equipmentData && equipmentData.length ? equipmentData[0] : null;
+        var isHost = !!(item && item.is_host);
+
         if (emptyMsg) {
-            emptyMsg.style.display = candidates.length === 0 ? 'block' : 'none';
+            emptyMsg.style.display = (isHost && candidates.length === 0) ? 'block' : 'none';
         }
-        if (hint) {
-            hint.style.display = candidates.length > 1 ? 'block' : 'none';
-        }
-        if (candidates.length === 0) {
-            wrap.style.display = 'block';
-            select.innerHTML = '';
-            if (list) {
-                list.innerHTML = '';
-            }
-            pendingIds = [];
-            return;
-        }
-        if (candidates.length === 1) {
+
+        // Выбрана строка монитора/ИБП — список не нужен, компонент уже известен.
+        if (!isHost && candidates.length === 1) {
             wrap.style.display = 'none';
             select.innerHTML = '';
             var onlyOpt = document.createElement('option');
@@ -1891,10 +2421,34 @@ $this->registerJs("
             if (list) {
                 list.innerHTML = '';
             }
+            if (linkTypeSelect) {
+                linkTypeSelect.value = candidates[0].kind || '';
+            }
             pendingIds = [candidates[0].id];
             return;
         }
+
+        if (candidates.length === 0) {
+            wrap.style.display = isHost ? 'block' : 'none';
+            select.innerHTML = '';
+            if (list) {
+                list.innerHTML = '';
+            }
+            if (linkTypeSelect) {
+                linkTypeSelect.value = '';
+            }
+            pendingIds = [];
+            return;
+        }
+
         wrap.style.display = 'block';
+        if (hint) {
+            hint.style.display = 'block';
+            hint.textContent = candidates.length > 1
+                ? 'Отметьте мониторы и ИБП, которые нужно прикрепить к другому системному блоку.'
+                : 'Подтвердите компонент для прикрепления к другому системному блоку.';
+        }
+
         var prevSelected = {};
         getSelectedMoveComponentIdsFromUi().forEach(function(id) {
             prevSelected[id] = true;
@@ -1903,13 +2457,15 @@ $this->registerJs("
         var hasOverlap = hadPrev && candidates.some(function(c) {
             return !!prevSelected[parseInt(c.id, 10)];
         });
+
         select.innerHTML = '';
         var selectedIds = [];
         var cardsHtml = '';
-        var chip = ((document.getElementById('componentLinkType') || {}).value || 'monitor') === 'ups' ? 'ИБП' : 'МОН';
         candidates.forEach(function(c) {
             var id = String(c.id);
-            var isSelected = hasOverlap ? !!prevSelected[parseInt(id, 10)] : false;
+            var isSelected = hasOverlap
+                ? !!prevSelected[parseInt(id, 10)]
+                : (candidates.length === 1);
             var opt = document.createElement('option');
             opt.value = id;
             opt.textContent = formatMoveComponentOptionLabel(c);
@@ -1919,142 +2475,22 @@ $this->registerJs("
                 selectedIds.push(parseInt(id, 10));
             }
             cardsHtml += '<button type=\"button\" class=\"arm-reassign-move-child__card' + (isSelected ? ' is-selected' : '') + '\"';
-            cardsHtml += ' data-child-id=\"' + escapeHtml(id) + '\" role=\"checkbox\" aria-checked=\"' + (isSelected ? 'true' : 'false') + '\">';
+            cardsHtml += ' data-child-id=\"' + escapeHtml(id) + '\" data-link-kind=\"' + escapeHtml(c.kind || '') + '\"';
+            cardsHtml += ' role=\"checkbox\" aria-checked=\"' + (isSelected ? 'true' : 'false') + '\">';
             cardsHtml += '<span class=\"arm-reassign-move-child__check\" aria-hidden=\"true\"><i class=\"fas fa-check\"></i></span>';
-            cardsHtml += '<span class=\"arm-reassign-move-source__chip\">' + chip + '</span>';
+            cardsHtml += '<span class=\"arm-reassign-move-source__chip\">' + escapeHtml(c.chip || 'МОН') + '</span>';
             cardsHtml += '<span class=\"arm-reassign-move-child__text\">';
             cardsHtml += '<span class=\"arm-reassign-move-child__title\">' + escapeHtml(formatMoveComponentOptionLabel(c)) + '</span>';
             cardsHtml += '</span></button>';
         });
         if (list) {
             list.innerHTML = cardsHtml;
+            list.style.display = '';
+        }
+        if (linkTypeSelect) {
+            linkTypeSelect.value = '';
         }
         pendingIds = selectedIds.slice();
-    }
-
-    function formatWarehouseComponentLabel(component, typeLabel) {
-        var name = (component.name || '').trim() || 'без названия';
-        var inv = (component.inventory_number || '').trim();
-        return typeLabel + ' — ' + name + (inv ? ' (№ ' + inv + ')' : '');
-    }
-
-    function hasWarehouseKitHosts() {
-        return equipmentData.some(function(item) {
-            return item.is_host && item.linked_components && (
-                (item.linked_components.monitor && item.linked_components.monitor.length > 0)
-                || (item.linked_components.ups && item.linked_components.ups.length > 0)
-            );
-        }) || equipmentData.some(function(item) {
-            return item.is_host;
-        });
-    }
-
-    function renderWarehouseKitPicker() {
-        var wrap = document.getElementById('warehouseKitWrap');
-        var list = document.getElementById('warehouseKitList');
-        if (!wrap || !list) {
-            return;
-        }
-        var hosts = equipmentData.filter(function(item) { return item.is_host; });
-        if (hosts.length === 0) {
-            wrap.style.display = 'none';
-            list.innerHTML = '';
-            warehouseSelectionIds = originalSelectionIds.slice();
-            pendingIds = warehouseSelectionIds.slice();
-            return;
-        }
-        wrap.style.display = 'block';
-        var html = '';
-        hosts.forEach(function(host) {
-            var hostId = parseInt(host.id, 10);
-            var hostLabel = (host.name || host.inventory_number || ('ПК #' + hostId)).trim();
-            var hostMeta = formatEquipmentMetaLine(host);
-            html += '<article class=\"arm-warehouse-kit-card arm-warehouse-kit-card--host\">';
-            html += '<label class=\"arm-warehouse-kit-row\" for=\"warehouse-kit-host-' + hostId + '\">';
-            html += '<input type=\"checkbox\" class=\"form-check-input\" id=\"warehouse-kit-host-' + hostId + '\"';
-            html += ' data-warehouse-id=\"' + hostId + '\" checked>';
-            html += '<span class=\"arm-warehouse-kit-row__chip\">' + escapeHtml(getEquipmentTypeChip(host)) + '</span>';
-            html += '<span class=\"arm-warehouse-kit-row__body\">';
-            html += '<span class=\"arm-warehouse-kit-row__title\">' + escapeHtml(hostLabel) + '</span>';
-            if (hostMeta) {
-                html += '<span class=\"arm-warehouse-kit-row__meta\">' + escapeHtml(hostMeta) + '</span>';
-            }
-            html += '</span></label>';
-            var lc = host.linked_components || {};
-            (lc.monitor || []).forEach(function(c) {
-                var cid = parseInt(c.id, 10);
-                var childName = (c.name || '').trim() || 'без названия';
-                var childInv = (c.inventory_number || '').trim();
-                var childTitle = childName + (childInv ? ' · № ' + childInv : '');
-                html += '<label class=\"arm-warehouse-kit-row arm-warehouse-kit-row--child\">';
-                html += '<input type=\"checkbox\" class=\"form-check-input\" data-warehouse-id=\"' + cid + '\" checked>';
-                html += '<span class=\"arm-warehouse-kit-row__chip arm-warehouse-kit-row__chip--mon\">МОН</span>';
-                html += '<span class=\"arm-warehouse-kit-row__body\">';
-                html += '<span class=\"arm-warehouse-kit-row__title\">' + escapeHtml(childTitle) + '</span>';
-                html += '</span></label>';
-            });
-            (lc.ups || []).forEach(function(c) {
-                var cid = parseInt(c.id, 10);
-                var childName = (c.name || '').trim() || 'без названия';
-                var childInv = (c.inventory_number || '').trim();
-                var childTitle = childName + (childInv ? ' · № ' + childInv : '');
-                html += '<label class=\"arm-warehouse-kit-row arm-warehouse-kit-row--child\">';
-                html += '<input type=\"checkbox\" class=\"form-check-input\" data-warehouse-id=\"' + cid + '\" checked>';
-                html += '<span class=\"arm-warehouse-kit-row__chip arm-warehouse-kit-row__chip--ups\">ИБП</span>';
-                html += '<span class=\"arm-warehouse-kit-row__body\">';
-                html += '<span class=\"arm-warehouse-kit-row__title\">' + escapeHtml(childTitle) + '</span>';
-                html += '</span></label>';
-            });
-            html += '</article>';
-        });
-        list.innerHTML = html;
-        syncWarehouseSelectionIds();
-    }
-
-    function syncWarehouseSelectionIds() {
-        var mode = (document.getElementById('reassignOperationMode') || {}).value || 'reassign';
-        if (mode !== 'move_to_warehouse') {
-            return;
-        }
-        if (!equipmentData || equipmentData.length === 0) {
-            pendingIds = originalSelectionIds.slice();
-            return;
-        }
-        var ids = [];
-        var seen = {};
-        equipmentData.forEach(function(item) {
-            if (item.is_host) {
-                return;
-            }
-            var id = parseInt(item.id, 10);
-            if (id > 0 && !seen[id]) {
-                seen[id] = true;
-                ids.push(id);
-            }
-        });
-        var kitList = document.getElementById('warehouseKitList');
-        if (kitList) {
-            kitList.querySelectorAll('input[data-warehouse-id]:checked').forEach(function(input) {
-                var id = parseInt(input.getAttribute('data-warehouse-id'), 10);
-                if (id > 0 && !seen[id]) {
-                    seen[id] = true;
-                    ids.push(id);
-                }
-            });
-        } else {
-            equipmentData.forEach(function(item) {
-                if (!item.is_host) {
-                    return;
-                }
-                var id = parseInt(item.id, 10);
-                if (id > 0 && !seen[id]) {
-                    seen[id] = true;
-                    ids.push(id);
-                }
-            });
-        }
-        warehouseSelectionIds = ids;
-        pendingIds = ids.slice();
     }
 
     function initReassignModalSelect2(scope) {
@@ -2074,9 +2510,10 @@ $this->registerJs("
         var moveWrap = document.getElementById('moveComponentWrap');
         var warehouseWrap = document.getElementById('warehouseMoveWrap');
         var replaceWrap = document.getElementById('replaceFromWarehouseWrap');
+        var issueWrap = document.getElementById('issueFromWarehouseWrap');
         var commonWrap = document.getElementById('reassignCommonFieldsWrap');
         updateModeHint();
-        syncComponentLinkTypeField();
+        syncMoveComponentSourceCard();
         if (moveWrap) {
             moveWrap.style.display = mode === 'move_component' ? 'block' : 'none';
         }
@@ -2086,13 +2523,19 @@ $this->registerJs("
         if (replaceWrap) {
             replaceWrap.style.display = mode === 'replace_from_warehouse' ? 'block' : 'none';
         }
+        if (issueWrap) {
+            issueWrap.style.display = mode === 'issue_from_warehouse' ? 'block' : 'none';
+        }
         if (commonWrap) {
-            commonWrap.style.display = (mode === 'move_component' || mode === 'move_to_warehouse' || mode === 'replace_from_warehouse')
+            commonWrap.style.display = (mode === 'move_component' || mode === 'move_to_warehouse' || mode === 'replace_from_warehouse' || mode === 'issue_from_warehouse')
                 ? 'none'
                 : 'block';
         }
         if (mode === 'replace_from_warehouse') {
             syncReplaceFromWarehouseUi(false);
+        }
+        if (mode === 'issue_from_warehouse') {
+            syncIssueFromWarehouseUi(false);
         }
         syncReassignEquipmentParams(false);
         updateReassignModalSelectState();
@@ -2109,10 +2552,12 @@ $this->registerJs("
         if (modeEl.value === 'replace_from_warehouse' && !isReplaceFromWarehouseModeAllowed()) {
             setOperationMode('reassign', false);
         }
+        if (modeEl.value === 'issue_from_warehouse' && !isIssueFromWarehouseModeAllowed()) {
+            setOperationMode('reassign', false);
+        }
         applyOperationModeUi();
         syncMoveComponentChildPicker();
-        renderWarehouseKitPicker();
-        syncWarehouseSelectionIds();
+        syncWarehouseParamsTable(true);
         syncReassignEquipmentParams(true);
         var modalEl = document.getElementById('reassignArmModal');
         if (modalEl && modalEl.classList.contains('show')) {
@@ -2123,6 +2568,9 @@ $this->registerJs("
             } else if (modeEl.value === 'replace_from_warehouse') {
                 initReassignModalSelect2(document.getElementById('replaceFromWarehouseWrap'));
                 syncReplaceFromWarehouseUi(true);
+            } else if (modeEl.value === 'issue_from_warehouse') {
+                initReassignModalSelect2(document.getElementById('issueFromWarehouseWrap'));
+                syncIssueFromWarehouseUi(true);
             } else {
                 initReassignModalSelect2(document.getElementById('reassignCommonFieldsWrap'));
             }
@@ -2491,36 +2939,46 @@ $this->registerJs("
                         targetSbLabel = (sbEl.options[sbEl.selectedIndex].text || '').trim();
                     }
                     changes.push({
-                        label: 'Привязка',
+                        label: 'Прикрепление к СБ',
                         to: targetSbLabel || 'выбранный системный блок',
                         hint: pendingIds.length + ' ед.'
                     });
                 }
             }
         } else if (mode === 'move_to_warehouse') {
-            syncWarehouseSelectionIds();
-            var warehouseLocId = getSelectFieldValue(document.getElementById('warehouseLocationId'));
-            hasAnyChange = warehouseLocId !== '' && pendingIds.length > 0;
+            syncWarehouseMoveCandidates();
+            var warehouseRows = collectSelectedWarehouseMoveRows();
+            hasAnyChange = warehouseRows.length > 0;
             if (hasAnyChange) {
-                var whName = window.armWarehouseLocations && window.armWarehouseLocations[warehouseLocId]
-                    ? window.armWarehouseLocations[warehouseLocId]
-                    : 'склад';
-                var oldWhLocations = [];
-                equipmentData.forEach(function(item) {
-                    if (item.location_name && oldWhLocations.indexOf(item.location_name) === -1) {
-                        oldWhLocations.push(item.location_name);
+                var multiWarehouse = warehouseRows.length > 1;
+                warehouseRows.forEach(function(row) {
+                    var whLabel = resolveWarehouseLocationLabel(row.warehouseLocationId);
+                    changes.push({
+                        label: multiWarehouse ? ('Склад · ' + row.title) : 'Склад',
+                        from: row.originalLocationName || null,
+                        to: whLabel || row.warehouseLocationId
+                    });
+                    if (row.statusId !== '' && row.statusId !== row.originalStatusId) {
+                        changes.push({
+                            label: multiWarehouse ? ('Статус · ' + row.title) : 'Статус',
+                            from: resolveStatusLabel(row.originalStatusId) || null,
+                            to: resolveStatusLabel(row.statusId) || row.statusId
+                        });
                     }
-                });
-                changes.push({
-                    label: 'Помещение',
-                    from: oldWhLocations.length > 0 ? oldWhLocations.join(', ') : null,
-                    to: whName,
-                    hint: pendingIds.length + ' ед.'
+                    var nextDescription = String(row.description || '').trim();
+                    var prevDescription = String(row.originalDescription || '').trim();
+                    if (nextDescription !== prevDescription) {
+                        changes.push({
+                            label: multiWarehouse ? ('Комментарий · ' + row.title) : 'Комментарий',
+                            from: prevDescription || null,
+                            to: nextDescription || 'очищен'
+                        });
+                    }
                 });
                 changes.push({
                     label: 'Ответственный',
                     to: 'снят',
-                    hint: pendingIds.length + ' ед.'
+                    hint: warehouseRows.length + ' ед.'
                 });
             }
         } else if (mode === 'replace_from_warehouse') {
@@ -2549,7 +3007,7 @@ $this->registerJs("
                     }
                 }
                 changes.push({
-                    label: 'Замена',
+                    label: 'Замена монитора или ИБП',
                     from: formatReplaceCandidateTitle(replaceTarget),
                     to: replacementLabel || ('ТС #' + replacementId)
                 });
@@ -2593,8 +3051,40 @@ $this->registerJs("
                     }
                 }
                 changes.push({
-                    label: 'Старая техника',
+                    label: 'Снятая техника',
                     to: 'на склад'
+                });
+            }
+        } else if (mode === 'issue_from_warehouse') {
+            var issuedId = getIssuedEquipmentId();
+            var issueKind = getIssueKind();
+            hasAnyChange = isIssueFromWarehouseModeAllowed() && issuedId !== '';
+            if (hasAnyChange) {
+                var hostItem = equipmentData[0];
+                var issuedLabel = '';
+                var issuedEl = document.getElementById('issueWarehouseEquipmentId');
+                if (issuedEl) {
+                    if (typeof jQuery !== 'undefined' && jQuery(issuedEl).hasClass('select2-hidden-accessible')) {
+                        var issuedData = jQuery(issuedEl).select2('data');
+                        if (issuedData && issuedData[0] && issuedData[0].text) {
+                            issuedLabel = String(issuedData[0].text || '').trim();
+                        }
+                    }
+                    if (!issuedLabel && issuedEl.selectedIndex >= 0) {
+                        issuedLabel = (issuedEl.options[issuedEl.selectedIndex].text || '').trim();
+                    }
+                }
+                changes.push({
+                    label: 'К системному блоку',
+                    to: formatEquipmentAssignTitle(hostItem)
+                });
+                changes.push({
+                    label: issueKind === 'ups' ? 'ИБП со склада' : 'Монитор со склада',
+                    to: issuedLabel || ('ТС #' + issuedId)
+                });
+                changes.push({
+                    label: 'Помещение / ответственный',
+                    to: 'как у системного блока'
                 });
             }
         }
@@ -2653,9 +3143,8 @@ $this->registerJs("
             return targetSystemBlockUserId !== '' && targetSystemBlockId !== '';
         }
         if (mode === 'move_to_warehouse') {
-            syncWarehouseSelectionIds();
-            var warehouseLoc = getSelectFieldValue(document.getElementById('warehouseLocationId'));
-            return warehouseLoc !== '' && pendingIds.length > 0;
+            syncWarehouseMoveCandidates();
+            return hasSelectedWarehouseMoves();
         }
         if (mode === 'replace_from_warehouse') {
             var replacementId = getReplacementEquipmentId();
@@ -2663,6 +3152,9 @@ $this->registerJs("
             return isReplaceFromWarehouseModeAllowed()
                 && !!getSelectedReplaceTarget()
                 && replacementId !== '';
+        }
+        if (mode === 'issue_from_warehouse') {
+            return isIssueFromWarehouseModeAllowed() && getIssuedEquipmentId() !== '';
         }
         return hasReassignUserChanges()
             || hasReassignLocationChanges()
@@ -2674,6 +3166,7 @@ $this->registerJs("
         var moveWrap = document.getElementById('moveComponentWrap');
         var warehouseWrap = document.getElementById('warehouseMoveWrap');
         var replaceWrap = document.getElementById('replaceFromWarehouseWrap');
+        var issueWrap = document.getElementById('issueFromWarehouseWrap');
         var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
         if (window.IasUserSelect) {
             if (mode !== 'move_component' && moveWrap) {
@@ -2685,16 +3178,23 @@ $this->registerJs("
             if (mode !== 'replace_from_warehouse' && replaceWrap) {
                 window.IasUserSelect.destroy(replaceWrap);
             }
+            if (mode !== 'issue_from_warehouse' && issueWrap) {
+                window.IasUserSelect.destroy(issueWrap);
+            }
         }
         applyOperationModeUi();
         if (mode === 'move_to_warehouse' && equipmentData.length > 0) {
-            renderWarehouseKitPicker();
-            syncWarehouseSelectionIds();
+            syncWarehouseParamsTable(true);
+            initReassignModalSelect2(document.getElementById('warehouseParamsScroll'));
         } else if (mode === 'move_to_warehouse') {
             pendingIds = originalSelectionIds.slice();
+            syncWarehouseParamsTable(true);
         }
         if (mode === 'replace_from_warehouse') {
             syncReplaceFromWarehouseUi(true);
+        }
+        if (mode === 'issue_from_warehouse') {
+            syncIssueFromWarehouseUi(true);
         }
         if (mode === 'move_component' && targetSystemBlockUserId !== '') {
             applyMoveComponentUserDefaults(targetSystemBlockUserId);
@@ -2719,6 +3219,8 @@ $this->registerJs("
                 initReassignModalSelect2(moveWrap);
             } else if (mode === 'replace_from_warehouse') {
                 initReassignModalSelect2(replaceWrap);
+            } else if (mode === 'issue_from_warehouse') {
+                initReassignModalSelect2(issueWrap);
             } else {
                 initReassignModalSelect2(document.getElementById('reassignCommonFieldsWrap'));
             }
@@ -2776,7 +3278,6 @@ $this->registerJs("
         var hasFormChanges = validateForm();
         var targetSystemBlockId = (document.getElementById('targetSystemBlockId') || {}).value || '';
         var targetSystemBlockUserId = (document.getElementById('targetSystemBlockUserId') || {}).value || '';
-        var componentLinkType = (document.getElementById('componentLinkType') || {}).value || '';
         console.log('submitReassign: pendingIds.length=', pendingIds.length);
         
         if (!hasFormChanges) {
@@ -2800,47 +3301,54 @@ $this->registerJs("
         if (operationMode === 'move_component') {
             syncMoveComponentChildPicker();
             if (getMoveComponentCandidates().length === 0) {
-                showNotification('У выбранного ПК нет привязанных мониторов или ИБП для переноса.', 'error');
+                showNotification('У выбранного системного блока нет привязанных мониторов или ИБП.', 'error');
                 return;
             }
             if (pendingIds.length === 0) {
-                showNotification('Отметьте один или несколько мониторов/ИБП для переноса.', 'error');
+                showNotification('Отметьте монитор или ИБП для прикрепления к другому системному блоку.', 'error');
                 return;
             }
             if (!targetSystemBlockUserId || !targetSystemBlockId) {
-                showNotification('Для привязки выберите владельца и целевой системный блок.', 'error');
+                showNotification('Укажите ответственного и целевой системный блок.', 'error');
                 return;
             }
         }
         if (operationMode === 'move_to_warehouse') {
-            syncWarehouseSelectionIds();
-            var warehouseLocSubmit = getSelectFieldValue(document.getElementById('warehouseLocationId'));
-            if (!warehouseLocSubmit) {
-                showNotification('Выберите складское помещение.', 'error');
+            syncWarehouseMoveCandidates();
+            if (!hasSelectedWarehouseMoves()) {
+                showNotification('Укажите склад хотя бы для одной единицы техники.', 'error');
                 return;
             }
-            if (pendingIds.length === 0) {
-                showNotification('Отметьте оборудование для перемещения на склад.', 'error');
-                return;
-            }
+            pendingIds = collectSelectedWarehouseMoveIds();
         }
         if (operationMode === 'replace_from_warehouse') {
             syncReplacePendingIds();
             var replaceTargetSubmit = getSelectedReplaceTarget();
             var replacementSubmit = getReplacementEquipmentId();
             if (!isReplaceFromWarehouseModeAllowed()) {
-                showNotification('Замена со склада доступна для одной полевой единицы: СБ, монитор или ИБП.', 'error');
+                showNotification('Операция доступна для одной полевой единицы: системный блок, монитор или ИБП.', 'error');
                 return;
             }
             if (!replaceTargetSubmit) {
-                showNotification('Выберите, какую единицу комплекта заменить.', 'error');
+                showNotification('Выберите монитор или ИБП, который нужно заменить.', 'error');
                 return;
             }
             if (!replacementSubmit) {
-                showNotification('Выберите технику со склада для замены.', 'error');
+                showNotification('Выберите замену со склада.', 'error');
                 return;
             }
             pendingIds = [replaceTargetSubmit.id];
+        }
+        if (operationMode === 'issue_from_warehouse') {
+            if (!isIssueFromWarehouseModeAllowed()) {
+                showNotification('Операция доступна для одного полевого системного блока.', 'error');
+                return;
+            }
+            if (!getIssuedEquipmentId()) {
+                showNotification('Выберите монитор или ИБП для прикрепления со склада.', 'error');
+                return;
+            }
+            pendingIds = [parseInt(equipmentData[0].id, 10)];
         }
         
         // Сохраняем состояние кнопки перед отправкой
@@ -2854,8 +3362,13 @@ $this->registerJs("
         fd.append('operation_mode', operationMode);
         
         if (operationMode === 'move_to_warehouse') {
-            var warehouseLocId = getSelectFieldValue(document.getElementById('warehouseLocationId'));
-            fd.append('location_id', warehouseLocId);
+            collectSelectedWarehouseMoveRows().forEach(function(row) {
+                fd.append('warehouse_locations[' + row.id + ']', row.warehouseLocationId);
+                if (row.statusId !== '') {
+                    fd.append('warehouse_statuses[' + row.id + ']', row.statusId);
+                }
+                fd.append('warehouse_descriptions[' + row.id + ']', row.description || '');
+            });
         } else if (operationMode === 'replace_from_warehouse') {
             fd.append('replacement_equipment_id', getReplacementEquipmentId());
             fd.append('replaced_status_id', (document.getElementById('replacedStatusId') || {}).value || '');
@@ -2873,9 +3386,13 @@ $this->registerJs("
             if (replaceWhLoc) {
                 fd.append('location_id', replaceWhLoc);
             }
+        } else if (operationMode === 'issue_from_warehouse') {
+            fd.append('issue_kind', getIssueKind());
+            fd.append('issued_equipment_id', getIssuedEquipmentId());
         } else if (operationMode === 'move_component') {
             fd.append('link_action', 'attach');
-            fd.append('link_type', componentLinkType);
+            // Тип (монитор/ИБП) определяется на сервере по каждой единице — смешанный выбор допустим.
+            fd.append('link_type', '');
             if (targetSystemBlockUserId !== '') {
                 fd.append('responsible_user_id', targetSystemBlockUserId === '0' ? '' : targetSystemBlockUserId);
             }
@@ -2993,8 +3510,12 @@ $this->registerJs("
         setOperationMode('reassign', false);
         if (targetSbUser) setUserSelectValue(targetSbUser, '');
         if (targetSb) targetSb.innerHTML = '<option value=\"\">— сначала выберите пользователя —</option>';
-        var whLoc = document.getElementById('warehouseLocationId');
-        if (whLoc) setUserSelectValue(whLoc, '');
+        var whBulkLoc = document.getElementById('warehouseBulkLocationId');
+        if (whBulkLoc) setUserSelectValue(whBulkLoc, '');
+        var whBulkStatus = document.getElementById('warehouseBulkStatusId');
+        if (whBulkStatus) whBulkStatus.value = '';
+        var warehouseParamsListReset = document.getElementById('warehouseParamsList');
+        if (warehouseParamsListReset) warehouseParamsListReset.innerHTML = '';
         var replaceWhLocReset = document.getElementById('replaceWarehouseLocationId');
         if (replaceWhLocReset) setUserSelectValue(replaceWhLocReset, '');
         var replacedStatusReset = document.getElementById('replacedStatusId');
@@ -3020,8 +3541,16 @@ $this->registerJs("
         }
         var replacementReset = document.getElementById('replacementEquipmentId');
         if (replacementReset) {
-            replacementReset.innerHTML = '<option value=\"\">— выберите замену —</option>';
+            replacementReset.innerHTML = '<option value=\"\">— выберите технику —</option>';
             reinitReplacementEquipmentSelect();
+        }
+        var issueWhLocReset = document.getElementById('issueWarehouseLocationId');
+        if (issueWhLocReset) setUserSelectValue(issueWhLocReset, '');
+        setIssueKind('monitor', false);
+        var issueEquipReset = document.getElementById('issueWarehouseEquipmentId');
+        if (issueEquipReset) {
+            issueEquipReset.innerHTML = '<option value=\"\">— выберите технику —</option>';
+            reinitIssueWarehouseEquipmentSelect();
         }
         var replaceTargetIdReset = document.getElementById('replaceTargetEquipmentId');
         if (replaceTargetIdReset) replaceTargetIdReset.value = '';
@@ -3040,7 +3569,7 @@ $this->registerJs("
             }
             equipmentParamsList.innerHTML = '';
         }
-        warehouseSelectionIds = [];
+        
         syncReassignEquipmentParams(true);
         applyOperationModeUi();
         
@@ -3194,9 +3723,34 @@ $this->registerJs("
                 applyBulkReassignLocation();
             });
 
-        modalRoot.find('#warehouseLocationId')
+        modalRoot.find('#warehouseBulkLocationId, #warehouseBulkStatusId')
             .off('.reassignArmField')
             .on('change.reassignArmField select2:select.reassignArmField select2:clear.reassignArmField', function() {
+                syncWarehouseBulkApplyButtons();
+            });
+
+        modalRoot.find('#warehouseBulkLocationApply')
+            .off('.reassignArmField')
+            .on('click.reassignArmField', function() {
+                applyBulkWarehouseLocation();
+            });
+
+        modalRoot.find('#warehouseBulkStatusApply')
+            .off('.reassignArmField')
+            .on('click.reassignArmField', function() {
+                applyBulkWarehouseStatus();
+            });
+
+        modalRoot.find('#warehouseParamsList')
+            .off('.reassignArmField')
+            .on('change.reassignArmField select2:select.reassignArmField select2:clear.reassignArmField', '.js-warehouse-location', function() {
+                syncWarehouseMoveCandidates();
+                scheduleUpdatePreview();
+            })
+            .on('change.reassignArmField', '.js-warehouse-status', function() {
+                scheduleUpdatePreview();
+            })
+            .on('input.reassignArmField', '.js-warehouse-description', function() {
                 scheduleUpdatePreview();
             });
 
@@ -3204,6 +3758,27 @@ $this->registerJs("
             .off('.reassignArmField')
             .on('change.reassignArmField select2:select.reassignArmField select2:clear.reassignArmField', function() {
                 fetchReplaceWarehouseOptions();
+            });
+
+        modalRoot.find('#issueWarehouseLocationId')
+            .off('.reassignArmField')
+            .on('select2:select.reassignArmField select2:clear.reassignArmField', function() {
+                fetchIssueWarehouseOptions();
+            });
+
+        modalRoot.find('#issueWarehouseEquipmentId')
+            .off('.reassignArmField')
+            .on('select2:select.reassignArmField select2:clear.reassignArmField', function() {
+                scheduleUpdatePreview();
+            });
+
+        modalRoot.find('#issueKindSwitch')
+            .off('.reassignArmField')
+            .on('click.reassignArmField', '.arm-reassign-move-type__btn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var kind = this.getAttribute('data-issue-kind') || 'monitor';
+                setIssueKind(kind, true);
             });
 
         modalRoot.find('#replaceTargetList')
@@ -3225,31 +3800,16 @@ $this->registerJs("
                 scheduleUpdatePreview();
             });
 
-        modalRoot.find('#warehouseKitList')
-            .off('.reassignArmField')
-            .on('change.reassignArmField', 'input[data-warehouse-id]', function() {
-                syncWarehouseSelectionIds();
-                scheduleUpdatePreview();
-            });
-
-        modalRoot.find('#targetSystemBlockId, #componentLinkType, #moveComponentChildId')
+        modalRoot.find('#targetSystemBlockId, #moveComponentChildId')
             .off('.reassignArmField')
             .on('change.reassignArmField', function() {
                 if (this.id === 'targetSystemBlockId') {
                     applyDefaultLocationFromTargetSystemBlock();
                 }
-                if (this.id === 'componentLinkType' || this.id === 'moveComponentChildId') {
-                    syncComponentLinkTypeField();
+                if (this.id === 'moveComponentChildId') {
                     syncMoveComponentChildPicker();
                 }
                 scheduleUpdatePreview();
-            });
-
-        modalRoot.find('.arm-reassign-move-type__switch')
-            .off('.reassignArmField')
-            .on('click.reassignArmField', '.arm-reassign-move-type__btn', function() {
-                var type = this.getAttribute('data-link-type') || 'monitor';
-                setComponentLinkType(type, true);
             });
 
         modalRoot.find('#moveComponentChildList')
@@ -3274,7 +3834,6 @@ $this->registerJs("
             applyMoveComponentUserDefaults(userId);
             fetchSystemBlocksForUser(userId);
         }
-        syncComponentLinkTypeField();
         syncMoveComponentChildPicker();
     }
 
@@ -3328,27 +3887,34 @@ $this->registerJs("
                     return;
                 }
                 
-                var isWarehouseKitInput = target.matches && target.matches('input[data-warehouse-id]');
                 var isNetworkField = target.classList
                     && (target.classList.contains('js-reassign-hostname') || target.classList.contains('js-reassign-ip'));
                 var isUserAssignField = target.classList && target.classList.contains('js-reassign-user');
                 var isLocationAssignField = target.classList && target.classList.contains('js-reassign-location');
+                var isWarehouseLocationField = target.classList && target.classList.contains('js-warehouse-location');
+                var isWarehouseStatusField = target.classList && target.classList.contains('js-warehouse-status');
+                var isWarehouseDescriptionField = target.classList && target.classList.contains('js-warehouse-description');
                 if (
                     isUserAssignField ||
                     isLocationAssignField ||
                     isNetworkField ||
-                    target.id === 'warehouseLocationId' ||
+                    isWarehouseLocationField ||
+                    isWarehouseStatusField ||
+                    isWarehouseDescriptionField ||
+                    target.id === 'warehouseBulkLocationId' ||
+                    target.id === 'warehouseBulkStatusId' ||
                     target.id === 'replaceWarehouseLocationId' ||
                     target.id === 'replacedStatusId' ||
                     target.id === 'replacedDescription' ||
                     target.id === 'replaceHostname' ||
                     target.id === 'replaceIpAddress' ||
                     target.id === 'replacementEquipmentId' ||
+                    target.id === 'issueWarehouseLocationId' ||
+                    target.id === 'issueWarehouseEquipmentId' ||
+                    target.id === 'issueKind' ||
                     target.id === 'targetSystemBlockId' ||
                     target.id === 'targetSystemBlockUserId' ||
-                    target.id === 'componentLinkType' ||
-                    target.id === 'moveComponentChildId' ||
-                    isWarehouseKitInput
+                    target.id === 'moveComponentChildId'
                 ) {
                     // Получаем equipmentData из замыкания (она объявлена в области видимости функции)
                     var currentEquipmentDataLength = 0;
@@ -3380,11 +3946,11 @@ $this->registerJs("
                             applyDefaultLocationForReassign(userVal, locSelect);
                         }
                     }
-                    if (target.id === 'componentLinkType' || target.id === 'moveComponentChildId') {
+                    if (target.id === 'moveComponentChildId') {
                         syncMoveComponentChildPicker();
                     }
-                    if (isWarehouseKitInput) {
-                        syncWarehouseSelectionIds();
+                    if (isWarehouseLocationField) {
+                        syncWarehouseMoveCandidates();
                     }
                     // Используем небольшую задержку, чтобы значение успело обновиться
                     setTimeout(function() {

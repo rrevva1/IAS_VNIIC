@@ -6,6 +6,7 @@
  * @var app\models\entities\Equipment $model
  * @var array $chars Характеристики из part_char_values
  * @var app\models\entities\EquipHistory[] $history
+ * @var list<array{user_id: int|null, user_name: string, from: string|null, to: string|null, is_current: bool}> $responsibleHistory
  * @var bool $isModal
  * @var bool $isHost
  * @var array{monitor?: array, disk?: array, ups?: array} $linkedComponents
@@ -379,10 +380,56 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
     </section>
     <?php endif; ?>
 
+    <?php
+    $responsibleHistory = $responsibleHistory ?? [];
+    $formatPeriod = static function (?string $from, ?string $to, bool $isCurrent) use ($formatDate): string {
+        $fromLabel = $from ? $formatDate($from) : '—';
+        if ($isCurrent || $to === null || trim((string) $to) === '') {
+            return $fromLabel . ' — н.в.';
+        }
+
+        return $fromLabel . ' — ' . $formatDate($to);
+    };
+    ?>
+
+    <?php if ($responsibleHistory !== []): ?>
+    <section class="arm-view-section" aria-labelledby="arm-view-users-history-title">
+        <details class="arm-view-history">
+            <summary id="arm-view-users-history-title" class="arm-view-history__summary">
+                История пользователей
+                <span class="arm-view-history__count"><?= count($responsibleHistory) ?></span>
+            </summary>
+            <ul class="arm-view-history-list">
+                <?php foreach ($responsibleHistory as $period): ?>
+                <li class="arm-view-history-list__item<?= !empty($period['is_current']) ? ' is-current' : '' ?>">
+                    <div class="arm-view-history-list__user">
+                        <?= Html::encode($period['user_name'] ?: 'не назначен') ?>
+                        <?php if (!empty($period['is_current'])): ?>
+                            <span class="arm-view-history-list__badge">сейчас</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="arm-view-history-list__period">
+                        <?= Html::encode($formatPeriod(
+                            $period['from'] ?? null,
+                            $period['to'] ?? null,
+                            !empty($period['is_current'])
+                        )) ?>
+                    </div>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </details>
+    </section>
+    <?php endif; ?>
+
     <?php if (!empty($history)): ?>
     <section class="arm-view-section" aria-labelledby="arm-view-history-title">
-        <h2 id="arm-view-history-title" class="arm-view-section__title">История перемещений и изменений</h2>
-        <ul class="arm-view-timeline">
+        <details class="arm-view-history">
+            <summary id="arm-view-history-title" class="arm-view-history__summary">
+                История перемещений и изменений
+                <span class="arm-view-history__count"><?= count($history) ?></span>
+            </summary>
+            <ul class="arm-view-timeline">
             <?php foreach ($history as $h): ?>
             <?php
                 $details = trim($h->getFormattedDetails());
@@ -407,7 +454,8 @@ $relatedTasks = $model->getTasks()->with('status')->orderBy(['created_at' => SOR
                 <?php endif; ?>
             </li>
             <?php endforeach; ?>
-        </ul>
+            </ul>
+        </details>
     </section>
     <?php endif; ?>
 

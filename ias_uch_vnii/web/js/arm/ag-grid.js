@@ -102,7 +102,7 @@
             id: 'base',
             title: 'Основное',
             icon: 'fa-id-card',
-            columns: ['user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
+            columns: ['user_name', 'previous_user_name', 'location_name', 'status_name', 'system_block', 'inventory_number', 'purchase_date'],
         },
         {
             id: 'config',
@@ -524,6 +524,15 @@
                 cellClass: 'ag-cell-wrap-text',
             },
             {
+                headerName: 'Предыдущий пользователь',
+                field: 'previous_user_name',
+                minWidth: 140,
+                filter: 'agTextColumnFilter',
+                wrapText: true,
+                autoHeight: false,
+                cellClass: 'ag-cell-wrap-text',
+            },
+            {
                 headerName: 'Помещение',
                 field: 'location_name',
                 minWidth: 100,
@@ -691,6 +700,7 @@
 
     var WAREHOUSE_DEFAULT_GRID_SORT = [
         { colId: 'location_name', sort: 'asc' },
+        { colId: 'previous_user_name', sort: 'asc' },
     ];
 
     function isWarehouseGrid() {
@@ -703,16 +713,25 @@
     }
 
     function filterPresetColumnsForScope(columns, typeId) {
-        if (!isWarehouseGrid()) {
-            return columns;
-        }
-        var filtered = columns.filter(function(colId) { return colId !== 'user_name'; });
-        if (isSystemBlockTypeId(typeId)) {
-            filtered = filtered.filter(function(colId) {
-                return colId !== 'monitor' && colId !== 'ups';
+        if (isWarehouseGrid()) {
+            var filtered = columns.filter(function(colId) {
+                return colId !== 'user_name'
+                    && colId !== 'hostname'
+                    && colId !== 'ip';
             });
+            if (filtered.indexOf('previous_user_name') === -1) {
+                filtered.unshift('previous_user_name');
+            }
+            if (isSystemBlockTypeId(typeId)) {
+                filtered = filtered.filter(function(colId) {
+                    return colId !== 'monitor' && colId !== 'ups';
+                });
+            }
+            return filtered;
         }
-        return filtered;
+        return columns.filter(function(colId) {
+            return colId !== 'previous_user_name';
+        });
     }
 
     /** Сортировка по умолчанию только на сервере — без стрелок и цифр в заголовках до ручного клика. */
@@ -976,6 +995,8 @@
             if (optionsForType.indexOf(colId) === -1) {
                 hide = true;
             } else if (colId === 'user_name' && isWarehouseGrid()) {
+                hide = true;
+            } else if (colId === 'previous_user_name' && !isWarehouseGrid()) {
                 hide = true;
             } else if (isWarehouseGrid() && isSystemBlockTypeId(typeId) && (colId === 'monitor' || colId === 'ups')) {
                 hide = true;

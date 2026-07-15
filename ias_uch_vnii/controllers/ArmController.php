@@ -21,6 +21,7 @@ use app\components\EquipmentCharCatalog;
 use app\components\EquipmentKitHelper;
 use app\components\EquipmentPartCharService;
 use app\components\EquipmentReplacementService;
+use app\components\KitIssuanceService;
 use app\components\UserEquipmentCardService;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -128,6 +129,10 @@ class ArmController extends Controller
             'name'
         );
         $statuses = DicEquipmentStatus::getList();
+        $users = $this->sortLabeledMapAlphabetically($users);
+        $locations = $this->sortLabeledMapAlphabetically($locations);
+        $warehouseLocations = $this->sortLabeledMapAlphabetically($warehouseLocations);
+        $statuses = $this->sortLabeledMapAlphabetically($statuses);
         $isAdmin = !Yii::$app->user->isGuest
             && Yii::$app->user->identity
             && Yii::$app->user->identity->isAdministrator();
@@ -224,6 +229,9 @@ class ArmController extends Controller
             $linksByParent = $this->loadLinkedComponents(
                 array_map(function ($m) { return (int) $m->id; }, $models)
             );
+            $previousUsersByEquipment = $params['ArmSearch']['location_scope'] === 'warehouse_only'
+                ? EquipHistory::loadPreviousResponsibleNames(array_map(static fn($m) => (int) $m->id, $models))
+                : [];
             $data = [];
             foreach ($models as $model) {
                 $chars = $charsByEquipment[$model->id] ?? [];
@@ -241,6 +249,7 @@ class ArmController extends Controller
                     'id' => $model->id,
                     'is_host' => EquipmentKitHelper::isHostEquipment($model),
                     'user_name' => $model->responsibleUser ? $model->responsibleUser->getDisplayName() : '',
+                    'previous_user_name' => (string) ($previousUsersByEquipment[(int) $model->id] ?? ''),
                     'location_name' => $model->location ? $model->location->name : '',
                     'status_id' => (int) $model->status_id,
                     'status_name' => $statusName,
@@ -528,13 +537,22 @@ class ArmController extends Controller
 
     /**
      * @param int[] $ids
+     * @param array<int, int> $warehouseLocationsById
+     * @param array<int, int> $statusesById
+     * @param array<int, string> $descriptionsById
      * @return array{success: bool, message: string, updated?: int, details?: array}
      */
-    private function applyMoveToWarehouse(array $ids, int $warehouseLocationId): array
-    {
+    private function applyMoveToWarehouse(
+        array $ids,
+        array $warehouseLocationsById,
+        array $statusesById = [],
+        array $descriptionsById = []
+    ): array {
         $updated = 0;
         $responsibleUserChanged = 0;
         $locationChanged = 0;
+        $statusChanged = 0;
+        $descriptionChanged = 0;
         $errors = [];
 
         $transaction = Yii::$app->db->beginTransaction();
@@ -543,9 +561,16 @@ class ArmController extends Controller
             $this->clearHostKitBindingsAfterWarehouseMove($ids);
 
             foreach ($ids as $id) {
-                $model = Equipment::findOne((int) $id);
+                $equipmentId = (int) $id;
+                $warehouseLocationId = (int) ($warehouseLocationsById[$equipmentId] ?? 0);
+                if ($warehouseLocationId <= 0) {
+                    $errors[] = ['equipment_id' => $equipmentId, 'message' => 'Не указан склад назначения'];
+                    continue;
+                }
+
+                $model = Equipment::findOne($equipmentId);
                 if (!$model || $model->is_deleted || $model->is_archived) {
-                    $errors[] = ['equipment_id' => $id, 'message' => 'Оборудование не найдено'];
+                    $errors[] = ['equipment_id' => $equipmentId, 'message' => 'Оборудование не найдено'];
                     continue;
                 }
 
@@ -578,13 +603,47 @@ class ArmController extends Controller
                     $changed = true;
                 }
 
+                if (array_key_exists($equipmentId, $statusesById)) {
+                    $newStatusId = (int) $statusesById[$equipmentId];
+                    if ($newStatusId > 0 && !EquipHistory::idsEqual($model->status_id, $newStatusId)) {
+                        $oldStatus = $model->status_id;
+                        $model->status_id = $newStatusId;
+                        EquipHistory::log(
+                            $model->id,
+                            'status_change',
+                            ['status_id' => $oldStatus],
+                            ['status_id' => $model->status_id],
+                            'move_to_warehouse'
+                        );
+                        $statusChanged++;
+                        $changed = true;
+                    }
+                }
+
+                if (array_key_exists($equipmentId, $descriptionsById)) {
+                    $prevDescription = $model->description !== null ? (string) $model->description : '';
+                    $nextDescription = trim((string) $descriptionsById[$equipmentId]);
+                    if ($nextDescription !== $prevDescription) {
+                        $model->description = $nextDescription !== '' ? $nextDescription : null;
+                        EquipHistory::log(
+                            $model->id,
+                            'update',
+                            ['description' => $prevDescription !== '' ? $prevDescription : null],
+                            ['description' => $model->description],
+                            'move_to_warehouse'
+                        );
+                        $descriptionChanged++;
+                        $changed = true;
+                    }
+                }
+
                 if ($changed && $model->save(false)) {
                     $updated++;
                     AuditLog::log('equipment.move_to_warehouse', 'equipment', $model->id, 'success');
                     UserEquipmentCardService::invalidateByUserId((int) $oldResponsible);
                     UserEquipmentCardService::ensureCardForUser((int) $oldResponsible);
                 } elseif ($changed) {
-                    $errors[] = ['equipment_id' => $id, 'message' => 'Ошибка при сохранении'];
+                    $errors[] = ['equipment_id' => $equipmentId, 'message' => 'Ошибка при сохранении'];
                 }
             }
 
@@ -602,7 +661,8 @@ class ArmController extends Controller
             'details' => [
                 'responsible_user_changed' => $responsibleUserChanged,
                 'location_changed' => $locationChanged,
-                'status_changed' => 0,
+                'status_changed' => $statusChanged,
+                'description_changed' => $descriptionChanged,
                 'links_detached' => $linksDetached,
                 'errors' => $errors,
             ],
@@ -811,6 +871,60 @@ class ArmController extends Controller
             ];
         }
         return $result;
+    }
+
+    /**
+     * @param array<string, array<int, array<string, mixed>>> $linkedComponents
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function enrichLinkedComponentsWithEquipmentDetails(array $linkedComponents): array
+    {
+        $childIds = [];
+        foreach (['monitor', 'ups', 'disk'] as $type) {
+            foreach ($linkedComponents[$type] ?? [] as $component) {
+                $childId = (int) ($component['id'] ?? 0);
+                if ($childId > 0) {
+                    $childIds[$childId] = $childId;
+                }
+            }
+        }
+        if ($childIds === []) {
+            return $linkedComponents;
+        }
+
+        $children = Equipment::find()
+            ->where(['id' => array_values($childIds), 'is_deleted' => false])
+            ->with(['location', 'equipmentStatus', 'responsibleUser'])
+            ->indexBy('id')
+            ->all();
+
+        foreach (['monitor', 'ups', 'disk'] as $type) {
+            $linkedComponents[$type] = array_map(
+                static function (array $component) use ($children): array {
+                    $child = $children[(int) ($component['id'] ?? 0)] ?? null;
+                    if ($child === null) {
+                        return $component;
+                    }
+
+                    return array_merge($component, [
+                        'equipment_type' => $child->equipment_type,
+                        'responsible_user_id' => $child->responsible_user_id,
+                        'responsible_user_name' => $child->responsibleUser
+                            ? $child->responsibleUser->getDisplayName()
+                            : null,
+                        'location_id' => $child->location_id,
+                        'location_name' => $child->location ? $child->location->name : null,
+                        'status_id' => $child->status_id,
+                        'status_name' => $child->equipmentStatus
+                            ? $child->equipmentStatus->status_name
+                            : null,
+                    ]);
+                },
+                $linkedComponents[$type] ?? []
+            );
+        }
+
+        return $linkedComponents;
     }
 
     /**
@@ -1095,6 +1209,14 @@ class ArmController extends Controller
             ->limit(50)
             ->all();
 
+        $currentResponsible = $model->responsibleUser;
+        $responsibleHistory = EquipHistory::buildResponsiblePeriods(
+            (int) $model->id,
+            $model->responsible_user_id !== null ? (int) $model->responsible_user_id : null,
+            $currentResponsible ? $currentResponsible->getDisplayName() : null,
+            $model->created_at ? (string) $model->created_at : null
+        );
+
         $isHost = $this->isHostEquipment($model);
         $isOnWarehouse = $this->isEquipmentOnWarehouse($model);
         $linkedComponents = ['monitor' => [], 'disk' => [], 'ups' => []];
@@ -1112,6 +1234,7 @@ class ArmController extends Controller
             'model' => $model,
             'chars' => $charsForModel,
             'history' => $history,
+            'responsibleHistory' => $responsibleHistory,
             'isHost' => $isHost,
             'isOnWarehouse' => $isOnWarehouse,
             'linkedComponents' => $linkedComponents,
@@ -1447,7 +1570,9 @@ class ArmController extends Controller
                 'is_on_warehouse' => $isOnWarehouse,
                 'replace_kind' => $replaceKind,
                 'linked_components' => $isHost
-                    ? ($linksByParent[(int) $eq->id] ?? ['monitor' => [], 'disk' => [], 'ups' => []])
+                    ? $this->enrichLinkedComponentsWithEquipmentDetails(
+                        $linksByParent[(int) $eq->id] ?? ['monitor' => [], 'disk' => [], 'ups' => []]
+                    )
                     : ['monitor' => [], 'disk' => [], 'ups' => []],
             ];
             if ($isHost) {
@@ -1561,18 +1686,42 @@ class ArmController extends Controller
                 $hostname,
                 $ipAddress
             );
+        } elseif ($operationMode === 'issue_from_warehouse') {
+            if (count($ids) !== 1) {
+                return [
+                    'success' => false,
+                    'message' => 'Для выдачи со склада выберите один системный блок в таблице.',
+                ];
+            }
+            $componentId = (int) Yii::$app->request->post('issued_equipment_id', 0);
+            $kind = (string) Yii::$app->request->post('issue_kind', 'monitor');
+            $service = new KitIssuanceService();
+
+            return $service->issueComponentToHost((int) $ids[0], $componentId, $kind);
         } elseif ($operationMode === 'move_to_warehouse') {
             if (empty($ids)) {
                 return ['success' => false, 'message' => 'Не выбрано оборудование для перемещения на склад.'];
             }
-            $warehouseLocationId = (int) Yii::$app->request->post('location_id', 0);
-            if ($warehouseLocationId <= 0) {
-                return ['success' => false, 'message' => 'Укажите складское помещение.'];
+            $warehouseLocationsById = $this->parseLocationsPost(Yii::$app->request->post('warehouse_locations', []));
+            $legacyWarehouseLocationId = (int) Yii::$app->request->post('location_id', 0);
+            if ($warehouseLocationsById === [] && $legacyWarehouseLocationId > 0) {
+                foreach ($ids as $id) {
+                    $warehouseLocationsById[(int) $id] = $legacyWarehouseLocationId;
+                }
             }
-            if (!$this->isWarehouseLocationId($warehouseLocationId)) {
-                return ['success' => false, 'message' => 'Выбранное помещение не является складом.'];
+            foreach ($ids as $id) {
+                $equipmentId = (int) $id;
+                if ($equipmentId <= 0 || empty($warehouseLocationsById[$equipmentId])) {
+                    return ['success' => false, 'message' => 'Для каждой единицы техники укажите склад назначения.'];
+                }
+                if (!$this->isWarehouseLocationId((int) $warehouseLocationsById[$equipmentId])) {
+                    return ['success' => false, 'message' => 'Выбранное помещение не является складом.'];
+                }
             }
-            return $this->applyMoveToWarehouse($ids, $warehouseLocationId);
+            $statusesById = $this->parseLocationsPost(Yii::$app->request->post('warehouse_statuses', []));
+            $descriptionsById = $this->parseDescriptionsPost(Yii::$app->request->post('warehouse_descriptions', []));
+
+            return $this->applyMoveToWarehouse($ids, $warehouseLocationsById, $statusesById, $descriptionsById);
         } else {
             $ids = $this->expandReassignIdsWithLinkedComponents($ids, $operationMode);
         }
@@ -1839,6 +1988,28 @@ class ArmController extends Controller
     }
 
     /**
+     * @param mixed $raw
+     * @return array<int, string>
+     */
+    private function parseDescriptionsPost($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($raw as $equipmentId => $descriptionValue) {
+            $id = (int) $equipmentId;
+            if ($id <= 0) {
+                continue;
+            }
+            $out[$id] = is_scalar($descriptionValue) ? (string) $descriptionValue : '';
+        }
+
+        return $out;
+    }
+
+    /**
      * Для переназначения ПК распространяет помещение на привязанные мониторы и ИБП.
      *
      * @param array<int, int> $locationsById
@@ -2006,7 +2177,15 @@ class ArmController extends Controller
 
             $query = Equipment::find()
                 ->alias('e')
-                ->select(['e.id', 'e.name', 'e.inventory_number', 'e.serial_number', 'e.location_id'])
+                ->leftJoin(['loc' => Location::tableName()], 'loc.id = e.location_id')
+                ->select([
+                    'e.id',
+                    'e.name',
+                    'e.inventory_number',
+                    'e.serial_number',
+                    'e.location_id',
+                    'location_name' => 'loc.name',
+                ])
                 ->where(['e.is_deleted' => false, 'e.is_archived' => false]);
 
             $hostCondition = $this->buildHostEquipmentSqlCondition('e', EquipmentTypes::usesDictionary() ? 'et' : null);
@@ -2023,6 +2202,7 @@ class ArmController extends Controller
                     ['ilike', 'e.name', $q],
                     ['ilike', 'e.inventory_number', $q],
                     ['ilike', 'e.serial_number', $q],
+                    ['ilike', 'loc.name', $q],
                 ]);
             }
 
@@ -2403,6 +2583,33 @@ class ArmController extends Controller
     }
 
     /**
+     * Сортировка словаря [id => подпись] по алфавиту для выпадающих списков операций.
+     *
+     * @param array<int|string, string> $map
+     * @return array<int|string, string>
+     */
+    private function sortLabeledMapAlphabetically(array $map): array
+    {
+        if ($map === []) {
+            return $map;
+        }
+        if (class_exists(\Collator::class)) {
+            $collator = new \Collator('ru_RU');
+            uasort($map, static function ($a, $b) use ($collator) {
+                return $collator->compare((string) $a, (string) $b);
+            });
+            return $map;
+        }
+        uasort($map, static function ($a, $b) {
+            return strcmp(
+                mb_strtolower((string) $a, 'UTF-8'),
+                mb_strtolower((string) $b, 'UTF-8')
+            );
+        });
+        return $map;
+    }
+
+    /**
      * Переносит компонент на учёт пользователя и помещения целевого ПК.
      */
     private function syncComponentToHost(Equipment $component, Equipment $host): bool
@@ -2553,9 +2760,18 @@ class ArmController extends Controller
 
         $charsByEquipment = $this->loadPartCharValuesByEquipment(array_map(static fn($m) => (int)$m->id, $models));
         $linksByParent = $this->loadLinkedComponents(array_map(static fn($m) => (int)$m->id, $models));
+        $isWarehouseExport = $this->id === 'warehouse'
+            || (($params['ArmSearch']['location_scope'] ?? '') === 'warehouse_only');
+        $previousUsersByEquipment = $isWarehouseExport
+            ? EquipHistory::loadPreviousResponsibleNames(array_map(static fn($m) => (int) $m->id, $models))
+            : [];
 
         $columnMap = [
             'user_name' => ['Пользователь', static fn($m, $chars, $links) => $m->responsibleUser ? $m->responsibleUser->getDisplayName() : ''],
+            'previous_user_name' => [
+                'Предыдущий пользователь',
+                static fn($m, $chars, $links) => (string) ($previousUsersByEquipment[(int) $m->id] ?? ''),
+            ],
             'location_name' => ['Помещение', static fn($m, $chars, $links) => $m->location ? $m->location->name : ''],
             'status_name' => ['Статус', static fn($m, $chars, $links) => $m->equipmentStatus ? $m->equipmentStatus->status_name : ''],
             'cpu' => ['ЦП', static fn($m, $chars, $links) => $chars['cpu'] ?? ''],
@@ -2604,8 +2820,9 @@ class ArmController extends Controller
         if ($this->id === 'warehouse') {
             $defaultCols = array_values(array_filter(
                 $defaultCols,
-                static fn(string $colId): bool => $colId !== 'user_name'
+                static fn(string $colId): bool => !in_array($colId, ['user_name', 'hostname', 'ip'], true)
             ));
+            array_unshift($defaultCols, 'previous_user_name');
         }
         $scope = trim((string)($params['export_scope'] ?? 'all'));
         $colsParam = trim((string)($params['cols'] ?? ''));

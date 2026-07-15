@@ -21,13 +21,24 @@ class KitIssuanceService
      */
     public function getOptions(?int $warehouseLocationId = null, ?int $hostId = null): array
     {
+        // host_id используется только для проверки доступности выбранного СБ.
+        // Не сужаем мониторы/ИБП до склада выбранного системного блока:
+        // комплект может собираться с разных складских помещений
+        // (помещение уже видно в подписи опции).
         if ($hostId !== null && $hostId > 0) {
             $host = Equipment::find()
                 ->where(['id' => $hostId, 'is_deleted' => false, 'is_archived' => false])
                 ->with('location')
                 ->one();
-            if ($host !== null && EquipmentKitHelper::isEquipmentOnWarehouse($host)) {
-                $warehouseLocationId = (int) $host->location_id;
+            if ($host === null || !EquipmentKitHelper::isEquipmentOnWarehouse($host)) {
+                return [
+                    'success' => false,
+                    'message' => 'Выбранный системный блок недоступен для выдачи со склада.',
+                    'hosts' => [],
+                    'monitors' => [],
+                    'ups' => [],
+                    'warehouse_location_id' => null,
+                ];
             }
         }
 
@@ -50,6 +61,7 @@ class KitIssuanceService
             $baseQuery->andWhere(['not exists', $linkedChildExists]);
         }
 
+        // Фильтр по складу — только если явно передан warehouse_location_id.
         if ($warehouseLocationId !== null && $warehouseLocationId > 0) {
             $baseQuery->andWhere(['e.location_id' => $warehouseLocationId]);
         }
@@ -191,7 +203,7 @@ class KitIssuanceService
             $updated++;
 
             foreach ($monitors as $monitor) {
-                $this->attachChildLink($host, $monitor, EquipmentLink::TYPE_MONITOR);
+                $this->attachChildLink($host, $monitor, EquipmentLink::TYPE_MONITOR, 'issue_kit');
                 $monitor->refresh();
                 if (!$this->syncChildToHost($monitor, $host, $statusId)) {
                     throw new \RuntimeException('Не удалось синхронизировать монитор #' . $monitor->id . ' с комплектом.');
@@ -200,7 +212,7 @@ class KitIssuanceService
             }
 
             if ($ups !== null) {
-                $this->attachChildLink($host, $ups, EquipmentLink::TYPE_UPS);
+                $this->attachChildLink($host, $ups, EquipmentLink::TYPE_UPS, 'issue_kit');
                 $ups->refresh();
                 if (!$this->syncChildToHost($ups, $host, $statusId)) {
                     throw new \RuntimeException('Не удалось синхронизировать ИБП с комплектом.');
@@ -237,6 +249,93 @@ class KitIssuanceService
         return [
             'success' => true,
             'message' => 'Выдан комплект: ' . implode(', ', $parts) . '.',
+            'updated' => $updated,
+        ];
+    }
+
+    /**
+     * Выдача монитора или ИБП со склада и привязка к уже выданному системному блоку.
+     *
+     * @return array{success: bool, message: string, updated?: int}
+     */
+    public function issueComponentToHost(int $hostId, int $componentId, string $kind): array
+    {
+        $kind = trim($kind);
+        if (!in_array($kind, ['monitor', 'ups'], true)) {
+            return ['success' => false, 'message' => 'Укажите тип выдаваемой техники: монитор или ИБП.'];
+        }
+        if ($hostId <= 0 || $componentId <= 0) {
+            return ['success' => false, 'message' => 'Укажите системный блок и технику со склада.'];
+        }
+        if ($hostId === $componentId) {
+            return ['success' => false, 'message' => 'Системный блок и выдаваемая техника должны быть разными единицами.'];
+        }
+
+        $host = Equipment::find()
+            ->where(['id' => $hostId, 'is_deleted' => false, 'is_archived' => false])
+            ->with('location')
+            ->one();
+        if ($host === null) {
+            return ['success' => false, 'message' => 'Системный блок не найден.'];
+        }
+        if (!EquipmentKitHelper::isHostEquipment($host)) {
+            return ['success' => false, 'message' => 'Выдача со склада доступна для системного блока, ПК, ноутбука или моноблока.'];
+        }
+        if (EquipmentKitHelper::isEquipmentOnWarehouse($host)) {
+            return ['success' => false, 'message' => 'Системный блок находится на складе. Для выдачи комплекта используйте операцию со склада.'];
+        }
+        if ($host->location_id === null || (int) $host->location_id <= 0) {
+            return ['success' => false, 'message' => 'У системного блока не указано помещение — сначала назначьте помещение.'];
+        }
+
+        $component = $this->findWarehouseUnit($componentId);
+        if ($component === null) {
+            return ['success' => false, 'message' => 'Техника не найдена на складе или уже привязана к комплекту.'];
+        }
+
+        $linkType = $kind === 'ups' ? EquipmentLink::TYPE_UPS : EquipmentLink::TYPE_MONITOR;
+        if ($kind === 'monitor' && !EquipmentKitHelper::isMonitorEquipment($component)) {
+            return ['success' => false, 'message' => 'Выбранная единица не является монитором.'];
+        }
+        if ($kind === 'ups' && !EquipmentKitHelper::isUpsEquipment($component)) {
+            return ['success' => false, 'message' => 'Выбранная единица не является ИБП.'];
+        }
+        if ($kind === 'ups' && $this->hostHasLinkType($hostId, EquipmentLink::TYPE_UPS)) {
+            return ['success' => false, 'message' => 'У выбранного системного блока уже есть привязанный ИБП.'];
+        }
+
+        $statusId = DicEquipmentStatus::getDefaultId();
+        $updated = 0;
+        $transaction = Yii::$app->db->beginTransaction();
+        try {
+            $this->attachChildLink($host, $component, $linkType, 'issue_from_warehouse');
+            $component->refresh();
+            if (!$this->syncIssuedChildToHost($component, $host, $statusId)) {
+                throw new \RuntimeException('Не удалось синхронизировать технику с системным блоком.');
+            }
+            $updated++;
+            $transaction->commit();
+        } catch (\Throwable $e) {
+            $transaction->rollBack();
+            Yii::error('KitIssuanceService::issueComponentToHost failed: ' . $e->getMessage(), __METHOD__);
+
+            return ['success' => false, 'message' => 'Ошибка выдачи со склада: ' . $e->getMessage()];
+        }
+
+        AuditLog::log('equipment.issue_from_warehouse', 'equipment', $hostId, 'success', [
+            'component_id' => $componentId,
+            'kind' => $kind,
+        ]);
+        AuditLog::log('equipment.issue_from_warehouse', 'equipment', $componentId, 'success', [
+            'host_id' => $hostId,
+            'kind' => $kind,
+        ]);
+
+        $kindLabel = $kind === 'ups' ? 'ИБП' : 'монитор';
+
+        return [
+            'success' => true,
+            'message' => 'Со склада выдан ' . $kindLabel . ' и привязан к системному блоку.',
             'updated' => $updated,
         ];
     }
@@ -338,7 +437,7 @@ class KitIssuanceService
         return true;
     }
 
-    private function attachChildLink(Equipment $host, Equipment $child, string $linkType): void
+    private function attachChildLink(Equipment $host, Equipment $child, string $linkType, string $historyComment = 'issue_kit'): void
     {
         if (Yii::$app->db->getTableSchema('equipment_links', true) === null) {
             throw new \RuntimeException('Таблица связей оборудования недоступна.');
@@ -363,7 +462,7 @@ class KitIssuanceService
             'update',
             null,
             ['parent_equipment_id' => (int) $host->id, 'link_type' => $linkType],
-            'issue_kit'
+            $historyComment
         );
     }
 
@@ -375,6 +474,65 @@ class KitIssuanceService
             (int) $host->location_id,
             $statusId
         );
+    }
+
+    /**
+     * Синхронизация выданного со склада компонента с полевым хостом (ответственный может отсутствовать).
+     */
+    private function syncIssuedChildToHost(Equipment $child, Equipment $host, ?int $statusId): bool
+    {
+        $oldResponsible = $child->responsible_user_id;
+        $oldLocation = $child->location_id;
+        $oldStatus = $child->status_id;
+        $hostUserId = $host->responsible_user_id !== null ? (int) $host->responsible_user_id : null;
+        $hostLocationId = (int) $host->location_id;
+
+        $child->responsible_user_id = $hostUserId;
+        $child->location_id = $hostLocationId;
+        if ($statusId !== null && $statusId > 0) {
+            $child->status_id = $statusId;
+        }
+
+        if (!EquipHistory::idsEqual($oldResponsible, $child->responsible_user_id)) {
+            EquipHistory::log(
+                $child->id,
+                $hostUserId ? 'assign' : 'unassign',
+                ['responsible_user_id' => $oldResponsible],
+                ['responsible_user_id' => $child->responsible_user_id],
+                'issue_from_warehouse'
+            );
+        }
+        if (!EquipHistory::idsEqual($oldLocation, $child->location_id)) {
+            EquipHistory::log(
+                $child->id,
+                'move',
+                ['location_id' => $oldLocation],
+                ['location_id' => $child->location_id],
+                'issue_from_warehouse'
+            );
+        }
+        if ($statusId !== null && $statusId > 0 && !EquipHistory::idsEqual($oldStatus, $child->status_id)) {
+            EquipHistory::log(
+                $child->id,
+                'status_change',
+                ['status_id' => $oldStatus],
+                ['status_id' => $child->status_id],
+                'issue_from_warehouse'
+            );
+        }
+
+        if (!$child->save(false)) {
+            return false;
+        }
+
+        UserEquipmentCardService::invalidateByUserId((int) $oldResponsible);
+        UserEquipmentCardService::ensureCardForUser((int) $oldResponsible);
+        if ($hostUserId) {
+            UserEquipmentCardService::invalidateByUserId($hostUserId);
+            UserEquipmentCardService::ensureCardForUser($hostUserId);
+        }
+
+        return true;
     }
 
     /**
