@@ -27,12 +27,6 @@ ias_uch_vnii/runtime/*
 !ias_uch_vnii/runtime/.gitignore
 ias_uch_vnii/web/assets/
 
-# Генерация документов ВКР (npm install в docs/vkr/export)
-docs/vkr/export/node_modules/
-
-# Служебные/временные артефакты сборки ВКР
-docs/vkr/export/docx/_text_extract/
-docs/vkr/export/light-png/
-docs/vkr/export/**/New Folder/
-docs/vkr/export/**/Untitled*
-docs/vkr/export/**/.~lock*
+# Материалы ВКР (локальный каталог вне репозитория)
+vkr/
+Учебные материалы МАГА/
