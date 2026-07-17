@@ -1,0 +1,389 @@
+SET
+      table_name       
+-----------------------
+ audit_events
+ desk_attachments
+ dic_equipment_status
+ dic_task_status
+ dic_work_task_status
+ equip_history
+ equipment
+ equipment_import_logs
+ equipment_links
+ equipment_software
+ equipment_types
+ import_errors
+ import_runs
+ licenses
+ locations
+ migration
+ nsi_change_log
+ part_char_values
+ permissions
+ role_permissions
+ roles
+ software
+ spr_chars
+ spr_parts
+ task_attachments
+ task_equipment
+ task_history
+ tasks
+ user_equipment_cards
+ user_roles
+ users
+ work_task_comments
+ work_task_history
+ work_tasks
+(34 строки)
+
+      table_name       |      column_name      |          data_type          | character_maximum_length | is_nullable 
+-----------------------+-----------------------+-----------------------------+--------------------------+-------------
+ audit_events          | id                    | bigint                      |                          | NO
+ audit_events          | event_time            | timestamp with time zone    |                          | NO
+ audit_events          | actor_id              | bigint                      |                          | YES
+ audit_events          | action_type           | character varying           |                      100 | NO
+ audit_events          | object_type           | character varying           |                      100 | NO
+ audit_events          | object_id             | character varying           |                      100 | NO
+ audit_events          | result_status         | character varying           |                       20 | NO
+ audit_events          | source_ip             | inet                        |                          | YES
+ audit_events          | user_agent            | text                        |                          | YES
+ audit_events          | request_id            | character varying           |                       64 | YES
+ audit_events          | correlation_id        | character varying           |                       64 | YES
+ audit_events          | payload               | jsonb                       |                          | YES
+ audit_events          | error_message         | text                        |                          | YES
+ desk_attachments      | id                    | bigint                      |                          | NO
+ desk_attachments      | storage_path          | character varying           |                     1000 | NO
+ desk_attachments      | original_name         | character varying           |                      255 | NO
+ desk_attachments      | file_extension        | character varying           |                       20 | YES
+ desk_attachments      | mime_type             | character varying           |                      150 | YES
+ desk_attachments      | size_bytes            | bigint                      |                          | NO
+ desk_attachments      | checksum_sha256       | character                   |                       64 | YES
+ desk_attachments      | uploaded_by           | bigint                      |                          | YES
+ desk_attachments      | uploaded_at           | timestamp with time zone    |                          | NO
+ desk_attachments      | is_deleted            | boolean                     |                          | NO
+ desk_attachments      | deleted_at            | timestamp with time zone    |                          | YES
+ desk_attachments      | deleted_by            | bigint                      |                          | YES
+ dic_equipment_status  | id                    | bigint                      |                          | NO
+ dic_equipment_status  | status_code           | character varying           |                       50 | NO
+ dic_equipment_status  | status_name           | character varying           |                      100 | NO
+ dic_equipment_status  | sort_order            | integer                     |                          | NO
+ dic_equipment_status  | is_final              | boolean                     |                          | NO
+ dic_equipment_status  | is_archived           | boolean                     |                          | NO
+ dic_equipment_status  | created_at            | timestamp with time zone    |                          | NO
+ dic_equipment_status  | updated_at            | timestamp with time zone    |                          | NO
+ dic_task_status       | id                    | bigint                      |                          | NO
+ dic_task_status       | status_code           | character varying           |                       50 | NO
+ dic_task_status       | status_name           | character varying           |                      100 | NO
+ dic_task_status       | sort_order            | integer                     |                          | NO
+ dic_task_status       | is_final              | boolean                     |                          | NO
+ dic_task_status       | is_archived           | boolean                     |                          | NO
+ dic_task_status       | created_at            | timestamp with time zone    |                          | NO
+ dic_task_status       | updated_at            | timestamp with time zone    |                          | NO
+ dic_work_task_status  | id                    | integer                     |                          | NO
+ dic_work_task_status  | status_code           | character varying           |                       50 | NO
+ dic_work_task_status  | status_name           | character varying           |                      100 | NO
+ dic_work_task_status  | sort_order            | integer                     |                          | NO
+ dic_work_task_status  | timeline_step         | smallint                    |                          | NO
+ dic_work_task_status  | is_final              | boolean                     |                          | NO
+ dic_work_task_status  | is_archived           | boolean                     |                          | NO
+ dic_work_task_status  | created_at            | timestamp without time zone |                          | YES
+ dic_work_task_status  | updated_at            | timestamp without time zone |                          | YES
+ equip_history         | id                    | bigint                      |                          | NO
+ equip_history         | equipment_id          | bigint                      |                          | NO
+ equip_history         | event_type            | character varying           |                       50 | NO
+ equip_history         | old_value             | jsonb                       |                          | YES
+ equip_history         | new_value             | jsonb                       |                          | YES
+ equip_history         | changed_by            | bigint                      |                          | YES
+ equip_history         | changed_at            | timestamp with time zone    |                          | NO
+ equip_history         | comment               | text                        |                          | YES
+ equipment             | id                    | bigint                      |                          | NO
+ equipment             | inventory_number      | character varying           |                      100 | NO
+ equipment             | serial_number         | character varying           |                      150 | YES
+ equipment             | name                  | character varying           |                      200 | NO
+ equipment             | status_id             | bigint                      |                          | NO
+ equipment             | responsible_user_id   | bigint                      |                          | YES
+ equipment             | location_id           | bigint                      |                          | NO
+ equipment             | supplier              | character varying           |                      200 | YES
+ equipment             | purchase_date         | date                        |                          | YES
+ equipment             | commissioning_date    | date                        |                          | YES
+ equipment             | warranty_until        | date                        |                          | YES
+ equipment             | description           | text                        |                          | YES
+ equipment             | archived_at           | timestamp with time zone    |                          | YES
+ equipment             | archive_reason        | text                        |                          | YES
+ equipment             | is_archived           | boolean                     |                          | NO
+ equipment             | is_deleted            | boolean                     |                          | NO
+ equipment             | created_by_id         | bigint                      |                          | YES
+ equipment             | updated_by_id         | bigint                      |                          | YES
+ equipment             | created_at            | timestamp with time zone    |                          | NO
+ equipment             | updated_at            | timestamp with time zone    |                          | NO
+ equipment             | equipment_type        | character varying           |                      100 | YES
+ equipment             | id_type               | integer                     |                          | YES
+ equipment             | parent_equipment_id   | bigint                      |                          | YES
+ equipment_import_logs | id                    | integer                     |                          | NO
+ equipment_import_logs | uploaded_by           | integer                     |                          | YES
+ equipment_import_logs | file_name             | character varying           |                      255 | NO
+ equipment_import_logs | total_rows            | integer                     |                          | NO
+ equipment_import_logs | valid_rows            | integer                     |                          | NO
+ equipment_import_logs | error_rows            | integer                     |                          | NO
+ equipment_import_logs | status                | character varying           |                       32 | NO
+ equipment_import_logs | payload_json          | text                        |                          | YES
+ equipment_import_logs | created_at            | timestamp without time zone |                          | NO
+ equipment_links       | id                    | integer                     |                          | NO
+ equipment_links       | parent_equipment_id   | integer                     |                          | NO
+ equipment_links       | child_equipment_id    | integer                     |                          | NO
+ equipment_links       | link_type             | character varying           |                       32 | NO
+ equipment_links       | created_by            | integer                     |                          | YES
+ equipment_links       | created_at            | timestamp without time zone |                          | NO
+ equipment_links       | updated_at            | timestamp without time zone |                          | YES
+ equipment_software    | id                    | bigint                      |                          | NO
+ equipment_software    | equipment_id          | bigint                      |                          | NO
+ equipment_software    | software_id           | bigint                      |                          | NO
+ equipment_software    | installed_at          | date                        |                          | YES
+ equipment_software    | created_at            | timestamp without time zone |                          | YES
+ equipment_types       | id                    | integer                     |                          | NO
+ equipment_types       | name                  | character varying           |                          | YES
+ import_errors         | id                    | bigint                      |                          | NO
+ import_errors         | import_run_id         | bigint                      |                          | NO
+ import_errors         | row_number            | integer                     |                          | YES
+ import_errors         | error_code            | character varying           |                       50 | YES
+ import_errors         | error_message         | text                        |                          | NO
+ import_errors         | raw_payload           | jsonb                       |                          | YES
+ import_errors         | created_at            | timestamp with time zone    |                          | NO
+ import_runs           | id                    | bigint                      |                          | NO
+ import_runs           | source_type           | character varying           |                       30 | NO
+ import_runs           | source_name           | character varying           |                      255 | YES
+ import_runs           | started_at            | timestamp with time zone    |                          | NO
+ import_runs           | finished_at           | timestamp with time zone    |                          | YES
+ import_runs           | total_rows            | integer                     |                          | NO
+ import_runs           | success_rows          | integer                     |                          | NO
+ import_runs           | error_rows            | integer                     |                          | NO
+ import_runs           | run_status            | character varying           |                       20 | NO
+ import_runs           | initiated_by          | bigint                      |                          | YES
+ import_runs           | details               | jsonb                       |                          | YES
+ licenses              | id                    | bigint                      |                          | NO
+ licenses              | software_id           | bigint                      |                          | NO
+ licenses              | valid_until           | date                        |                          | YES
+ licenses              | notes                 | text                        |                          | YES
+ licenses              | created_at            | timestamp without time zone |                          | YES
+ locations             | id                    | bigint                      |                          | NO
+ locations             | location_code         | character varying           |                       50 | YES
+ locations             | name                  | character varying           |                      150 | NO
+ locations             | location_type         | character varying           |                       50 | NO
+ locations             | floor                 | integer                     |                          | YES
+ locations             | description           | text                        |                          | YES
+ locations             | is_archived           | boolean                     |                          | NO
+ locations             | created_by_id         | bigint                      |                          | YES
+ locations             | updated_by_id         | bigint                      |                          | YES
+ locations             | created_at            | timestamp with time zone    |                          | NO
+ locations             | updated_at            | timestamp with time zone    |                          | NO
+ migration             | version               | character varying           |                      180 | NO
+ migration             | apply_time            | integer                     |                          | YES
+ nsi_change_log        | id                    | bigint                      |                          | NO
+ nsi_change_log        | dictionary_name       | character varying           |                      100 | NO
+ nsi_change_log        | record_id             | bigint                      |                          | NO
+ nsi_change_log        | operation_type        | character varying           |                       20 | NO
+ nsi_change_log        | old_value             | jsonb                       |                          | YES
+ nsi_change_log        | new_value             | jsonb                       |                          | YES
+ nsi_change_log        | changed_by            | bigint                      |                          | YES
+ nsi_change_log        | changed_at            | timestamp with time zone    |                          | NO
+ part_char_values      | id                    | bigint                      |                          | NO
+ part_char_values      | equipment_id          | bigint                      |                          | NO
+ part_char_values      | part_id               | bigint                      |                          | NO
+ part_char_values      | char_id               | bigint                      |                          | NO
+ part_char_values      | value_text            | text                        |                          | YES
+ part_char_values      | value_num             | numeric                     |                          | YES
+ part_char_values      | source                | character varying           |                       50 | YES
+ part_char_values      | updated_by            | bigint                      |                          | YES
+ part_char_values      | updated_at            | timestamp with time zone    |                          | NO
+ permissions           | id                    | bigint                      |                          | NO
+ permissions           | perm_code             | character varying           |                      100 | NO
+ permissions           | perm_name             | character varying           |                      200 | NO
+ permissions           | description           | text                        |                          | YES
+ permissions           | created_at            | timestamp with time zone    |                          | NO
+ role_permissions      | id                    | bigint                      |                          | NO
+ role_permissions      | role_id               | bigint                      |                          | NO
+ role_permissions      | permission_id         | bigint                      |                          | NO
+ role_permissions      | granted_by            | bigint                      |                          | YES
+ role_permissions      | granted_at            | timestamp with time zone    |                          | NO
+ roles                 | id                    | bigint                      |                          | NO
+ roles                 | role_code             | character varying           |                       50 | NO
+ roles                 | role_name             | character varying           |                      150 | NO
+ roles                 | description           | text                        |                          | YES
+ roles                 | is_system             | boolean                     |                          | NO
+ roles                 | is_archived           | boolean                     |                          | NO
+ roles                 | created_at            | timestamp with time zone    |                          | NO
+ roles                 | updated_at            | timestamp with time zone    |                          | NO
+ software              | id                    | bigint                      |                          | NO
+ software              | name                  | character varying           |                      200 | NO
+ software              | version               | character varying           |                      100 | YES
+ software              | created_at            | timestamp without time zone |                          | YES
+ spr_chars             | id                    | bigint                      |                          | NO
+ spr_chars             | name                  | character varying           |                      100 | NO
+ spr_chars             | description           | text                        |                          | YES
+ spr_chars             | measurement_unit      | character varying           |                       50 | YES
+ spr_chars             | is_archived           | boolean                     |                          | NO
+ spr_chars             | created_at            | timestamp with time zone    |                          | NO
+ spr_chars             | updated_at            | timestamp with time zone    |                          | NO
+ spr_parts             | id                    | bigint                      |                          | NO
+ spr_parts             | name                  | character varying           |                      100 | NO
+ spr_parts             | description           | text                        |                          | YES
+ spr_parts             | is_archived           | boolean                     |                          | NO
+ spr_parts             | created_at            | timestamp with time zone    |                          | NO
+ spr_parts             | updated_at            | timestamp with time zone    |                          | NO
+ task_attachments      | id                    | bigint                      |                          | NO
+ task_attachments      | task_id               | bigint                      |                          | NO
+ task_attachments      | attachment_id         | bigint                      |                          | NO
+ task_attachments      | linked_by             | bigint                      |                          | YES
+ task_attachments      | linked_at             | timestamp with time zone    |                          | NO
+ task_equipment        | id                    | bigint                      |                          | NO
+ task_equipment        | task_id               | bigint                      |                          | NO
+ task_equipment        | equipment_id          | bigint                      |                          | NO
+ task_equipment        | relation_type         | character varying           |                       30 | NO
+ task_equipment        | is_primary            | boolean                     |                          | NO
+ task_equipment        | linked_by             | bigint                      |                          | YES
+ task_equipment        | linked_at             | timestamp with time zone    |                          | NO
+ task_history          | id                    | bigint                      |                          | NO
+ task_history          | task_id               | bigint                      |                          | NO
+ task_history          | field_name            | character varying           |                      100 | NO
+ task_history          | old_value             | text                        |                          | YES
+ task_history          | new_value             | text                        |                          | YES
+ task_history          | changed_by            | bigint                      |                          | YES
+ task_history          | changed_at            | timestamp with time zone    |                          | NO
+ task_history          | comment               | text                        |                          | YES
+ tasks                 | id                    | bigint                      |                          | NO
+ tasks                 | task_number           | character varying           |                       50 | YES
+ tasks                 | title                 | character varying           |                      250 | YES
+ tasks                 | description           | text                        |                          | NO
+ tasks                 | status_id             | bigint                      |                          | NO
+ tasks                 | requester_id          | bigint                      |                          | NO
+ tasks                 | executor_id           | bigint                      |                          | YES
+ tasks                 | priority              | character varying           |                       20 | NO
+ tasks                 | due_at                | timestamp with time zone    |                          | YES
+ tasks                 | closed_at             | timestamp with time zone    |                          | YES
+ tasks                 | comment               | text                        |                          | YES
+ tasks                 | attachments_legacy    | jsonb                       |                          | YES
+ tasks                 | is_deleted            | boolean                     |                          | NO
+ tasks                 | deleted_at            | timestamp with time zone    |                          | YES
+ tasks                 | deleted_by            | bigint                      |                          | YES
+ tasks                 | delete_reason         | text                        |                          | YES
+ tasks                 | created_at            | timestamp with time zone    |                          | NO
+ tasks                 | updated_at            | timestamp with time zone    |                          | NO
+ tasks                 | contact_phone         | character varying           |                       50 | YES
+ user_equipment_cards  | id                    | integer                     |                          | NO
+ user_equipment_cards  | user_id               | integer                     |                          | NO
+ user_equipment_cards  | is_signed             | boolean                     |                          | NO
+ user_equipment_cards  | signed_at             | timestamp without time zone |                          | YES
+ user_equipment_cards  | signed_by_admin_id    | integer                     |                          | YES
+ user_equipment_cards  | version_no            | integer                     |                          | NO
+ user_equipment_cards  | last_snapshot_hash    | character varying           |                       64 | YES
+ user_equipment_cards  | created_at            | timestamp without time zone |                          | NO
+ user_equipment_cards  | updated_at            | timestamp without time zone |                          | YES
+ user_roles            | id                    | bigint                      |                          | NO
+ user_roles            | user_id               | bigint                      |                          | NO
+ user_roles            | role_id               | bigint                      |                          | NO
+ user_roles            | assigned_by           | bigint                      |                          | YES
+ user_roles            | assigned_at           | timestamp with time zone    |                          | NO
+ user_roles            | revoked_at            | timestamp with time zone    |                          | YES
+ user_roles            | is_active             | boolean                     |                          | NO
+ users                 | id                    | bigint                      |                          | NO
+ users                 | username              | character varying           |                      100 | YES
+ users                 | full_name             | character varying           |                      200 | NO
+ users                 | position              | character varying           |                      100 | YES
+ users                 | department            | character varying           |                      100 | YES
+ users                 | email                 | character varying           |                      150 | YES
+ users                 | phone                 | character varying           |                       50 | YES
+ users                 | password_hash         | character varying           |                      255 | YES
+ users                 | is_active             | boolean                     |                          | NO
+ users                 | is_locked             | boolean                     |                          | NO
+ users                 | failed_login_attempts | integer                     |                          | NO
+ users                 | lock_until            | timestamp with time zone    |                          | YES
+ users                 | password_changed_at   | timestamp with time zone    |                          | YES
+ users                 | last_login_at         | timestamp with time zone    |                          | YES
+ users                 | created_by_id         | bigint                      |                          | YES
+ users                 | updated_by_id         | bigint                      |                          | YES
+ users                 | created_at            | timestamp with time zone    |                          | NO
+ users                 | updated_at            | timestamp with time zone    |                          | NO
+ users                 | is_deleted            | boolean                     |                          | NO
+ work_task_comments    | id                    | bigint                      |                          | NO
+ work_task_comments    | work_task_id          | bigint                      |                          | NO
+ work_task_comments    | author_id             | bigint                      |                          | NO
+ work_task_comments    | body                  | text                        |                          | NO
+ work_task_comments    | created_at            | timestamp without time zone |                          | NO
+ work_task_history     | id                    | bigint                      |                          | NO
+ work_task_history     | work_task_id          | bigint                      |                          | NO
+ work_task_history     | event_type            | character varying           |                       50 | NO
+ work_task_history     | old_status_id         | bigint                      |                          | YES
+ work_task_history     | new_status_id         | bigint                      |                          | YES
+ work_task_history     | comment               | text                        |                          | YES
+ work_task_history     | changed_by            | bigint                      |                          | YES
+ work_task_history     | changed_at            | timestamp without time zone |                          | NO
+ work_tasks            | id                    | bigint                      |                          | NO
+ work_tasks            | title                 | character varying           |                      250 | NO
+ work_tasks            | description           | text                        |                          | NO
+ work_tasks            | status_id             | bigint                      |                          | NO
+ work_tasks            | request_task_id       | bigint                      |                          | YES
+ work_tasks            | creator_id            | bigint                      |                          | NO
+ work_tasks            | executor_id           | bigint                      |                          | YES
+ work_tasks            | priority              | character varying           |                       20 | NO
+ work_tasks            | submitted_at          | timestamp without time zone |                          | YES
+ work_tasks            | confirmed_at          | timestamp without time zone |                          | YES
+ work_tasks            | confirmed_by          | bigint                      |                          | YES
+ work_tasks            | is_deleted            | boolean                     |                          | NO
+ work_tasks            | created_at            | timestamp without time zone |                          | NO
+ work_tasks            | updated_at            | timestamp without time zone |                          | NO
+ work_tasks            | status_changed_at     | timestamp without time zone |                          | NO
+(294 строки)
+
+        sequence_name         
+------------------------------
+ audit_events_id_seq
+ desk_attachments_id_seq
+ dic_equipment_status_id_seq
+ dic_task_status_id_seq
+ dic_work_task_status_id_seq
+ equip_history_id_seq
+ equipment_id_seq
+ equipment_import_logs_id_seq
+ equipment_links_id_seq
+ equipment_software_id_seq
+ equipment_types_id_seq
+ import_errors_id_seq
+ import_runs_id_seq
+ licenses_id_seq
+ locations_id_seq
+ nsi_change_log_id_seq
+ part_char_values_id_seq
+ permissions_id_seq
+ role_permissions_id_seq
+ roles_id_seq
+ software_id_seq
+ spr_chars_id_seq
+ spr_parts_id_seq
+ task_attachments_id_seq
+ task_equipment_id_seq
+ task_history_id_seq
+ tasks_id_seq
+ user_equipment_cards_id_seq
+ user_roles_id_seq
+ users_id_seq
+ work_task_comments_id_seq
+ work_task_history_id_seq
+ work_tasks_id_seq
+(33 строки)
+
+      table_name      |              trigger_name               | action_timing | event_manipulation 
+----------------------+-----------------------------------------+---------------+--------------------
+ audit_events         | trg_audit_events_immutable              | BEFORE        | DELETE
+ audit_events         | trg_audit_events_immutable              | BEFORE        | UPDATE
+ dic_equipment_status | trg_dic_equipment_status_set_updated_at | BEFORE        | UPDATE
+ dic_task_status      | trg_dic_task_status_set_updated_at      | BEFORE        | UPDATE
+ equipment            | trg_equipment_set_updated_at            | BEFORE        | UPDATE
+ locations            | trg_locations_set_updated_at            | BEFORE        | UPDATE
+ roles                | trg_roles_set_updated_at                | BEFORE        | UPDATE
+ spr_chars            | trg_spr_chars_set_updated_at            | BEFORE        | UPDATE
+ spr_parts            | trg_spr_parts_set_updated_at            | BEFORE        | UPDATE
+ tasks                | trg_tasks_set_updated_at                | BEFORE        | UPDATE
+ users                | trg_users_set_updated_at                | BEFORE        | UPDATE
+(11 строк)
+
