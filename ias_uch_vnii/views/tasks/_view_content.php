@@ -301,6 +301,19 @@ $isAdmin = !Yii::$app->user->isGuest
                 'value' => nl2br(Html::encode($model->description)),
             ],
             [
+                'attribute' => 'request_category',
+                'label' => 'Категория заявки',
+                'value' => static function ($model) {
+                    $labels = \app\models\entities\Tasks::requestCategoryLabels();
+                    $code = trim((string) ($model->request_category ?? ''));
+                    if ($code === '') {
+                        return $labels[\app\models\entities\Tasks::CATEGORY_GENERAL] ?? 'Общая заявка';
+                    }
+
+                    return $labels[$code] ?? $code;
+                },
+            ],
+            [
                 'attribute' => 'contact_phone',
                 'label' => 'Телефон для обратной связи',
                 'format' => 'raw',

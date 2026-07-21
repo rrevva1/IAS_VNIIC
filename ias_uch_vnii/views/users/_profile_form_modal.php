@@ -51,15 +51,34 @@ use yii\widgets\ActiveForm;
             <span>Внутренний телефон</span>
         </label>
         <div class="profile-edit-form__field">
-            <?= $form->field($model, 'phone', ['options' => ['class' => 'mb-0']])->textInput([
-                'id' => 'profile-phone',
+            <?= $this->render('//partials/_internal_phone_field', [
+                'form' => $form,
+                'model' => $model,
+                'attribute' => 'phone',
+                'inputId' => 'profile-phone',
+                'cssClass' => 'form-select profile-edit-form__input',
+                'excludeUserId' => (int) $model->id,
+                'excludeDirectoryId' => null,
+                'showHint' => true,
+            ]) ?>
+        </div>
+
+        <label class="profile-edit-form__label mt-3" for="profile-room">
+            <i class="fas fa-door-open" aria-hidden="true"></i>
+            <span>Кабинет</span>
+        </label>
+        <div class="profile-edit-form__field">
+            <?= $form->field($model, 'room', ['options' => ['class' => 'mb-0']])->textInput([
+                'id' => 'profile-room',
                 'class' => 'form-control profile-edit-form__input',
-                'type' => 'tel',
                 'maxlength' => true,
-                'placeholder' => 'Например, 1234',
-                'autocomplete' => 'tel-extension',
+                'placeholder' => 'Например, 215',
+                'autocomplete' => 'off',
             ])->label(false) ?>
         </div>
+        <p class="profile-edit-form__readonly-hint mt-2 mb-0">
+            Номер и кабинет отображаются в телефонном справочнике.
+        </p>
     </section>
 
     <section class="profile-edit-form__block profile-edit-form__block--password" aria-label="Смена пароля">

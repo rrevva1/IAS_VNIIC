@@ -20,6 +20,7 @@ class UsersAsset extends AssetBundle
     public $js = [
         'js/users/index.js',
         'js/users/profile-edit-modal.js',
+        'js/internal-phone-select.js',
     ];
     
     public $depends = [

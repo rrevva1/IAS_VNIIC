@@ -263,6 +263,10 @@ $renderEquipmentList = static function () use ($equipment, $canOpenArm): string 
                             <dd class="profile-dl__value" data-profile-phone-value><?= Html::encode($model->phone ?: 'Не указан') ?></dd>
                         </div>
                         <div class="profile-dl__row">
+                            <dt class="profile-dl__label">Кабинет</dt>
+                            <dd class="profile-dl__value"><?= Html::encode(($model->hasAttribute('room') && $model->room) ? $model->room : 'Не указан') ?></dd>
+                        </div>
+                        <div class="profile-dl__row">
                             <dt class="profile-dl__label">Логин</dt>
                             <dd class="profile-dl__value"><?= Html::encode($model->username ?: 'Не указан') ?></dd>
                         </div>

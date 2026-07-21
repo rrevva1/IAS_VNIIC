@@ -187,7 +187,10 @@ $showAdminSection = $isAdmin;
 
             <?= $renderSection('Справка') ?>
             <li class="sidebar-nav__item">
-                <?= $renderLink('fas fa-envelope', 'Контакты', ['/site/contact'], ['site/contact']) ?>
+                <?= $renderLink('fas fa-address-book', 'Телефонный справочник', ['/phone-directory/index'], ['phone-directory']) ?>
+            </li>
+            <li class="sidebar-nav__item">
+                <?= $renderLink('fas fa-envelope', 'Служба поддержки', ['/site/contact'], ['site/contact']) ?>
             </li>
         </ul>
     </div>

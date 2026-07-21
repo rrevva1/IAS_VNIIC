@@ -253,6 +253,9 @@
                 $body.find('script').remove();
                 bindFormSubmitDelegation();
                 bindPasswordStrength();
+                if (typeof window.initInternalPhoneSelects === 'function') {
+                    window.initInternalPhoneSelects($body[0]);
+                }
             })
             .fail(function() {
                 window.jQuery('#profileEditModalBody').html(

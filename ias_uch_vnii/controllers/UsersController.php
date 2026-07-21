@@ -315,10 +315,16 @@ class UsersController extends Controller
             }
 
             if ($model->save()) {
+                AuditLog::log('user.profile_update', 'user', $model->id, 'success', [
+                    'phone' => $model->phone,
+                    'room' => $model->hasAttribute('room') ? $model->room : null,
+                ]);
+
                 return [
                     'success' => true,
                     'message' => 'Профиль успешно обновлён.',
                     'phone' => $model->phone,
+                    'room' => $model->hasAttribute('room') ? $model->room : null,
                 ];
             }
 

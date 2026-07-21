@@ -1,0 +1,98 @@
+/**
+ * Стили страницы «Телефонный справочник» (высота грида как у «Пользователи»).
+ */
+
+.phone-directory-page__meta {
+    margin: 0.35rem 0 0;
+    color: var(--users-text-muted, #64748b);
+    font-size: 0.8125rem;
+}
+
+.phone-directory-tel {
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.phone-directory-tel:hover {
+    text-decoration: underline;
+}
+
+.phone-directory-copy {
+    padding: 0 0.25rem;
+    vertical-align: baseline;
+    line-height: 1;
+}
+
+.phone-directory-form-wrap .form-label {
+    font-weight: 600;
+}
+
+/* === AG Grid: те же правила высоты, что у #agGridUsersContainer === */
+
+.users-page #agGridPhoneDirectoryContainer {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+#agGridPhoneDirectoryContainer.ag-theme-quartz .ag-root-wrapper {
+    height: 100%;
+    min-height: 0;
+}
+
+#agGridPhoneDirectoryContainer.ag-theme-quartz .ag-root-wrapper-body {
+    height: 100%;
+    min-height: 0;
+}
+
+#agGridPhoneDirectoryContainer.ag-theme-quartz .ag-root {
+    height: 100%;
+    min-height: 0;
+}
+
+#agGridPhoneDirectoryContainer.ag-theme-quartz .ag-body {
+    min-height: 0;
+}
+
+#agGridPhoneDirectoryContainer.ag-theme-quartz .ag-body-viewport.ag-layout-normal {
+    min-height: 0;
+}
+
+#agGridPhoneDirectoryContainer:not(.users-grid-loading) .users-grid-loading__inner {
+    display: none;
+}
+
+#agGridPhoneDirectoryContainer.users-grid-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.users-page #agGridPhoneDirectoryContainer.ag-theme-quartz {
+    --ag-font-size: var(--users-font-base, 0.75rem);
+    --ag-header-font-size: var(--users-font-base, 0.75rem);
+}
+
+.users-page #agGridPhoneDirectoryContainer .ag-header-cell-text {
+    font-weight: 600;
+}
+
+.users-page #agGridPhoneDirectoryContainer .ag-overlay-no-rows-center {
+    font-size: var(--users-font-base, 0.75rem);
+}
+
+#agGridPhoneDirectoryContainer .ag-actions {
+    display: inline-flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+#agGridPhoneDirectoryContainer .ag-actions .btn {
+    padding: 0.15rem 0.4rem;
+    line-height: 1.2;
+}
+
+#agGridPhoneDirectoryContainer .ag-actions .btn i {
+    font-size: 0.75rem;
+}

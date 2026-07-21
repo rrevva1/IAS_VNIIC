@@ -23,6 +23,24 @@ $canEditExecutorComment = !empty($canEditExecutorComment);
     ]); ?>
 
     <div class="tasks-create-form__section">
+        <label class="tasks-create-form__label" for="tasks-request_category">
+            <i class="fas fa-tags" aria-hidden="true"></i>
+            Категория заявки
+        </label>
+        <?= $form->field($model, 'request_category', ['options' => ['class' => 'mb-0']])->dropDownList(
+            [
+                '' => 'Общая заявка',
+                \app\models\entities\Tasks::CATEGORY_PHONE_DIRECTORY_UPDATE => 'Актуализация телефонного справочника',
+            ],
+            [
+                'id' => 'tasks-request_category',
+                'class' => 'form-select',
+            ]
+        )->label(false) ?>
+        <p class="tasks-create-form__hint">Выберите «Актуализация телефонного справочника», если нужно исправить номер или данные сотрудника</p>
+    </div>
+
+    <div class="tasks-create-form__section">
         <label class="tasks-create-form__label" for="tasks-description">
             <i class="fas fa-align-left" aria-hidden="true"></i>
             Описание <span class="text-danger">*</span>
@@ -49,7 +67,7 @@ $canEditExecutorComment = !empty($canEditExecutorComment);
             'placeholder' => '+7 (999) 123-45-67',
             'autocomplete' => 'tel',
         ])->label(false) ?>
-        <p class="tasks-create-form__hint">Укажите номер, если удобнее связаться по телефону</p>
+        <p class="tasks-create-form__hint">Номер для связи по заявке (можно городской или мобильный). Внутренний номер справочника задаётся в профиле.</p>
     </div>
 
     <div class="tasks-create-form__section">

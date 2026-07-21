@@ -41,7 +41,8 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
             [['full_name'], 'required'],
             [['username'], 'string', 'max' => 100],
             [['position', 'department'], 'string', 'max' => 100],
-            [['phone'], 'string', 'max' => 50],
+            [['phone', 'room'], 'string', 'max' => 50],
+            [['phone'], 'validateInternalPhone'],
             [['email'], 'string', 'max' => 150],
             [['full_name'], 'string', 'max' => 200],
             [['username'], 'unique'],
@@ -73,7 +74,23 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
             'position' => 'Должность',
             'department' => 'Отдел',
             'phone' => 'Внутренний телефон',
+            'room' => 'Кабинет',
         ];
+    }
+
+    /**
+     * Поддержка поля room до и после миграции.
+     *
+     * @return string[]
+     */
+    public function attributes()
+    {
+        $parent = parent::attributes();
+        if (!in_array('room', $parent, true)) {
+            $parent[] = 'room';
+        }
+
+        return $parent;
     }
 
     /**
@@ -125,6 +142,14 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
         if ($password !== $confirm) {
             $this->addError($attribute, 'Пароли не совпадают.');
         }
+    }
+
+    /**
+     * Внутренний номер: формат X-XX, серии 4–8 (или пусто).
+     */
+    public function validateInternalPhone(string $attribute): void
+    {
+        \app\components\InternalPhoneHelper::validateAttribute($this, $attribute);
     }
 
     public function getRole()
@@ -287,9 +312,9 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
     public function scenarios()
     {
         $s = parent::scenarios();
-        $s['create'] = ['full_name', 'username', 'email', 'password_plain', 'role_id', 'position', 'department', 'phone'];
-        $s['update'] = ['full_name', 'username', 'email', 'password_plain', 'role_id', 'position', 'department', 'phone'];
-        $s['ownProfile'] = ['phone', 'password_plain', 'password_confirm'];
+        $s['create'] = ['full_name', 'username', 'email', 'password_plain', 'role_id', 'position', 'department', 'phone', 'room'];
+        $s['update'] = ['full_name', 'username', 'email', 'password_plain', 'role_id', 'position', 'department', 'phone', 'room'];
+        $s['ownProfile'] = ['phone', 'room', 'password_plain', 'password_confirm'];
         return $s;
     }
 
@@ -310,6 +335,24 @@ class Users extends \yii\db\ActiveRecord implements IdentityInterface
         parent::afterSave($insert, $changedAttributes);
         if ($this->role_id !== null && $this->role_id !== '') {
             $this->assignRole((int) $this->role_id);
+        }
+
+        $syncKeys = ['full_name', 'position', 'department', 'phone', 'room', 'is_active', 'is_deleted'];
+        $needSync = $insert;
+        if (!$needSync) {
+            foreach ($syncKeys as $key) {
+                if (array_key_exists($key, $changedAttributes)) {
+                    $needSync = true;
+                    break;
+                }
+            }
+        }
+        if ($needSync) {
+            try {
+                PhoneDirectory::syncFromUser($this);
+            } catch (\Throwable $e) {
+                Yii::warning('Users::afterSave phone directory sync: ' . $e->getMessage(), __METHOD__);
+            }
         }
     }
 

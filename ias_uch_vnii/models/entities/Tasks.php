@@ -24,6 +24,7 @@ use yii\web\UploadedFile;
  * @property string|null $comment
  * @property string|null $contact_phone
  * @property string|null $room_number
+ * @property string|null $request_category
  * @property string|null $created_at
  * @property string|null $updated_at
  *
@@ -36,6 +37,9 @@ use yii\web\UploadedFile;
  */
 class Tasks extends ActiveRecord
 {
+    public const CATEGORY_PHONE_DIRECTORY_UPDATE = 'phone_directory_update';
+    public const CATEGORY_GENERAL = 'general';
+
     public $uploadFiles;
     /** @var array ID выбранных активов (для формы) */
     public $equipment_ids = [];
@@ -59,8 +63,22 @@ class Tasks extends ActiveRecord
         if (!in_array('room_number', $parent, true)) {
             $parent[] = 'room_number';
         }
+        if (!in_array('request_category', $parent, true)) {
+            $parent[] = 'request_category';
+        }
 
         return $parent;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function requestCategoryLabels(): array
+    {
+        return [
+            self::CATEGORY_GENERAL => 'Общая заявка',
+            self::CATEGORY_PHONE_DIRECTORY_UPDATE => 'Актуализация телефонного справочника',
+        ];
     }
 
     public function behaviors()
@@ -84,8 +102,14 @@ class Tasks extends ActiveRecord
             [['title'], 'string', 'max' => 250],
             [['task_number'], 'string', 'max' => 50],
             [['contact_phone', 'room_number'], 'string', 'max' => 50],
-            [['contact_phone', 'room_number'], 'trim'],
-            [['contact_phone', 'room_number'], 'default', 'value' => null],
+            [['request_category'], 'string', 'max' => 50],
+            [['contact_phone', 'room_number', 'request_category'], 'trim'],
+            [['contact_phone', 'room_number', 'request_category'], 'default', 'value' => null],
+            [['request_category'], 'in', 'range' => array_keys(self::requestCategoryLabels()), 'skipOnEmpty' => true],
+            [['request_category'], 'filter', 'filter' => static function ($value) {
+                $value = is_string($value) ? trim($value) : $value;
+                return $value === '' ? null : $value;
+            }],
             [['priority'], 'in', 'range' => ['low', 'medium', 'high', 'critical']],
             [['due_at', 'closed_at', 'created_at', 'updated_at'], 'safe'],
             [['status_id'], 'exist', 'targetClass' => DicTaskStatus::class, 'targetAttribute' => ['status_id' => 'id']],
@@ -112,6 +136,7 @@ class Tasks extends ActiveRecord
             'comment' => 'Комментарий исполнителя',
             'contact_phone' => 'Телефон для обратной связи',
             'room_number' => 'Номер помещения',
+            'request_category' => 'Категория заявки',
             'created_at' => 'Дата создания',
             'updated_at' => 'Обновлено',
             'uploadFiles' => 'Файлы',

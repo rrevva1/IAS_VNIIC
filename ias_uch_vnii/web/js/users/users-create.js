@@ -242,6 +242,9 @@
                 $body.html(html);
                 $body.find('script').remove();
                 bindFormSubmitDelegation();
+                if (typeof window.initInternalPhoneSelects === 'function') {
+                    window.initInternalPhoneSelects($body[0]);
+                }
             })
             .fail(function() {
                 window.jQuery('#userFormModalBody').html(

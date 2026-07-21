@@ -5,9 +5,9 @@ namespace app\assets;
 use yii\web\AssetBundle;
 
 /**
- * Asset для страницы «Пользователи» (AG Grid, стиль как Учёт ТС).
+ * Asset страницы «Телефонный справочник».
  */
-class UsersGridAsset extends AssetBundle
+class PhoneDirectoryAsset extends AssetBundle
 {
     public $basePath = '@webroot';
     public $baseUrl = '@web';
@@ -17,7 +17,7 @@ class UsersGridAsset extends AssetBundle
         'css/ag-grid-filter.css',
         'css/tasks/ag-grid.css',
         'css/users/page.css',
-        'css/users/profile.css',
+        'css/phone-directory/page.css',
     ];
 
     public $js = [
@@ -25,10 +25,9 @@ class UsersGridAsset extends AssetBundle
         'js/ag-grid-wrap-utils.js',
         'js/ag-grid-filter-config.js',
         'js/ag-grid-theme-config.js',
-        'js/users/page-ui.js',
-        'js/users/users-view.js',
-        'js/users/users-create.js',
-        'js/users/ag-grid.js',
+        'js/phone-directory/page-ui.js',
+        'js/phone-directory/ag-grid.js',
+        'js/phone-directory/form-modal.js',
         'js/internal-phone-select.js',
     ];
 

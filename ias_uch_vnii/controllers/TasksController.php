@@ -235,12 +235,35 @@ class TasksController extends Controller
             $model->loadDefaultValues();
             $this->prefillTaskContactPhone($model);
             $this->prefillTaskRoomNumber($model);
+            $this->prefillTaskRequestCategory($model);
         }
 
         return $this->render('create', [
             'model' => $model,
             'equipmentList' => $this->getEquipmentList(),
         ]);
+    }
+
+    /**
+     * Подставляет категорию заявки из query-параметра (например, из справочника).
+     */
+    private function prefillTaskRequestCategory(Tasks $model): void
+    {
+        if (!empty($model->request_category)) {
+            return;
+        }
+        $category = trim((string) Yii::$app->request->get('request_category', ''));
+        $allowed = array_keys(Tasks::requestCategoryLabels());
+        if ($category !== '' && in_array($category, $allowed, true)) {
+            $model->request_category = $category;
+            if ($category === Tasks::CATEGORY_PHONE_DIRECTORY_UPDATE && empty($model->description)) {
+                $model->description = "Прошу актуализировать данные в телефонном справочнике.\n\n"
+                    . "ФИО / служба:\n"
+                    . "Текущий номер (если известен):\n"
+                    . "Правильный номер / исправление:\n"
+                    . "Кабинет (если нужно):\n";
+            }
+        }
     }
 
     private function getEquipmentList(): array
@@ -393,6 +416,7 @@ class TasksController extends Controller
             $model->loadDefaultValues();
             $this->prefillTaskContactPhone($model);
             $this->prefillTaskRoomNumber($model);
+            $this->prefillTaskRequestCategory($model);
         }
 
         return $this->renderAjax('_form', [
@@ -1226,6 +1250,10 @@ class TasksController extends Controller
                 'date' => $model->created_at ? Yii::$app->formatter->asDatetime($model->created_at, 'php:d.m.Y H:i') : '',
                 'last_time_update' => $model->updated_at ? Yii::$app->formatter->asDatetime($model->updated_at, 'php:d.m.Y H:i') : '',
                 'comment' => $model->comment,
+                'request_category' => $model->request_category,
+                'request_category_label' => ($model->request_category && isset(Tasks::requestCategoryLabels()[$model->request_category]))
+                    ? Tasks::requestCategoryLabels()[$model->request_category]
+                    : (Tasks::requestCategoryLabels()[Tasks::CATEGORY_GENERAL] ?? 'Общая заявка'),
                 'attachments' => array_map(function ($attachment) {
                     return [
                         'id' => $attachment->id,

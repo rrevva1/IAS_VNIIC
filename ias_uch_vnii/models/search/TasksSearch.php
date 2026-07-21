@@ -24,7 +24,7 @@ class TasksSearch extends Tasks
     {
         return [
             [['id', 'status_id', 'requester_id', 'executor_id'], 'integer'],
-            [['description', 'comment', 'created_at', 'updated_at', 'status_code'], 'safe'],
+            [['description', 'comment', 'created_at', 'updated_at', 'status_code', 'request_category'], 'safe'],
             [['date_from', 'date_to'], 'date', 'format' => 'yyyy-MM-dd'],
             [['user_name', 'executor_name'], 'string'],
         ];
@@ -91,7 +91,8 @@ class TasksSearch extends Tasks
         ]);
 
         $query->andFilterWhere(['like', 'tasks.description', $this->description])
-            ->andFilterWhere(['like', 'tasks.comment', $this->comment]);
+            ->andFilterWhere(['like', 'tasks.comment', $this->comment])
+            ->andFilterWhere(['tasks.request_category' => $this->request_category]);
 
         if ($this->date_from) {
             $query->andWhere(['>=', 'tasks.created_at', $this->date_from . ' 00:00:00']);

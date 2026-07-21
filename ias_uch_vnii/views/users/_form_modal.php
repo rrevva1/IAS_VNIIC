@@ -72,15 +72,32 @@ $passwordRequired = !$isUpdate;
                     <i class="fas fa-phone" aria-hidden="true"></i>
                     Внутренний телефон
                 </label>
-                <?= $form->field($model, 'phone', ['options' => ['class' => 'mb-0']])->textInput([
-                    'id' => 'users-phone',
+                <?= $this->render('//partials/_internal_phone_field', [
+                    'form' => $form,
+                    'model' => $model,
+                    'attribute' => 'phone',
+                    'inputId' => 'users-phone',
+                    'cssClass' => 'form-select',
+                    'excludeUserId' => $model->isNewRecord ? null : (int) $model->id,
+                    'excludeDirectoryId' => null,
+                    'showHint' => true,
+                ]) ?>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="users-create-form__section mb-0">
+                <label class="users-create-form__label" for="users-room">
+                    <i class="fas fa-door-open" aria-hidden="true"></i>
+                    Кабинет
+                </label>
+                <?= $form->field($model, 'room', ['options' => ['class' => 'mb-0']])->textInput([
+                    'id' => 'users-room',
                     'class' => 'form-control',
-                    'type' => 'tel',
                     'maxlength' => true,
-                    'placeholder' => '+7 (999) 123-45-67',
-                    'autocomplete' => 'tel',
+                    'placeholder' => 'Например: 215',
+                    'autocomplete' => 'off',
                 ])->label(false) ?>
-                <p class="users-create-form__hint users-create-form__hint--placeholder" aria-hidden="true">&nbsp;</p>
+                <p class="users-create-form__hint">Отображается в телефонном справочнике</p>
             </div>
         </div>
     </div>
